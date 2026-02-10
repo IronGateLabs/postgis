@@ -102,6 +102,23 @@ lwcrs_family_from_pj(PJ *pj_crs)
 	return lwcrs_family_from_pj_type(pj_type);
 }
 
+LW_CRS_FAMILY
+lwsrid_get_crs_family(int32_t srid)
+{
+	char srid_str[64];
+	PJ *pj_crs;
+	LW_CRS_FAMILY family;
+
+	snprintf(srid_str, sizeof(srid_str), "EPSG:%d", srid);
+	pj_crs = proj_create(PJ_DEFAULT_CTX, srid_str);
+	if (!pj_crs)
+		return LW_CRS_UNKNOWN;
+
+	family = lwcrs_family_from_pj(pj_crs);
+	proj_destroy(pj_crs);
+	return family;
+}
+
 /** convert decimal degrees to radians */
 static void
 to_rad(POINT4D *pt)

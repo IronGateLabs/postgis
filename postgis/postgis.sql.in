@@ -3067,6 +3067,14 @@ CREATE OR REPLACE FUNCTION postgis_proj_compiled_version() RETURNS text
 	LANGUAGE 'c' IMMUTABLE
 	_COST_DEFAULT;
 
+-- Returns the CRS family name for a given SRID
+-- ('geographic', 'projected', 'geocentric', 'engineering', or 'unknown')
+CREATE OR REPLACE FUNCTION postgis_crs_family(srid integer)
+	RETURNS text
+	AS 'MODULE_PATHNAME', 'postgis_crs_family'
+	LANGUAGE 'c' IMMUTABLE STRICT PARALLEL SAFE
+	_COST_LOW;
+
 CREATE OR REPLACE FUNCTION postgis_wagyu_version() RETURNS text
 	AS 'MODULE_PATHNAME'
 	LANGUAGE 'c' IMMUTABLE

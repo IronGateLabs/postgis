@@ -436,8 +436,8 @@ srs_state_codes(const char* auth_name, struct srs_data *state)
 	* Only a subset of supported proj types actually
 	* show up in spatial_ref_sys
 	*/
-	#define ntypes 3
-	PJ_TYPE types[ntypes] = {PJ_TYPE_PROJECTED_CRS, PJ_TYPE_GEOGRAPHIC_CRS, PJ_TYPE_COMPOUND_CRS};
+	#define ntypes 4
+	PJ_TYPE types[ntypes] = {PJ_TYPE_PROJECTED_CRS, PJ_TYPE_GEOGRAPHIC_CRS, PJ_TYPE_COMPOUND_CRS, PJ_TYPE_GEOCENTRIC_CRS};
 	uint32_t j;
 
 	for (j = 0; j < ntypes; j++)
@@ -772,3 +772,24 @@ Datum postgis_srs_search(PG_FUNCTION_ARGS)
 }
 
 
+/**
+ * postgis_crs_family(srid integer) returns text
+ * Returns the CRS family name ('geographic', 'projected', 'geocentric',
+ * 'inertial', 'topocentric', 'engineering', or 'unknown') for a given SRID.
+ */
+Datum postgis_crs_family(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(postgis_crs_family);
+Datum postgis_crs_family(PG_FUNCTION_ARGS)
+{
+	int32_t srid = PG_GETARG_INT32(0);
+	LW_CRS_FAMILY family;
+	const char *name;
+
+	if (srid == SRID_DEFAULT || srid == SRID_UNKNOWN)
+		PG_RETURN_TEXT_P(cstring_to_text("unknown"));
+
+	postgis_initialize_cache();
+	family = srid_get_crs_family(srid);
+	name = lwcrs_family_name(family);
+	PG_RETURN_TEXT_P(cstring_to_text(name));
+}
