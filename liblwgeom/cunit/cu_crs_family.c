@@ -634,6 +634,121 @@ static void test_lwcrs_family_name_complete(void)
 }
 
 /***********************************************************************
+ * Additional Coverage Tests
+ */
+
+static void test_ecef_transform_empty_geom(void)
+{
+	/* Empty geometry through ECEF transform path */
+	LWGEOM *geom;
+
+	geom = lwgeom_from_wkt("POINT EMPTY", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+	geom->srid = 4326;
+
+	LWPROJ *to_ecef = lwproj_from_str("EPSG:4326", "EPSG:4978");
+	CU_ASSERT_PTR_NOT_NULL(to_ecef);
+	if (!to_ecef) { lwgeom_free(geom); return; }
+
+	/* Empty geometry should transform successfully (no points to convert) */
+	CU_ASSERT_EQUAL(lwgeom_transform(geom, to_ecef), LW_SUCCESS);
+
+	proj_destroy(to_ecef->pj);
+	lwfree(to_ecef);
+	lwgeom_free(geom);
+}
+
+static void test_lwproj_epoch_in_transform(void)
+{
+	/*
+	 * Test that the epoch field on LWPROJ is used in single-point transforms.
+	 * For a standard geographic->geographic transform, a non-zero epoch
+	 * should still produce valid results (epoch goes into PJ_COORD.t).
+	 */
+	LWGEOM *geom;
+	LWPOINT *pt;
+	POINT4D p;
+
+	geom = lwgeom_from_wkt("POINT Z (0 0 0)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	LWPROJ *lp = lwproj_from_str("EPSG:4326", "EPSG:4978");
+	CU_ASSERT_PTR_NOT_NULL(lp);
+	if (!lp) { lwgeom_free(geom); return; }
+
+	/* Set a custom epoch */
+	lp->epoch = 2024.5;
+	CU_ASSERT_DOUBLE_EQUAL(lp->epoch, 2024.5, 0.0);
+
+	/* Transform should still succeed */
+	CU_ASSERT_EQUAL(lwgeom_transform(geom, lp), LW_SUCCESS);
+
+	/* Verify we got valid ECEF coordinates */
+	pt = (LWPOINT *)geom;
+	getPoint4d_p(pt->point, 0, &p);
+	CU_ASSERT_DOUBLE_EQUAL(p.x, 6378137.0, 1.0);
+
+	proj_destroy(lp->pj);
+	lwfree(lp);
+	lwgeom_free(geom);
+}
+
+static void test_lwsrid_get_crs_family_eci_from_crs(void)
+{
+	/* Verify ECI SRIDs are detected by the CRS family lookup in lwgeom_transform.c */
+	CU_ASSERT_EQUAL(lwsrid_get_crs_family(SRID_ECI_ICRF), LW_CRS_INERTIAL);
+	CU_ASSERT_EQUAL(lwsrid_get_crs_family(SRID_ECI_J2000), LW_CRS_INERTIAL);
+	CU_ASSERT_EQUAL(lwsrid_get_crs_family(SRID_ECI_TEME), LW_CRS_INERTIAL);
+	/* Just outside the range should NOT be inertial */
+	CU_ASSERT(lwsrid_get_crs_family(900000) != LW_CRS_INERTIAL);
+	CU_ASSERT(lwsrid_get_crs_family(900100) != LW_CRS_INERTIAL);
+}
+
+static void test_lwproj_from_str_null_handling(void)
+{
+	/* Invalid CRS strings should return NULL */
+	LWPROJ *lp;
+
+	lp = lwproj_from_str("NOT_A_CRS", "EPSG:4326");
+	CU_ASSERT_PTR_NULL(lp);
+
+	lp = lwproj_from_str("EPSG:4326", "NOT_A_CRS");
+	CU_ASSERT_PTR_NULL(lp);
+}
+
+static void test_ecef_multipoint_transform(void)
+{
+	/* Test MULTIPOINT through proj_trans_generic path (>1 point) */
+	LWGEOM *geom;
+	LWCOLLECTION *col;
+	LWPOINT *pt0;
+	POINT4D p;
+
+	geom = lwgeom_from_wkt(
+		"MULTIPOINT Z ((0 0 0), (90 0 0), (0 90 0))",
+		LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+	geom->srid = 4326;
+
+	LWPROJ *to_ecef = lwproj_from_str("EPSG:4326", "EPSG:4978");
+	CU_ASSERT_PTR_NOT_NULL(to_ecef);
+	if (!to_ecef) { lwgeom_free(geom); return; }
+
+	CU_ASSERT_EQUAL(lwgeom_transform(geom, to_ecef), LW_SUCCESS);
+
+	col = (LWCOLLECTION *)geom;
+
+	/* Point (0,0,0) -> (a, 0, 0) */
+	pt0 = (LWPOINT *)col->geoms[0];
+	getPoint4d_p(pt0->point, 0, &p);
+	CU_ASSERT_DOUBLE_EQUAL(p.x, 6378137.0, 0.001);
+
+	proj_destroy(to_ecef->pj);
+	lwfree(to_ecef);
+	lwgeom_free(geom);
+}
+
+/***********************************************************************
  * Suite Setup
  */
 
@@ -674,4 +789,11 @@ void crs_family_suite_setup(void)
 	PG_ADD_TEST(suite, test_ecef_geocentric_not_latlong);
 	PG_ADD_TEST(suite, test_ecef_transform_projected_to_ecef);
 	PG_ADD_TEST(suite, test_ecef_different_datums);
+
+	/* Additional coverage */
+	PG_ADD_TEST(suite, test_ecef_transform_empty_geom);
+	PG_ADD_TEST(suite, test_lwproj_epoch_in_transform);
+	PG_ADD_TEST(suite, test_lwsrid_get_crs_family_eci_from_crs);
+	PG_ADD_TEST(suite, test_lwproj_from_str_null_handling);
+	PG_ADD_TEST(suite, test_ecef_multipoint_transform);
 }

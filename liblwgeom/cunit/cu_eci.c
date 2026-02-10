@@ -545,6 +545,282 @@ static void test_eci_multipoint_gbox(void)
 }
 
 /***********************************************************************
+ * Branch Coverage Tests - Geometry Type Switch Cases
+ */
+
+static void test_eci_2d_geometry(void)
+{
+	/* 2D geometry (no Z) should still rotate X/Y correctly */
+	LWGEOM *geom;
+	LWPOINT *pt;
+	POINT4D p_orig, p_final;
+	double epoch = 2024.0;
+
+	geom = lwgeom_from_wkt("POINT (6378137 0)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	pt = (LWPOINT *)geom;
+	getPoint4d_p(pt->point, 0, &p_orig);
+
+	/* Roundtrip should preserve coords */
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(pt->point, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_geometrycollection(void)
+{
+	/* GeometryCollection roundtrip (exercises COLLECTIONTYPE branch) */
+	LWGEOM *geom;
+	LWCOLLECTION *col;
+	POINT4D p_orig, p_final;
+	double epoch = 2023.0;
+
+	geom = lwgeom_from_wkt(
+		"GEOMETRYCOLLECTION Z ("
+		"  POINT Z (6378137 0 0),"
+		"  LINESTRING Z (6378137 0 0, 0 6378137 0)"
+		")",
+		LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	col = (LWCOLLECTION *)geom;
+	getPoint4d_p(((LWPOINT *)col->geoms[0])->point, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(((LWPOINT *)col->geoms[0])->point, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.z, p_orig.z, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_multipolygon(void)
+{
+	/* MultiPolygon roundtrip (exercises MULTIPOLYGONTYPE branch) */
+	LWGEOM *geom;
+	LWCOLLECTION *col;
+	LWPOLY *poly;
+	POINT4D p_orig, p_final;
+	double epoch = 2022.0;
+
+	geom = lwgeom_from_wkt(
+		"MULTIPOLYGON Z ("
+		"  ((5000000 0 0, 5000000 1000000 0, 6000000 1000000 0, 6000000 0 0, 5000000 0 0)),"
+		"  ((0 5000000 0, 0 5000000 1000000, 0 6000000 1000000, 0 6000000 0, 0 5000000 0))"
+		")",
+		LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	col = (LWCOLLECTION *)geom;
+	poly = (LWPOLY *)col->geoms[0];
+	getPoint4d_p(poly->rings[0], 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(poly->rings[0], 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.z, p_orig.z, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_multilinestring(void)
+{
+	/* MultiLineString roundtrip (exercises MULTILINETYPE branch) */
+	LWGEOM *geom;
+	LWCOLLECTION *col;
+	LWLINE *line;
+	POINT4D p_orig, p_final;
+	double epoch = 2025.0;
+
+	geom = lwgeom_from_wkt(
+		"MULTILINESTRING Z ("
+		"  (6378137 0 0, 0 6378137 0),"
+		"  (0 0 6356752, 6378137 0 0)"
+		")",
+		LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	col = (LWCOLLECTION *)geom;
+	line = (LWLINE *)col->geoms[0];
+	getPoint4d_p(line->points, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(line->points, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.z, p_orig.z, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_triangle(void)
+{
+	/* Triangle roundtrip (exercises TRIANGLETYPE branch) */
+	LWGEOM *geom;
+	POINT4D p_orig, p_final;
+	double epoch = 2024.0;
+	LWLINE *tri;
+
+	geom = lwgeom_from_wkt(
+		"TRIANGLE Z ((5000000 0 0, 5000000 1000000 0, 6000000 0 0, 5000000 0 0))",
+		LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	tri = (LWLINE *)geom;
+	getPoint4d_p(tri->points, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(tri->points, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.z, p_orig.z, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_circularstring(void)
+{
+	/* CircularString roundtrip (exercises CIRCSTRINGTYPE branch) */
+	LWGEOM *geom;
+	LWLINE *cs;
+	POINT4D p_orig, p_final;
+	double epoch = 2024.0;
+
+	geom = lwgeom_from_wkt(
+		"CIRCULARSTRING Z (5000000 0 0, 5500000 500000 0, 6000000 0 0)",
+		LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	cs = (LWLINE *)geom;
+	getPoint4d_p(cs->points, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(cs->points, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.z, p_orig.z, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_extreme_epoch_far_future(void)
+{
+	/* Test with far-future epoch: year 9999 */
+	LWGEOM *geom;
+	LWPOINT *pt;
+	POINT4D p_orig, p_final;
+	double radius;
+
+	geom = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	pt = (LWPOINT *)geom;
+	getPoint4d_p(pt->point, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 9999.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 9999.0), LW_SUCCESS);
+
+	getPoint4d_p(pt->point, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-3);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-3);
+
+	/* Radius should be preserved */
+	radius = sqrt(p_final.x * p_final.x + p_final.y * p_final.y + p_final.z * p_final.z);
+	CU_ASSERT_DOUBLE_EQUAL(radius, 6378137.0, 0.001);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_extreme_epoch_far_past(void)
+{
+	/* Test with far-past epoch: year 1000 */
+	LWGEOM *geom;
+	LWPOINT *pt;
+	POINT4D p_orig, p_final;
+
+	geom = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	pt = (LWPOINT *)geom;
+	getPoint4d_p(pt->point, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 1000.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 1000.0), LW_SUCCESS);
+
+	getPoint4d_p(pt->point, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-3);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-3);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_large_pointarray(void)
+{
+	/* Test with a large LineString (1000 points) for stress/performance */
+	LWGEOM *geom;
+	LWLINE *line;
+	POINT4D p_orig, p_final;
+	double epoch = 2024.0;
+	int i;
+	char wkt[65536];
+	int offset;
+	double radius;
+
+	offset = snprintf(wkt, sizeof(wkt), "LINESTRING Z (");
+	for (i = 0; i < 1000; i++)
+	{
+		double angle = 2.0 * M_PI * i / 1000.0;
+		double x = 6378137.0 * cos(angle);
+		double y = 6378137.0 * sin(angle);
+		if (i > 0) offset += snprintf(wkt + offset, sizeof(wkt) - offset, ", ");
+		offset += snprintf(wkt + offset, sizeof(wkt) - offset, "%.3f %.3f 0", x, y);
+	}
+	snprintf(wkt + offset, sizeof(wkt) - offset, ")");
+
+	geom = lwgeom_from_wkt(wkt, LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+	if (!geom) return;
+
+	line = (LWLINE *)geom;
+	getPoint4d_p(line->points, 0, &p_orig);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+
+	getPoint4d_p(line->points, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 0.01);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 0.01);
+
+	/* All points should preserve radius */
+	for (i = 0; i < 1000; i++)
+	{
+		getPoint4d_p(line->points, i, &p_final);
+		radius = sqrt(p_final.x * p_final.x + p_final.y * p_final.y + p_final.z * p_final.z);
+		CU_ASSERT_DOUBLE_EQUAL(radius, 6378137.0, 0.1);
+	}
+
+	lwgeom_free(geom);
+}
+
+/***********************************************************************
  * Suite Setup
  */
 
@@ -591,4 +867,15 @@ void eci_suite_setup(void)
 	PG_ADD_TEST(suite, test_eci_gbox_null_args);
 	PG_ADD_TEST(suite, test_postgis_eci_enabled);
 	PG_ADD_TEST(suite, test_eci_multipoint_gbox);
+
+	/* Branch coverage - geometry type switch cases */
+	PG_ADD_TEST(suite, test_eci_2d_geometry);
+	PG_ADD_TEST(suite, test_eci_geometrycollection);
+	PG_ADD_TEST(suite, test_eci_multipolygon);
+	PG_ADD_TEST(suite, test_eci_multilinestring);
+	PG_ADD_TEST(suite, test_eci_triangle);
+	PG_ADD_TEST(suite, test_eci_circularstring);
+	PG_ADD_TEST(suite, test_eci_extreme_epoch_far_future);
+	PG_ADD_TEST(suite, test_eci_extreme_epoch_far_past);
+	PG_ADD_TEST(suite, test_eci_large_pointarray);
 }

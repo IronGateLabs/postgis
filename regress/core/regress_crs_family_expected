@@ -1,0 +1,17 @@
+CF1|geographic
+CF2|projected
+CF3|geocentric
+CF4|projected
+CF5|unknown
+CF6|unknown
+CF7|geographic
+CF8|geographic
+SUM1|Point[S] crs_family=geographic
+SUM2|Point[S] crs_family=projected
+SUM3|Point[ZS] crs_family=geocentric
+SUM4|Point[]
+ECEF1|POINT Z (0 0 0)
+ECEF2|POINT Z (6378137 0 0)
+ECEF3|POINT Z (0 0 6356752.314)
+ECEF4|POINT Z (0 0 20200000)
+ECEF5|LINESTRING Z (6378137 0 0,0 6378137 0,0 0 6356752.314,0 -6378137 0)
