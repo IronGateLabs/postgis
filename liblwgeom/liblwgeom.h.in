@@ -38,6 +38,27 @@
 
 #include "proj.h"
 
+/**
+ * CRS family classification.
+ * Identifies the coordinate system family for proper dispatch of
+ * spatial operations, angular conversions, and bounding box computation.
+ */
+typedef enum {
+	LW_CRS_UNKNOWN     = 0, /* Unclassified or unresolvable */
+	LW_CRS_GEOGRAPHIC  = 1, /* Latitude/longitude on ellipsoid (e.g. EPSG:4326) */
+	LW_CRS_PROJECTED   = 2, /* Planar Cartesian from map projection (e.g. EPSG:32632) */
+	LW_CRS_GEOCENTRIC  = 3, /* Earth-Centered Earth-Fixed Cartesian (e.g. EPSG:4978) */
+	LW_CRS_INERTIAL    = 4, /* Earth-Centered Inertial (ICRF/J2000/TEME) */
+	LW_CRS_TOPOCENTRIC = 5, /* Local tangent plane (ENU/NED) */
+	LW_CRS_ENGINEERING = 6  /* Local/engineering CRS with no geodetic datum */
+} LW_CRS_FAMILY;
+
+/* Return a human-readable name for a CRS family enum value */
+const char* lwcrs_family_name(LW_CRS_FAMILY family);
+
+/* Derive CRS family from a PROJ PJ_TYPE value */
+LW_CRS_FAMILY lwcrs_family_from_pj_type(PJ_TYPE pj_type);
+
 /* For PROJ6 we cache several extra values to avoid calls to proj_get_source_crs
  * or proj_get_target_crs since those are very costly
  */
@@ -53,6 +74,10 @@ typedef struct LWPROJ
     /* Source ellipsoid parameters */
     double source_semi_major_metre;
     double source_semi_minor_metre;
+
+    /* CRS family classification for source and target */
+    LW_CRS_FAMILY source_crs_family;
+    LW_CRS_FAMILY target_crs_family;
 } LWPROJ;
 
 
