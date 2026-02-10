@@ -23,6 +23,7 @@ jobs:
         - { tag: pg16-geos312-gdal37-proj921, mode: coverage }
         - { tag: pg15-geos311-gdal35-proj90, mode: coverage }
         - { tag: pg15-clang-geos311-gdal35-proj90, mode: usan_clang }
+        - { tag: pg15-clang-geos311-gdal35-proj90, mode: asan_clang }
         # - { tag: pg13-geos39-gdal31-proj71, mode: garden }
         #- { tag: pg14-geos39-gdal33-proj71, mode: tests }
         - { tag: pg14-geos310-gdal33-proj71, mode: tests }
