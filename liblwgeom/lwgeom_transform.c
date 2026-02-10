@@ -109,6 +109,10 @@ lwsrid_get_crs_family(int32_t srid)
 	PJ *pj_crs;
 	LW_CRS_FAMILY family;
 
+	/* Check for custom ECI SRID range (not in EPSG registry) */
+	if (SRID_IS_ECI(srid))
+		return LW_CRS_INERTIAL;
+
 	snprintf(srid_str, sizeof(srid_str), "EPSG:%d", srid);
 	pj_crs = proj_create(PJ_DEFAULT_CTX, srid_str);
 	if (!pj_crs)
@@ -231,6 +235,7 @@ lwproj_from_str(const char* str_in, const char* str_out)
 	lp->source_semi_minor_metre = semi_minor_metre;
 	lp->source_crs_family = source_crs_family;
 	lp->target_crs_family = target_crs_family;
+	lp->epoch = LWPROJ_NO_EPOCH;
 	return lp;
 }
 
@@ -270,6 +275,7 @@ lwproj_from_str_pipeline(const char* str_pipeline, bool is_forward)
 	/* Pipeline transforms have unknown CRS families by default */
 	lp->source_crs_family = LW_CRS_UNKNOWN;
 	lp->target_crs_family = LW_CRS_UNKNOWN;
+	lp->epoch = LWPROJ_NO_EPOCH;
 	return lp;
 }
 
@@ -373,7 +379,7 @@ ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 	if (n_points == 1)
 	{
 		/* For single points it's faster to call proj_trans */
-		PJ_XYZT v = {pa_double[0], pa_double[1], has_z ? pa_double[2] : 0.0, 0.0};
+		PJ_XYZT v = {pa_double[0], pa_double[1], has_z ? pa_double[2] : 0.0, pj->epoch};
 		PJ_COORD c;
 		c.xyzt = v;
 		PJ_COORD t = proj_trans(pj->pj, direction, c);

@@ -38,12 +38,12 @@
 
 ## 5. ECI (Inertial Frame) Foundation
 
-- [ ] 5.1 Research PROJ 9.x capabilities for dynamic datums and time-dependent transformations; document findings
-- [ ] 5.2 Define ECI SRID registration strategy: curated list of ICRF/J2000/TEME SRIDs or user-defined via `spatial_ref_sys`
-- [ ] 5.3 Implement epoch parameterization design: M-coordinate as epoch and explicit `ST_Transform` epoch parameter
-- [ ] 5.4 Add PROJ version compile-time gating: `#if PROJ_VERSION_MAJOR >= 9` guard for ECI features
-- [ ] 5.5 Implement ECI-to-ECEF transformation path with Earth rotation correction (delegating to PROJ when available)
-- [ ] 5.6 Add ECI bounding box computation with temporal (M) extent tracking
+- [x] 5.1 Research PROJ 9.x capabilities for dynamic datums and time-dependent transformations; document findings
+- [x] 5.2 Define ECI SRID registration strategy: curated list of ICRF/J2000/TEME SRIDs or user-defined via `spatial_ref_sys`
+- [x] 5.3 Implement epoch parameterization design: M-coordinate as epoch and explicit `ST_Transform` epoch parameter
+- [x] 5.4 Add PROJ version compile-time gating: `#if PROJ_VERSION_MAJOR >= 9` guard for ECI features
+- [x] 5.5 Implement ECI-to-ECEF transformation path with Earth rotation correction (delegating to PROJ when available)
+- [x] 5.6 Add ECI bounding box computation with temporal (M) extent tracking
 
 ## 6. Testing and Validation
 
@@ -51,13 +51,13 @@
 - [x] 6.2 Write regression tests for CRS family detection: verify EPSG:4326=geographic, EPSG:32632=projected, EPSG:4978=geocentric
 - [x] 6.3 Write regression tests for spatial function error handling: verify `ST_Area(ecef_geom)` raises error, `ST_Distance(ecef1, ecef2)` returns Euclidean distance
 - [x] 6.4 Write regression tests for CRS family mismatch detection in binary spatial functions
-- [ ] 6.5 Write regression tests for ECI epoch-parameterized transformations (if PROJ 9.x available)
+- [x] 6.5 Write regression tests for ECI epoch-parameterized transformations (if PROJ 9.x available)
 - [ ] 6.6 Benchmark GIST index performance with ECEF bounding boxes on a dataset of 100K+ points; compare with geographic index performance
 
 ## 7. Documentation
 
-- [ ] 7.1 Document the CRS family taxonomy and supported coordinate systems in PostGIS user documentation
-- [ ] 7.2 Document ECEF usage patterns: storage, transformation, querying with examples
-- [ ] 7.3 Document ECI usage patterns with epoch parameterization examples
-- [ ] 7.4 Document migration guide: how existing users can start using ECEF/ECI coordinates
-- [ ] 7.5 Document the `postgis_crs_family()` SQL function and extended `ST_Summary` output
+- [x] 7.1 Document the CRS family taxonomy and supported coordinate systems in PostGIS user documentation
+- [x] 7.2 Document ECEF usage patterns: storage, transformation, querying with examples
+- [x] 7.3 Document ECI usage patterns with epoch parameterization examples
+- [x] 7.4 Document migration guide: how existing users can start using ECEF/ECI coordinates
+- [x] 7.5 Document the `postgis_crs_family()` SQL function and extended `ST_Summary` output
