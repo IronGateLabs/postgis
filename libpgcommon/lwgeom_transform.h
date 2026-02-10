@@ -63,6 +63,9 @@ int lwproj_is_latlong(const LWPROJ *pj);
 int spheroid_init_from_srid(int32_t srid, SPHEROID *s);
 void srid_check_latlong(int32_t srid);
 srs_precision srid_axis_precision(int32_t srid, int precision);
+LW_CRS_FAMILY srid_get_crs_family(int32_t srid);
+void srid_check_crs_family_not_geocentric(int32_t srid, const char *funcname);
+void gserialized_check_crs_family_not_geocentric(const GSERIALIZED *g, const char *funcname);
 
 /**
  * Builtin SRID values

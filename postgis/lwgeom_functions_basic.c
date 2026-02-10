@@ -34,6 +34,7 @@
 #include "liblwgeom.h"
 #include "liblwgeom_internal.h"
 #include "lwgeom_pg.h"
+#include "lwgeom_transform.h"
 
 #include <math.h>
 #include <float.h>
@@ -147,7 +148,8 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 	LWGEOM *lwg = lwgeom_from_gserialized(g);
 	char *lwresult = lwgeom_summary(lwg, 0);
 	uint32_t gver = gserialized_get_version(g);
-	size_t result_sz = strlen(lwresult) + 8;
+	int32_t srid = gserialized_get_srid(g);
+	size_t result_sz = strlen(lwresult) + 64; /* extra room for CRS family */
 	char *result;
 	if (gver == 0)
 	{
@@ -159,6 +161,19 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 		result = lwalloc(result_sz);
 		snprintf(result, result_sz, "%s", lwresult);
 	}
+
+	/* Append CRS family when SRID is set */
+	if (srid > 0 && srid != SRID_UNKNOWN)
+	{
+		LW_CRS_FAMILY family = srid_get_crs_family(srid);
+		if (family != LW_CRS_UNKNOWN)
+		{
+			size_t cur_len = strlen(result);
+			snprintf(result + cur_len, result_sz - cur_len,
+				" crs_family=%s", lwcrs_family_name(family));
+		}
+	}
+
 	lwgeom_free(lwg);
 	lwfree(lwresult);
 

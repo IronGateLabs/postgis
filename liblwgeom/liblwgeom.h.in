@@ -59,6 +59,11 @@ const char* lwcrs_family_name(LW_CRS_FAMILY family);
 /* Derive CRS family from a PROJ PJ_TYPE value */
 LW_CRS_FAMILY lwcrs_family_from_pj_type(PJ_TYPE pj_type);
 
+/* Look up CRS family for an SRID by querying the PROJ database.
+ * This works for any CRS registered in the PROJ database (e.g. EPSG codes).
+ * Returns LW_CRS_UNKNOWN if the SRID cannot be resolved. */
+LW_CRS_FAMILY lwsrid_get_crs_family(int32_t srid);
+
 /* For PROJ6 we cache several extra values to avoid calls to proj_get_source_crs
  * or proj_get_target_crs since those are very costly
  */

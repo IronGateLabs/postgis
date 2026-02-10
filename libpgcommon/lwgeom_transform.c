@@ -555,6 +555,15 @@ srid_axis_precision(int32_t srid, int precision)
 	return sp;
 }
 
+LW_CRS_FAMILY
+srid_get_crs_family(int32_t srid)
+{
+	LWPROJ *pj;
+	if (lwproj_lookup(srid, srid, &pj) == LW_FAILURE)
+		return LW_CRS_UNKNOWN;
+	return pj->source_crs_family;
+}
+
 int
 spheroid_init_from_srid(int32_t srid, SPHEROID *s)
 {
@@ -563,9 +572,38 @@ spheroid_init_from_srid(int32_t srid, SPHEROID *s)
 	if ( lwproj_lookup(srid, srid, &pj) == LW_FAILURE)
 		return LW_FAILURE;
 
-	if (!pj->source_is_latlong)
+	/* Both geographic and geocentric CRS are defined relative to an
+	 * ellipsoid, so we can initialize spheroid params from either.
+	 * Previously only source_is_latlong was checked, which rejected
+	 * geocentric CRS despite having valid ellipsoid parameters. */
+	if (!pj->source_is_latlong &&
+	    pj->source_crs_family != LW_CRS_GEOCENTRIC)
 		return LW_FAILURE;
 	spheroid_init(s, pj->source_semi_major_metre, pj->source_semi_minor_metre);
 
 	return LW_SUCCESS;
+}
+
+void
+srid_check_crs_family_not_geocentric(int32_t srid, const char *funcname)
+{
+	if (srid == SRID_DEFAULT || srid == SRID_UNKNOWN)
+		return;
+
+	LW_CRS_FAMILY family = srid_get_crs_family(srid);
+	if (family == LW_CRS_GEOCENTRIC)
+	{
+		ereport(ERROR, (
+			errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+			errmsg("%s: Operation is not supported for geocentric (ECEF) coordinates (SRID=%d). "
+				"Transform to a geographic or projected CRS first.",
+				funcname, srid)));
+	}
+}
+
+void
+gserialized_check_crs_family_not_geocentric(const GSERIALIZED *g, const char *funcname)
+{
+	int32_t srid = gserialized_get_srid(g);
+	srid_check_crs_family_not_geocentric(srid, funcname);
 }
