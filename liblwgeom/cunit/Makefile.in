@@ -80,6 +80,8 @@ OBJS=	\
 	cu_unionfind.o \
 	cu_wrapx.o \
 	cu_remove_irrelevant_points_for_view.o \
+	cu_crs_family.o \
+	cu_eci.o \
 	cu_tester.o
 
 ifeq (@SFCGAL@,sfcgal)

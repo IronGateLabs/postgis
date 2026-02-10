@@ -128,6 +128,7 @@ SA_OBJS = \
 	topo/lwt_edgeend_star.o \
 	topo/lwt_node_edges.o \
 	lwgeom_transform.o \
+	lwgeom_eci.o \
 	lwgeom_wrapx.o \
 	lwunionfind.o \
 	effectivearea.o \
