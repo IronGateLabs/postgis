@@ -509,7 +509,7 @@ lwproj_lookup(int32_t srid_from, int32_t srid_to, LWPROJ **pj)
 int
 lwproj_is_latlong(const LWPROJ *pj)
 {
-	return pj->source_is_latlong;
+	return pj->source_crs_family == LW_CRS_GEOGRAPHIC;
 }
 
 static int
@@ -546,7 +546,7 @@ srid_axis_precision(int32_t srid, int precision)
 	if ( srid == SRID_UNKNOWN )
 		return sp;
 
-	if ( srid_is_latlong(srid) )
+	if ( srid_get_crs_family(srid) == LW_CRS_GEOGRAPHIC )
 	{
 		sp.precision_xy += 5;
 		return sp;
@@ -559,6 +559,11 @@ LW_CRS_FAMILY
 srid_get_crs_family(int32_t srid)
 {
 	LWPROJ *pj;
+
+	/* Check for custom ECI SRID range (not in EPSG registry) */
+	if (SRID_IS_ECI(srid))
+		return LW_CRS_INERTIAL;
+
 	if (lwproj_lookup(srid, srid, &pj) == LW_FAILURE)
 		return LW_CRS_UNKNOWN;
 	return pj->source_crs_family;
@@ -573,10 +578,8 @@ spheroid_init_from_srid(int32_t srid, SPHEROID *s)
 		return LW_FAILURE;
 
 	/* Both geographic and geocentric CRS are defined relative to an
-	 * ellipsoid, so we can initialize spheroid params from either.
-	 * Previously only source_is_latlong was checked, which rejected
-	 * geocentric CRS despite having valid ellipsoid parameters. */
-	if (!pj->source_is_latlong &&
+	 * ellipsoid, so we can initialize spheroid params from either. */
+	if (pj->source_crs_family != LW_CRS_GEOGRAPHIC &&
 	    pj->source_crs_family != LW_CRS_GEOCENTRIC)
 		return LW_FAILURE;
 	spheroid_init(s, pj->source_semi_major_metre, pj->source_semi_minor_metre);

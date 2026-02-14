@@ -38,6 +38,7 @@
 
 /* PostGIS */
 #include "lwgeom_geos.h"
+#include "lwgeom_transform.h"
 #include "liblwgeom.h"
 #include "liblwgeom_internal.h"
 #include "lwgeom_itree.h"
@@ -1066,39 +1067,50 @@ Datum LWGEOM_dwithin(PG_FUNCTION_ARGS)
 	if (gserialized_is_empty(geom1) || gserialized_is_empty(geom2))
 		PG_RETURN_BOOL(false);
 
-	/*
-	 * Only enter GEOS/PreparedGeometry code line if objects
-	 * are big enough and cache is populated.
-	 */
-	if (use_prepared)
-	{
-		initGEOS(lwpgnotice, lwgeom_geos_error);
-		prep_cache = GetPrepGeomCache(fcinfo, shared_geom1, shared_geom2);
-		if (prep_cache && prep_cache->prepared_geom)
-		{
-			GEOSGeometry *g = NULL;
-			if (prep_cache->gcache.argnum == 1)
-				g = POSTGIS2GEOS(geom2);
-			else
-				g = POSTGIS2GEOS(geom1);
-
-			if (!g) HANDLE_GEOS_ERROR("Geometry could not be converted to GEOS");
-			is_dwithin = GEOSPreparedDistanceWithin(prep_cache->prepared_geom, g, tolerance);
-			if (is_dwithin == 2) HANDLE_GEOS_ERROR("GEOSPreparedDistanceWithin");
-			GEOSGeom_destroy(g);
-		}
-	}
-
-	/*
-	 * If for any reason we did not use GEOS/PreparedGeometry, we still
-	 * need an answer, so use the brute force implementation.
-	 */
-	if (is_dwithin < 0)
+	/* Geocentric (ECEF) coordinates: use 3D distance, skip GEOS (2D only) */
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
 	{
 		LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
 		LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
-		mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
+		mindist = lwgeom_mindistance3d_tolerance(lwgeom1, lwgeom2, tolerance);
 		is_dwithin = (tolerance >= mindist);
+	}
+	else
+	{
+		/*
+		 * Only enter GEOS/PreparedGeometry code line if objects
+		 * are big enough and cache is populated.
+		 */
+		if (use_prepared)
+		{
+			initGEOS(lwpgnotice, lwgeom_geos_error);
+			prep_cache = GetPrepGeomCache(fcinfo, shared_geom1, shared_geom2);
+			if (prep_cache && prep_cache->prepared_geom)
+			{
+				GEOSGeometry *g = NULL;
+				if (prep_cache->gcache.argnum == 1)
+					g = POSTGIS2GEOS(geom2);
+				else
+					g = POSTGIS2GEOS(geom1);
+
+				if (!g) HANDLE_GEOS_ERROR("Geometry could not be converted to GEOS");
+				is_dwithin = GEOSPreparedDistanceWithin(prep_cache->prepared_geom, g, tolerance);
+				if (is_dwithin == 2) HANDLE_GEOS_ERROR("GEOSPreparedDistanceWithin");
+				GEOSGeom_destroy(g);
+			}
+		}
+
+		/*
+		 * If for any reason we did not use GEOS/PreparedGeometry, we still
+		 * need an answer, so use the brute force implementation.
+		 */
+		if (is_dwithin < 0)
+		{
+			LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
+			LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
+			mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
+			is_dwithin = (tolerance >= mindist);
+		}
 	}
 
 	PG_RETURN_BOOL(is_dwithin);

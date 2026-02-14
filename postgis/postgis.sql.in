@@ -2996,6 +2996,14 @@ CREATE OR REPLACE FUNCTION ST_Transform(geometry,integer)
 	LANGUAGE 'c' IMMUTABLE STRICT PARALLEL SAFE
 	_COST_HIGH;
 
+-- Availability: 3.7.0
+-- ST_Transform with explicit epoch for ECI/ECEF conversions
+CREATE OR REPLACE FUNCTION ST_Transform(geom geometry, to_srid integer, epoch timestamptz)
+	RETURNS geometry
+	AS 'MODULE_PATHNAME','transform_epoch'
+	LANGUAGE 'c' IMMUTABLE STRICT PARALLEL SAFE
+	_COST_HIGH;
+
 -- Availability: 2.3.0
 CREATE OR REPLACE FUNCTION ST_Transform(geom geometry, to_proj text)
 	RETURNS geometry AS

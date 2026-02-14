@@ -292,9 +292,12 @@ PG_FUNCTION_INFO_V1(ST_Area);
 Datum ST_Area(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
-	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM *lwgeom;
 	double area = 0.0;
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Area");
+
+	lwgeom = lwgeom_from_gserialized(geom);
 	area = lwgeom_area(lwgeom);
 
 	lwgeom_free(lwgeom);
@@ -315,7 +318,14 @@ Datum LWGEOM_length2d_linestring(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
-	double dist = lwgeom_length_2d(lwgeom);
+	double dist;
+
+	/* Geocentric (ECEF) coordinates: use 3D Euclidean length */
+	if (srid_get_crs_family(gserialized_get_srid(geom)) == LW_CRS_GEOCENTRIC)
+		dist = lwgeom_length(lwgeom);
+	else
+		dist = lwgeom_length_2d(lwgeom);
+
 	lwgeom_free(lwgeom);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_FLOAT8(dist);
@@ -721,7 +731,11 @@ Datum ST_Distance(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
-	mindist = lwgeom_mindistance2d(lwgeom1, lwgeom2);
+	/* Geocentric (ECEF) coordinates: use 3D Euclidean distance */
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		mindist = lwgeom_mindistance3d(lwgeom1, lwgeom2);
+	else
+		mindist = lwgeom_mindistance2d(lwgeom1, lwgeom2);
 
 	lwgeom_free(lwgeom1);
 	lwgeom_free(lwgeom2);
@@ -764,7 +778,11 @@ Datum ST_DWithinUncached(PG_FUNCTION_ARGS)
 		PG_RETURN_BOOL(false);
 	}
 
-	mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
+	/* Geocentric (ECEF) coordinates: use 3D distance for tolerance check */
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		mindist = lwgeom_mindistance3d_tolerance(lwgeom1, lwgeom2, tolerance);
+	else
+		mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
 
 	PG_FREE_IF_COPY(geom1, 0);
 	PG_FREE_IF_COPY(geom2, 1);

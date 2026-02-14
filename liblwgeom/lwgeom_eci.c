@@ -38,6 +38,9 @@
 /* where Rz(theta) is rotation about the Z axis.                           */
 /* This is the IERS 2003 ERA-based rotation, suitable for most             */
 /* applications. Full IAU 2006/2000A precession-nutation is not included.  */
+/*                                                                          */
+/* PROJ independence: All ECI transforms use pure C math (cos/sin/fmod).   */
+/* No PROJ library calls are needed. This works with any PROJ version.     */
 /***************************************************************************/
 
 /**
@@ -205,6 +208,115 @@ lwgeom_transform_ecef_to_eci(LWGEOM *geom, double epoch)
 
 	/* ECI = Rz(+ERA) * ECEF */
 	return lwgeom_rotate_z(geom, era);
+}
+
+/**
+ * Per-point M-epoch rotation for a POINTARRAY.
+ * Each point's M value is used as the epoch (decimal year).
+ * direction: -1 for ECI->ECEF (Rz(-ERA)), +1 for ECEF->ECI (Rz(+ERA))
+ */
+static int
+ptarray_rotate_z_m_epoch(POINTARRAY *pa, int direction)
+{
+	uint32_t i;
+	POINT4D p;
+
+	for (i = 0; i < pa->npoints; i++)
+	{
+		double jd, era;
+		getPoint4d_p(pa, i, &p);
+
+		if (p.m == LWPROJ_NO_EPOCH)
+		{
+			lwerror("ECI transform: point %u has no epoch (M=0)", i);
+			return LW_FAILURE;
+		}
+
+		if (p.m < 1000.0 || p.m > 3000.0)
+		{
+			lwerror("ECI transform: point %u has invalid epoch M=%.4f "
+				"(expected decimal year in range 1000-3000)", i, p.m);
+			return LW_FAILURE;
+		}
+
+		jd = lweci_epoch_to_jd(p.m);
+		era = lweci_earth_rotation_angle(jd);
+		rotate_z(&p, direction * era);
+		ptarray_set_point4d(pa, i, &p);
+	}
+	return LW_SUCCESS;
+}
+
+/**
+ * Apply per-point M-epoch rotation to all points in a geometry.
+ * direction: -1 for ECI->ECEF, +1 for ECEF->ECI
+ */
+static int
+lwgeom_rotate_z_m_epoch(LWGEOM *geom, int direction)
+{
+	uint32_t i;
+
+	if (lwgeom_is_empty(geom))
+		return LW_SUCCESS;
+
+	switch (geom->type)
+	{
+	case POINTTYPE:
+	case LINETYPE:
+	case CIRCSTRINGTYPE:
+	case TRIANGLETYPE:
+	{
+		LWLINE *g = (LWLINE *)geom;
+		return ptarray_rotate_z_m_epoch(g->points, direction);
+	}
+	case POLYGONTYPE:
+	{
+		LWPOLY *g = (LWPOLY *)geom;
+		for (i = 0; i < g->nrings; i++)
+		{
+			if (ptarray_rotate_z_m_epoch(g->rings[i], direction) != LW_SUCCESS)
+				return LW_FAILURE;
+		}
+		return LW_SUCCESS;
+	}
+	case MULTIPOINTTYPE:
+	case MULTILINETYPE:
+	case MULTIPOLYGONTYPE:
+	case COLLECTIONTYPE:
+	case COMPOUNDTYPE:
+	case CURVEPOLYTYPE:
+	case MULTICURVETYPE:
+	case MULTISURFACETYPE:
+	case POLYHEDRALSURFACETYPE:
+	case TINTYPE:
+	{
+		LWCOLLECTION *g = (LWCOLLECTION *)geom;
+		for (i = 0; i < g->ngeoms; i++)
+		{
+			if (lwgeom_rotate_z_m_epoch(g->geoms[i], direction) != LW_SUCCESS)
+				return LW_FAILURE;
+		}
+		return LW_SUCCESS;
+	}
+	default:
+		lwerror("lwgeom_rotate_z_m_epoch: Cannot handle type '%s'",
+			lwtype_name(geom->type));
+		return LW_FAILURE;
+	}
+}
+
+int
+lwgeom_transform_eci_to_ecef_m(LWGEOM *geom)
+{
+	/* ECEF = Rz(-ERA) * ECI, per-point using M as epoch */
+	return lwgeom_rotate_z_m_epoch(geom, -1);
+}
+
+int
+lwgeom_transform_ecef_to_eci_m(LWGEOM *geom)
+{
+	/* ECI = Rz(+ERA) * ECEF, per-point using M as epoch */
+	return lwgeom_rotate_z_m_epoch(geom, +1);
 }
 
 /***************************************************************************/

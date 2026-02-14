@@ -234,5 +234,15 @@ deps/flatgeobuf/Makefile
 **/*Dump.xml
 **/*.core
 
+# Local/AI-generated artifacts (not for version control)
+.local/
+
+# ECEF/ECI extension generated files
+extensions/postgis_ecef_eci/Makefile
+extensions/postgis_ecef_eci/postgis_ecef_eci.control
+extensions/postgis_ecef_eci/sql/
+postgis/ecef_eci.sql
+postgis/ecef_eci_upgrade.sql*
+
 # MacOS
 .DS_Store

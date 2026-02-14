@@ -2,7 +2,7 @@ CF1|geographic
 CF2|projected
 CF3|geocentric
 CF4|projected
-CF5|unknown
+ERROR:  Invalid reserved SRID (999999)
 CF6|unknown
 CF7|geographic
 CF8|geographic
@@ -12,6 +12,41 @@ SUM3|Point[ZS] crs_family=geocentric
 SUM4|Point[]
 ECEF1|POINT Z (0 0 0)
 ECEF2|POINT Z (6378137 0 0)
-ECEF3|POINT Z (0 0 6356752.314)
+ECEF3|POINT Z (0 0 6356752.314245179)
 ECEF4|POINT Z (0 0 20200000)
-ECEF5|LINESTRING Z (6378137 0 0,0 6378137 0,0 0 6356752.314,0 -6378137 0)
+ECEF5|LINESTRING Z (6378137 0 0,0 6378137 0,0 0 6356752.314245179,0 -6378137 0)
+ERROR:  ST_Buffer: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Area: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Centroid: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_OffsetCurve: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_BuildArea: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+DIST1|1414.214
+DIST2|5
+DIST3|1.732
+LEN1|1414.214
+LEN2|17
+ERROR:  ST_Intersects: Operation on mixed SRID geometries (Point, 4326) != (Point, 4978)
+CACHE1|t
+CACHE2|t
+COMPAT1|geometry
+COMPAT2|geometry
+DWITHIN1|f
+DWITHIN2|t
+DISTZ1|1000
+DIST3D1|t
+LEN3D1|t
+STORE1|6378137|0|0
+ACCESS1|6378137
+ACCESS2|0
+ACCESS3|0
+ACCESS4|POINT Z (6378137 0 0)
+ACCESS5|SRID=4978;POINT(6378137 0 0)
+ACCESS6|1
+SRS1|EPSG|4978
+BBOX1|0.0|0.0|0.0|6378137.0|6378137.0|0.0
+NEG_DIST1|1.414214
+NEG_AREA1|1000000
+NEG_LEN1|1000
+NEG_DWITHIN1|t
+META1|geocentric
+META2|Point[ZS] crs_family=geocentric

@@ -38,6 +38,7 @@
 
 /* PostGIS */
 #include "lwgeom_geos.h"
+#include "lwgeom_transform.h"
 #include "liblwgeom.h"
 #include "liblwgeom_internal.h"
 #include "lwgeom_itree.h"
@@ -984,6 +985,8 @@ Datum buffer(PG_FUNCTION_ARGS)
 	double size = PG_GETARG_FLOAT8(1);
 	text *params_text;
 
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_Buffer");
+
 	if (PG_NARGS() > 2)
 	{
 		params_text = PG_GETARG_TEXT_P(2);
@@ -1267,6 +1270,7 @@ Datum ST_OffsetCurve(PG_FUNCTION_ARGS)
 	/* Read SQL arguments */
 	nargs = PG_NARGS();
 	gser_input = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(gser_input, "ST_OffsetCurve");
 	size = PG_GETARG_FLOAT8(1);
 
 	/* For distance == 0, just return the input. */
@@ -1455,6 +1459,7 @@ Datum centroid(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom, *lwresult;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Centroid");
 
 	lwgeom = lwgeom_from_gserialized(geom);
 	lwresult = lwgeom_centroid(lwgeom);
@@ -2175,6 +2180,7 @@ Datum ST_BuildArea(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom_in, *lwgeom_out;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom, "ST_BuildArea");
 	lwgeom_in = lwgeom_from_gserialized(geom);
 
 	lwgeom_out = lwgeom_buildarea(lwgeom_in);

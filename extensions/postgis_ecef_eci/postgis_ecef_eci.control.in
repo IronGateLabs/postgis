@@ -1,0 +1,5 @@
+# PostGIS ECEF/ECI coordinate frame extension
+comment = 'PostGIS ECEF/ECI coordinate frame support'
+default_version = '@EXTVERSION@'
+relocatable = true
+requires = postgis

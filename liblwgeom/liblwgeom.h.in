@@ -74,7 +74,9 @@ typedef struct LWPROJ
 	/* for pipeline transforms, whether to do a forward or inverse */
 	bool pipeline_is_forward;
 
-    /* Source crs is geographic: Used in geography calls (source srid == dst srid) */
+    /* DEPRECATED: use source_crs_family instead.
+     * Retained for backward compatibility with third-party extensions.
+     * Will be removed in the next major version. */
     uint8_t source_is_latlong;
     /* Source ellipsoid parameters */
     double source_semi_major_metre;
@@ -2651,6 +2653,18 @@ int lwgeom_transform_eci_to_ecef(LWGEOM *geom, double epoch);
  * Applies forward Earth rotation: ECI = Rz(+ERA) * ECEF
  */
 int lwgeom_transform_ecef_to_eci(LWGEOM *geom, double epoch);
+
+/**
+ * Transform ECI to ECEF using per-point M coordinates as epochs.
+ * Each point's M value is interpreted as a decimal year.
+ */
+int lwgeom_transform_eci_to_ecef_m(LWGEOM *geom);
+
+/**
+ * Transform ECEF to ECI using per-point M coordinates as epochs.
+ * Each point's M value is interpreted as a decimal year.
+ */
+int lwgeom_transform_ecef_to_eci_m(LWGEOM *geom);
 
 /**
  * Compute bounding box for an ECI geometry.

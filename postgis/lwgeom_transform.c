@@ -32,13 +32,33 @@
 #endif
 #include "utils/builtins.h"
 
+#include "utils/timestamp.h"
+
 #include "liblwgeom.h"
 #include "lwgeodetic.h"
 #include "stringbuffer.h"
 #include "lwgeom_transform.h"
 
+/* Seconds per Julian year (365.25 days) */
+#define SECS_PER_JULIAN_YEAR (365.25 * 86400.0)
+/* J2000.0 epoch as Unix timestamp: 2000-01-01T12:00:00Z */
+#define J2000_UNIX_EPOCH 946728000.0
+/* PostgreSQL epoch (2000-01-01 00:00:00 UTC) as Unix seconds */
+#define PG_EPOCH_UNIX_OFFSET 946684800.0
+
+/**
+ * Convert a PostgreSQL TimestampTz to a decimal year for ECI transforms.
+ */
+static double
+timestamptz_to_decimal_year(TimestampTz ts)
+{
+	double unix_seconds = PG_EPOCH_UNIX_OFFSET + ((double)ts / 1000000.0);
+	return 2000.0 + (unix_seconds - J2000_UNIX_EPOCH) / SECS_PER_JULIAN_YEAR;
+}
+
 
 Datum transform(PG_FUNCTION_ARGS);
+Datum transform_epoch(PG_FUNCTION_ARGS);
 Datum transform_geom(PG_FUNCTION_ARGS);
 Datum transform_pipeline_geom(PG_FUNCTION_ARGS);
 Datum postgis_proj_version(PG_FUNCTION_ARGS);
@@ -81,6 +101,66 @@ Datum transform(PG_FUNCTION_ARGS)
 	if ( srid_from == srid_to )
 		PG_RETURN_POINTER(geom);
 
+	/* ECI transform: detect inertial CRS family and use M-coordinate epochs */
+	{
+		LW_CRS_FAMILY from_family = srid_get_crs_family(srid_from);
+		LW_CRS_FAMILY to_family = srid_get_crs_family(srid_to);
+
+		if (from_family == LW_CRS_INERTIAL || to_family == LW_CRS_INERTIAL)
+		{
+			int rv;
+			lwgeom = lwgeom_from_gserialized(geom);
+
+			if (!lwgeom_has_m(lwgeom))
+			{
+				lwgeom_free(lwgeom);
+				PG_FREE_IF_COPY(geom, 0);
+				elog(ERROR,
+					"ST_Transform: ECI transform requires epoch. "
+					"Use M coordinates as epoch values or call "
+					"ST_Transform(geom, srid, epoch) with an explicit timestamp.");
+				PG_RETURN_NULL();
+			}
+
+			if (from_family == LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
+			{
+				/* ECI -> ECEF: per-point M as epoch (decimal year) */
+				rv = lwgeom_transform_eci_to_ecef_m(lwgeom);
+			}
+			else if (from_family != LW_CRS_INERTIAL && to_family == LW_CRS_INERTIAL)
+			{
+				/* ECEF -> ECI: per-point M as epoch (decimal year) */
+				rv = lwgeom_transform_ecef_to_eci_m(lwgeom);
+			}
+			else
+			{
+				lwgeom_free(lwgeom);
+				PG_FREE_IF_COPY(geom, 0);
+				elog(ERROR,
+					"ST_Transform: Direct ECI-to-ECI frame transform is not supported. "
+					"Transform to ECEF (SRID 4978) first.");
+				PG_RETURN_NULL();
+			}
+
+			if (rv == LW_FAILURE)
+			{
+				lwgeom_free(lwgeom);
+				PG_FREE_IF_COPY(geom, 0);
+				elog(ERROR, "ST_Transform: ECI transform failed.");
+				PG_RETURN_NULL();
+			}
+
+			lwgeom->srid = srid_to;
+			if (lwgeom->bbox)
+				lwgeom_refresh_bbox(lwgeom);
+
+			result = geometry_serialize(lwgeom);
+			lwgeom_free(lwgeom);
+			PG_FREE_IF_COPY(geom, 0);
+			PG_RETURN_POINTER(result);
+		}
+	}
+
 	postgis_initialize_cache();
 	if ( lwproj_lookup(srid_from, srid_to, &pj) == LW_FAILURE )
 	{
@@ -105,6 +185,112 @@ Datum transform(PG_FUNCTION_ARGS)
 	PG_FREE_IF_COPY(geom, 0);
 
 	PG_RETURN_POINTER(result); /* new geometry */
+}
+
+/**
+ * transform_epoch( GEOMETRY, INT (output srid), TIMESTAMPTZ (epoch) )
+ *
+ * ST_Transform overload for ECI/ECEF conversions with explicit epoch.
+ * The epoch is applied uniformly to all points in the geometry.
+ */
+PG_FUNCTION_INFO_V1(transform_epoch);
+Datum transform_epoch(PG_FUNCTION_ARGS)
+{
+	GSERIALIZED *geom;
+	GSERIALIZED *result = NULL;
+	LWGEOM *lwgeom;
+	int32 srid_to, srid_from;
+	TimestampTz ts;
+	double epoch;
+	LW_CRS_FAMILY from_family, to_family;
+	int rv;
+
+	srid_to = PG_GETARG_INT32(1);
+	if (srid_to == SRID_UNKNOWN)
+	{
+		elog(ERROR, "ST_Transform: %d is an invalid target SRID", SRID_UNKNOWN);
+		PG_RETURN_NULL();
+	}
+
+	geom = PG_GETARG_GSERIALIZED_P_COPY(0);
+	srid_from = gserialized_get_srid(geom);
+
+	if (srid_from == SRID_UNKNOWN)
+	{
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR, "ST_Transform: Input geometry has unknown (%d) SRID", SRID_UNKNOWN);
+		PG_RETURN_NULL();
+	}
+
+	/* Input SRID and output SRID are equal, noop */
+	if (srid_from == srid_to)
+		PG_RETURN_POINTER(geom);
+
+	ts = PG_GETARG_TIMESTAMPTZ(2);
+	epoch = timestamptz_to_decimal_year(ts);
+
+	/* Validate epoch: must be a reasonable value (years 1000-3000) */
+	if (epoch < 1000.0 || epoch > 3000.0)
+	{
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR,
+			"ST_Transform: Epoch value %.4f is outside valid range (1000-3000). "
+			"Provide a valid timestamp.", epoch);
+		PG_RETURN_NULL();
+	}
+
+	from_family = srid_get_crs_family(srid_from);
+	to_family = srid_get_crs_family(srid_to);
+
+	if (from_family != LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
+	{
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR,
+			"ST_Transform: Epoch parameter is only supported for ECI transforms. "
+			"Source SRID %d and target SRID %d are not inertial frames.",
+			srid_from, srid_to);
+		PG_RETURN_NULL();
+	}
+
+	lwgeom = lwgeom_from_gserialized(geom);
+
+	if (from_family == LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
+	{
+		/* ECI -> ECEF with uniform epoch */
+		rv = lwgeom_transform_eci_to_ecef(lwgeom, epoch);
+	}
+	else if (from_family != LW_CRS_INERTIAL && to_family == LW_CRS_INERTIAL)
+	{
+		/* ECEF -> ECI with uniform epoch */
+		rv = lwgeom_transform_ecef_to_eci(lwgeom, epoch);
+	}
+	else
+	{
+		lwgeom_free(lwgeom);
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR,
+			"ST_Transform: Direct ECI-to-ECI frame transform is not supported. "
+			"Transform to ECEF (SRID 4978) first.");
+		PG_RETURN_NULL();
+	}
+
+	if (rv == LW_FAILURE)
+	{
+		lwgeom_free(lwgeom);
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR, "ST_Transform: ECI transform failed.");
+		PG_RETURN_NULL();
+	}
+
+	lwgeom->srid = srid_to;
+	if (lwgeom->bbox)
+		lwgeom_refresh_bbox(lwgeom);
+
+	result = geometry_serialize(lwgeom);
+	lwgeom_free(lwgeom);
+	PG_FREE_IF_COPY(geom, 0);
+
+	PG_RETURN_POINTER(result);
 }
 
 /**
@@ -785,7 +971,7 @@ Datum postgis_crs_family(PG_FUNCTION_ARGS)
 	LW_CRS_FAMILY family;
 	const char *name;
 
-	if (srid == SRID_DEFAULT || srid == SRID_UNKNOWN)
+	if (srid == SRID_UNKNOWN)
 		PG_RETURN_TEXT_P(cstring_to_text("unknown"));
 
 	postgis_initialize_cache();

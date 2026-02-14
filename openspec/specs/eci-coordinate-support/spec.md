@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Core PostGIS support for ECI (Earth-Centered Inertial) coordinate frames, including frame identification, epoch-parameterized transformations, geometry storage with temporal coordinates, and PROJ version gating.
+
+## Requirements
 
 ### Requirement: ECI frame identification
 The system SHALL identify Earth-Centered Inertial (ECI) coordinate systems (ICRF, J2000, TEME) as a distinct CRS family (`LW_CRS_INERTIAL`) separate from ECEF/geocentric, based on PROJ CRS metadata or a curated SRID registry.

@@ -28,6 +28,8 @@ ifeq (@SFCGAL@,sfcgal)
 	SUBDIRS += postgis_sfcgal
 endif
 
+SUBDIRS += postgis_ecef_eci
+
 all clean distclean install uninstall installcheck install-extension-upgrades-from-known-versions:
 	for DIR in $(SUBDIRS); do \
 		echo "---- Making $@ in $${DIR}"; \

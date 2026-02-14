@@ -1846,6 +1846,7 @@ AC_CONFIG_FILES([GNUmakefile
    extensions/Makefile
    extensions/postgis/Makefile
    extensions/postgis_topology/Makefile
+   extensions/postgis_ecef_eci/Makefile
    $ADDRESS_STANDARDIZER_MAKEFILE_LIST
    liblwgeom/Makefile
    liblwgeom/cunit/Makefile
