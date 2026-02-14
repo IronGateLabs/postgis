@@ -1,8 +1,8 @@
 -- Tests for ECEF/ECI coordinate frame conversion and ECEF accessors
 
--- Load ECEF/ECI SQL module (functions + SRIDs)
+-- Load ECEF/ECI via extension (requires postgis extension already loaded)
 SET client_min_messages TO WARNING;
-\i :scriptdir/ecef_eci.sql
+CREATE EXTENSION IF NOT EXISTS postgis_ecef_eci;
 RESET client_min_messages;
 
 --------------------------------------------
@@ -488,3 +488,15 @@ SELECT 'accel_format',
 	postgis_accel_features() LIKE 'SIMD: %' AND
 	postgis_accel_features() LIKE '%GPU: %' AND
 	postgis_accel_features() LIKE '%Valkey: %';
+
+--------------------------------------------
+-- 9. Extension Cleanup
+--------------------------------------------
+
+-- Drop extension to verify clean removal (functions, tables, etc.)
+SET client_min_messages TO WARNING;
+DROP EXTENSION IF EXISTS postgis_ecef_eci CASCADE;
+RESET client_min_messages;
+
+-- Clean up ECI SRIDs added to spatial_ref_sys (not tracked by extension)
+DELETE FROM spatial_ref_sys WHERE srid IN (900001, 900002, 900003);
