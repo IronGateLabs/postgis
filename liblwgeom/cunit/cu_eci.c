@@ -821,6 +821,166 @@ static void test_eci_large_pointarray(void)
 }
 
 /***********************************************************************
+ * EOP-Enhanced Transform Tests
+ */
+
+static void test_eci_eop_roundtrip(void)
+{
+	/* ECEF -> ECI (EOP) -> ECEF (EOP) should return to original */
+	LWGEOM *geom;
+	LWPOINT *pt;
+	POINT4D p_orig, p_final;
+	double epoch = 2024.5;
+	double dut1 = 0.035;   /* UT1-UTC in seconds */
+	double xp = 0.1234;    /* polar motion x in arcsec */
+	double yp = 0.5678;    /* polar motion y in arcsec */
+
+	geom = lwgeom_from_wkt("POINT Z (5000000 3000000 4000000)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	pt = (LWPOINT *)geom;
+	getPoint4d_p(pt->point, 0, &p_orig);
+
+	/* ECEF -> ECI with EOP */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom, epoch, dut1, xp, yp), LW_SUCCESS);
+	/* ECI -> ECEF with EOP */
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef_eop(geom, epoch, dut1, xp, yp), LW_SUCCESS);
+
+	getPoint4d_p(pt->point, 0, &p_final);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT_DOUBLE_EQUAL(p_final.z, p_orig.z, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+static void test_eci_eop_dut1_effect(void)
+{
+	/* dut1 correction should produce a different result from non-EOP */
+	LWGEOM *geom_eop, *geom_plain;
+	LWPOINT *pt_eop, *pt_plain;
+	POINT4D p_eop, p_plain;
+	double epoch = 2024.0;
+	double dut1 = 0.5;    /* large dut1 for visible effect */
+	double xp = 0.0;
+	double yp = 0.0;
+
+	geom_eop = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
+	geom_plain = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom_eop);
+	CU_ASSERT_PTR_NOT_NULL(geom_plain);
+
+	/* EOP transform with dut1 correction */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_eop, epoch, dut1, xp, yp), LW_SUCCESS);
+	/* Plain transform (no dut1) */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom_plain, epoch), LW_SUCCESS);
+
+	pt_eop = (LWPOINT *)geom_eop;
+	pt_plain = (LWPOINT *)geom_plain;
+	getPoint4d_p(pt_eop->point, 0, &p_eop);
+	getPoint4d_p(pt_plain->point, 0, &p_plain);
+
+	/* dut1=0.5s shifts ERA by ~0.5s of Earth rotation => noticeable X/Y diff */
+	CU_ASSERT(fabs(p_eop.x - p_plain.x) > 1.0 || fabs(p_eop.y - p_plain.y) > 1.0);
+
+	lwgeom_free(geom_eop);
+	lwgeom_free(geom_plain);
+}
+
+static void test_eci_eop_polar_motion(void)
+{
+	/* Polar motion (xp, yp) should affect X, Y, and Z coordinates */
+	LWGEOM *geom_pm, *geom_nopm;
+	LWPOINT *pt_pm, *pt_nopm;
+	POINT4D p_pm, p_nopm;
+	double epoch = 2024.0;
+	double dut1 = 0.0;
+	double xp = 0.2;   /* arcsec */
+	double yp = 0.3;   /* arcsec */
+
+	geom_pm = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
+	geom_nopm = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom_pm);
+	CU_ASSERT_PTR_NOT_NULL(geom_nopm);
+
+	/* With polar motion */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_pm, epoch, dut1, xp, yp), LW_SUCCESS);
+	/* Without polar motion (same dut1=0 so ERA matches plain) */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_nopm, epoch, dut1, 0.0, 0.0), LW_SUCCESS);
+
+	pt_pm = (LWPOINT *)geom_pm;
+	pt_nopm = (LWPOINT *)geom_nopm;
+	getPoint4d_p(pt_pm->point, 0, &p_pm);
+	getPoint4d_p(pt_nopm->point, 0, &p_nopm);
+
+	/* Polar motion rotates about X and Y axes, affecting Z component */
+	CU_ASSERT(fabs(p_pm.z - p_nopm.z) > 0.001);
+
+	/* Radius should be preserved */
+	double r_pm = sqrt(p_pm.x * p_pm.x + p_pm.y * p_pm.y + p_pm.z * p_pm.z);
+	double r_nopm = sqrt(p_nopm.x * p_nopm.x + p_nopm.y * p_nopm.y + p_nopm.z * p_nopm.z);
+	CU_ASSERT_DOUBLE_EQUAL(r_pm, 6378137.0, 0.001);
+	CU_ASSERT_DOUBLE_EQUAL(r_nopm, 6378137.0, 0.001);
+
+	lwgeom_free(geom_pm);
+	lwgeom_free(geom_nopm);
+}
+
+static void test_eci_eop_zero_params_matches_plain(void)
+{
+	/* EOP with dut1=0, xp=0, yp=0 should match the non-EOP result */
+	LWGEOM *geom_eop, *geom_plain;
+	LWPOINT *pt_eop, *pt_plain;
+	POINT4D p_eop, p_plain;
+	double epoch = 2024.0;
+
+	geom_eop = lwgeom_from_wkt("POINT Z (5000000 3000000 4000000)", LW_PARSER_CHECK_NONE);
+	geom_plain = lwgeom_from_wkt("POINT Z (5000000 3000000 4000000)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom_eop);
+	CU_ASSERT_PTR_NOT_NULL(geom_plain);
+
+	/* EOP with all zeros */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_eop, epoch, 0.0, 0.0, 0.0), LW_SUCCESS);
+	/* Plain (no EOP) */
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom_plain, epoch), LW_SUCCESS);
+
+	pt_eop = (LWPOINT *)geom_eop;
+	pt_plain = (LWPOINT *)geom_plain;
+	getPoint4d_p(pt_eop->point, 0, &p_eop);
+	getPoint4d_p(pt_plain->point, 0, &p_plain);
+
+	/* Results should be identical */
+	CU_ASSERT_DOUBLE_EQUAL(p_eop.x, p_plain.x, 1e-9);
+	CU_ASSERT_DOUBLE_EQUAL(p_eop.y, p_plain.y, 1e-9);
+	CU_ASSERT_DOUBLE_EQUAL(p_eop.z, p_plain.z, 1e-9);
+
+	lwgeom_free(geom_eop);
+	lwgeom_free(geom_plain);
+}
+
+static void test_eci_eop_z_preserved(void)
+{
+	/* With xp=0 and yp=0, Z should be preserved (Z-rotation only) */
+	LWGEOM *geom;
+	LWPOINT *pt;
+	POINT4D p;
+	double epoch = 2024.0;
+	double dut1 = 0.1;
+
+	geom = lwgeom_from_wkt("POINT Z (5000000 3000000 4500000)", LW_PARSER_CHECK_NONE);
+	CU_ASSERT_PTR_NOT_NULL(geom);
+
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom, epoch, dut1, 0.0, 0.0), LW_SUCCESS);
+
+	pt = (LWPOINT *)geom;
+	getPoint4d_p(pt->point, 0, &p);
+	/* Z should be unchanged when polar motion is zero */
+	CU_ASSERT_DOUBLE_EQUAL(p.z, 4500000.0, 1e-6);
+
+	lwgeom_free(geom);
+}
+
+/***********************************************************************
  * Suite Setup
  */
 
@@ -878,4 +1038,11 @@ void eci_suite_setup(void)
 	PG_ADD_TEST(suite, test_eci_extreme_epoch_far_future);
 	PG_ADD_TEST(suite, test_eci_extreme_epoch_far_past);
 	PG_ADD_TEST(suite, test_eci_large_pointarray);
+
+	/* EOP-enhanced transforms */
+	PG_ADD_TEST(suite, test_eci_eop_roundtrip);
+	PG_ADD_TEST(suite, test_eci_eop_dut1_effect);
+	PG_ADD_TEST(suite, test_eci_eop_polar_motion);
+	PG_ADD_TEST(suite, test_eci_eop_zero_params_matches_plain);
+	PG_ADD_TEST(suite, test_eci_eop_z_preserved);
 }

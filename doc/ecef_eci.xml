@@ -280,6 +280,159 @@ WHERE frame = 'J2000';
     </refentry>
 
 <!-- ============================================================
+     Section 7.1b  EOP-Enhanced Frame Conversion Functions
+     ============================================================ -->
+
+    <refentry xml:id="ST_ECEF_To_ECI_EOP">
+        <refnamediv>
+          <refname>ST_ECEF_To_ECI_EOP</refname>
+          <refpurpose>Converts a geometry from ECEF to ECI with automatic Earth Orientation Parameter (EOP) correction.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>geometry <function>ST_ECEF_To_ECI_EOP</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+              <paramdef choice="opt"><type>text </type><parameter>frame = 'ICRF'</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Transforms a geometry from ECEF to an ECI frame with enhanced
+            precision using Earth Orientation Parameters (EOP).  The function
+            automatically looks up EOP data from the
+            <varname>postgis_eop</varname> table via
+            <xref linkend="postgis_eop_interpolate"/> and applies:</para>
+
+            <itemizedlist>
+                <listitem><para><varname>dut1</varname> correction: the Earth
+                Rotation Angle is computed using UT1 time instead of UTC,
+                eliminating up to ~0.9 seconds of rotation error
+                (~460 m at the equator).</para></listitem>
+                <listitem><para>Polar motion (<varname>xp</varname>,
+                <varname>yp</varname>): additional X-axis and Y-axis
+                rotations of up to ~0.3 arcseconds (~10 m).</para></listitem>
+            </itemizedlist>
+
+            <para>If the epoch falls outside the loaded EOP data range,
+            the function falls back to the simplified ERA-only rotation
+            used by <xref linkend="ST_ECEF_To_ECI"/>.</para>
+
+            <para>The rotation convention follows IERS 2003 (simplified,
+            without precession-nutation):
+            <literal>ECI = Rz(+ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF</literal></para>
+
+            <para>The input must have SRID 4978.  The returned geometry
+            carries the ECI SRID for the requested frame.</para>
+
+            <para>Declared <literal>STABLE</literal> and
+            <literal>PARALLEL SAFE</literal>.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Convert with automatic EOP lookup (requires loaded EOP
+            data):</para>
+<programlisting>SELECT ST_AsText(
+    ST_ECEF_To_ECI_EOP(
+        ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+        '2024-06-15 12:00:00+00'::timestamptz
+    )
+);
+</programlisting>
+
+            <para>Compare EOP-enhanced vs standard result:</para>
+<programlisting>WITH pt AS (
+    SELECT ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978) AS geom,
+           '2024-06-15 12:00:00+00'::timestamptz AS epoch
+)
+SELECT ST_Distance(
+    ST_ECEF_To_ECI(geom, epoch),
+    ST_ECEF_To_ECI_EOP(geom, epoch)
+) AS eop_correction_metres
+FROM pt;
+-- Typically 2-10 metres depending on EOP values
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECI_To_ECEF_EOP"/>, <xref linkend="ST_ECEF_To_ECI"/>, <xref linkend="postgis_eop_interpolate"/>, <xref linkend="postgis_eop_load"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="ST_ECI_To_ECEF_EOP">
+        <refnamediv>
+          <refname>ST_ECI_To_ECEF_EOP</refname>
+          <refpurpose>Converts a geometry from ECI to ECEF with automatic Earth Orientation Parameter (EOP) correction.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>geometry <function>ST_ECI_To_ECEF_EOP</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+              <paramdef choice="opt"><type>text </type><parameter>frame = 'ICRF'</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Transforms a geometry from an ECI frame back to ECEF with
+            enhanced precision using Earth Orientation Parameters.  This is
+            the inverse of <xref linkend="ST_ECEF_To_ECI_EOP"/>.</para>
+
+            <para>Applies the IERS 2003 convention:
+            <literal>ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI</literal></para>
+
+            <para>EOP values are automatically interpolated from the
+            <varname>postgis_eop</varname> table.  Falls back to ERA-only
+            rotation when EOP data is unavailable for the requested
+            epoch.</para>
+
+            <para>The input must carry an ECI SRID (900001-900003).  The
+            returned geometry has SRID 4978 (ECEF).</para>
+
+            <para>Declared <literal>STABLE</literal> and
+            <literal>PARALLEL SAFE</literal>.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Round-trip with EOP correction:</para>
+<programlisting>WITH original AS (
+    SELECT ST_SetSRID(ST_MakePoint(5000000, 3000000, 4000000), 4978) AS geom,
+           '2024-06-15 12:00:00+00'::timestamptz AS epoch
+),
+eci AS (
+    SELECT ST_ECEF_To_ECI_EOP(geom, epoch) AS geom, epoch
+    FROM original
+),
+roundtrip AS (
+    SELECT ST_ECI_To_ECEF_EOP(geom, epoch) AS geom
+    FROM eci
+)
+SELECT ST_Distance(o.geom, r.geom) AS error_metres
+FROM original o, roundtrip r;
+-- error_metres should be effectively zero
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECEF_To_ECI_EOP"/>, <xref linkend="ST_ECI_To_ECEF"/>, <xref linkend="postgis_eop_interpolate"/>, <xref linkend="postgis_eop_load"/></para>
+        </refsection>
+    </refentry>
+
+<!-- ============================================================
      Section 7.2  ECEF Coordinate Accessors
      ============================================================ -->
 
