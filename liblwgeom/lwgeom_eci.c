@@ -280,6 +280,198 @@ lwgeom_transform_ecef_to_eci_m(LWGEOM *geom)
 }
 
 /***************************************************************************/
+/* EOP-Enhanced Transforms                                                  */
+/*                                                                          */
+/* With Earth Orientation Parameters (EOP), the simplified ERA-only         */
+/* rotation is enhanced with:                                               */
+/*   1. dut1 correction: ERA computed using UT1 instead of UTC              */
+/*   2. Polar motion (xp, yp): additional X/Y axis rotations               */
+/*                                                                          */
+/* IERS 2003 convention (simplified, no precession-nutation):               */
+/*   ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI                         */
+/*   ECI  = Rz(+ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF                      */
+/*                                                                          */
+/* where xp, yp are polar motion in arcseconds and dut1 is UT1-UTC in      */
+/* seconds. The TIO locator s' is neglected (sub-microarcsecond).          */
+/***************************************************************************/
+
+/* Arcseconds to radians */
+#define ARCSEC_TO_RAD (M_PI / (180.0 * 3600.0))
+
+/**
+ * Apply X-axis rotation (Rx) to a POINTARRAY.
+ * Rx(theta): y' = y*cos - z*sin, z' = y*sin + z*cos
+ */
+static int
+ptarray_rotate_x(POINTARRAY *pa, double theta)
+{
+	uint32_t i;
+	double cos_t = cos(theta);
+	double sin_t = sin(theta);
+	POINT4D p;
+
+	for (i = 0; i < pa->npoints; i++)
+	{
+		getPoint4d_p(pa, i, &p);
+		double y = p.y, z = p.z;
+		p.y = y * cos_t - z * sin_t;
+		p.z = y * sin_t + z * cos_t;
+		ptarray_set_point4d(pa, i, &p);
+	}
+	return LW_SUCCESS;
+}
+
+/**
+ * Apply Y-axis rotation (Ry) to a POINTARRAY.
+ * Ry(theta): x' = x*cos + z*sin, z' = -x*sin + z*cos
+ */
+static int
+ptarray_rotate_y(POINTARRAY *pa, double theta)
+{
+	uint32_t i;
+	double cos_t = cos(theta);
+	double sin_t = sin(theta);
+	POINT4D p;
+
+	for (i = 0; i < pa->npoints; i++)
+	{
+		getPoint4d_p(pa, i, &p);
+		double x = p.x, z = p.z;
+		p.x = x * cos_t + z * sin_t;
+		p.z = -x * sin_t + z * cos_t;
+		ptarray_set_point4d(pa, i, &p);
+	}
+	return LW_SUCCESS;
+}
+
+/**
+ * Apply X or Y axis rotation to all points in a geometry.
+ * axis: 0 = X-axis, 1 = Y-axis
+ */
+static int
+lwgeom_rotate_xy(LWGEOM *geom, double theta, int axis)
+{
+	uint32_t i;
+	int (*rotate_fn)(POINTARRAY *, double) = axis ? ptarray_rotate_y : ptarray_rotate_x;
+
+	if (lwgeom_is_empty(geom))
+		return LW_SUCCESS;
+
+	switch (geom->type)
+	{
+	case POINTTYPE:
+	case LINETYPE:
+	case CIRCSTRINGTYPE:
+	case TRIANGLETYPE:
+	{
+		LWLINE *g = (LWLINE *)geom;
+		return rotate_fn(g->points, theta);
+	}
+	case POLYGONTYPE:
+	{
+		LWPOLY *g = (LWPOLY *)geom;
+		for (i = 0; i < g->nrings; i++)
+		{
+			if (rotate_fn(g->rings[i], theta) != LW_SUCCESS)
+				return LW_FAILURE;
+		}
+		return LW_SUCCESS;
+	}
+	case MULTIPOINTTYPE:
+	case MULTILINETYPE:
+	case MULTIPOLYGONTYPE:
+	case COLLECTIONTYPE:
+	case COMPOUNDTYPE:
+	case CURVEPOLYTYPE:
+	case MULTICURVETYPE:
+	case MULTISURFACETYPE:
+	case POLYHEDRALSURFACETYPE:
+	case TINTYPE:
+	{
+		LWCOLLECTION *g = (LWCOLLECTION *)geom;
+		for (i = 0; i < g->ngeoms; i++)
+		{
+			if (lwgeom_rotate_xy(g->geoms[i], theta, axis) != LW_SUCCESS)
+				return LW_FAILURE;
+		}
+		return LW_SUCCESS;
+	}
+	default:
+		lwerror("lwgeom_rotate_xy: Cannot handle type '%s'",
+			lwtype_name(geom->type));
+		return LW_FAILURE;
+	}
+}
+
+int
+lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
+                                  double dut1, double xp, double yp)
+{
+	double jd, jd_ut1, era;
+	double xp_rad, yp_rad;
+
+	if (epoch == LWPROJ_NO_EPOCH)
+	{
+		lwerror("lwgeom_transform_ecef_to_eci_eop: epoch is required");
+		return LW_FAILURE;
+	}
+
+	/* Convert decimal year to Julian Date, apply UT1-UTC correction */
+	jd = lweci_epoch_to_jd(epoch);
+	jd_ut1 = jd + (dut1 / 86400.0);
+	era = lweci_earth_rotation_angle(jd_ut1);
+
+	/* Convert polar motion from arcseconds to radians */
+	xp_rad = xp * ARCSEC_TO_RAD;
+	yp_rad = yp * ARCSEC_TO_RAD;
+
+	/* ECI = Rz(+ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF */
+	/* Apply in reverse order to geometry: */
+	/* 1. Ry(-xp) */
+	if (lwgeom_rotate_xy(geom, -xp_rad, 1) != LW_SUCCESS)
+		return LW_FAILURE;
+	/* 2. Rx(-yp) */
+	if (lwgeom_rotate_xy(geom, -yp_rad, 0) != LW_SUCCESS)
+		return LW_FAILURE;
+	/* 3. Rz(+ERA) */
+	return lwgeom_rotate_z(geom, era);
+}
+
+int
+lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch,
+                                  double dut1, double xp, double yp)
+{
+	double jd, jd_ut1, era;
+	double xp_rad, yp_rad;
+
+	if (epoch == LWPROJ_NO_EPOCH)
+	{
+		lwerror("lwgeom_transform_eci_to_ecef_eop: epoch is required");
+		return LW_FAILURE;
+	}
+
+	/* Convert decimal year to Julian Date, apply UT1-UTC correction */
+	jd = lweci_epoch_to_jd(epoch);
+	jd_ut1 = jd + (dut1 / 86400.0);
+	era = lweci_earth_rotation_angle(jd_ut1);
+
+	/* Convert polar motion from arcseconds to radians */
+	xp_rad = xp * ARCSEC_TO_RAD;
+	yp_rad = yp * ARCSEC_TO_RAD;
+
+	/* ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI */
+	/* Apply in reverse order to geometry: */
+	/* 1. Rz(-ERA) */
+	if (lwgeom_rotate_z(geom, -era) != LW_SUCCESS)
+		return LW_FAILURE;
+	/* 2. Rx(yp) */
+	if (lwgeom_rotate_xy(geom, yp_rad, 0) != LW_SUCCESS)
+		return LW_FAILURE;
+	/* 3. Ry(xp) */
+	return lwgeom_rotate_xy(geom, xp_rad, 1);
+}
+
+/***************************************************************************/
 /* ECI Bounding Box Computation                                             */
 /*                                                                          */
 /* ECI coordinates are 3D Cartesian (meters from Earth center) like ECEF.  */

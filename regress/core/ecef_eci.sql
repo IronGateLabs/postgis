@@ -190,6 +190,68 @@ SELECT 'eop_after_range',
 		('2000-01-01 00:00:00+00'::timestamptz + ((60003.0 - 51544.0) * 86400)::int * interval '1 second')
 	)) = 0;
 
+--------------------------------------------
+-- 5a. EOP-Enhanced Transform Tests
+--------------------------------------------
+
+-- EOP-enhanced round-trip: ECEF->ECI->ECEF with EOP should recover coordinates
+-- Use the sample EOP data already loaded (MJD 60000-60002)
+-- MJD 60000.5 -> epoch ~2023-02-25 (within our EOP data range)
+SELECT 'eop_roundtrip',
+	abs(ST_X(result) - 6378137) < 0.01 AND
+	abs(ST_Y(result)) < 0.01 AND
+	abs(ST_Z(result) - 4500000) < 0.01
+FROM (
+	SELECT ST_ECI_To_ECEF_EOP(
+		ST_ECEF_To_ECI_EOP(
+			ST_SetSRID(ST_MakePoint(6378137, 0, 4500000), 4978),
+			('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			'ICRF'),
+		('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+		'ICRF') AS result
+) sub;
+
+-- EOP transform should differ from non-EOP transform
+-- dut1=0.055 sec should shift ERA by ~0.83 arcsec = ~160m at equator
+SELECT 'eop_differs',
+	abs(ST_X(eci_basic) - ST_X(eci_eop)) > 0.1 OR
+	abs(ST_Y(eci_basic) - ST_Y(eci_eop)) > 0.1
+FROM (
+	SELECT
+		ST_ECEF_To_ECI(
+			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+			('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			'ICRF') AS eci_basic,
+		ST_ECEF_To_ECI_EOP(
+			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+			('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			'ICRF') AS eci_eop
+) sub;
+
+-- EOP fallback: epoch outside EOP range should fall back to non-EOP transform
+-- and produce identical results
+SELECT 'eop_fallback',
+	abs(ST_X(eci_basic) - ST_X(eci_eop)) < 0.001 AND
+	abs(ST_Y(eci_basic) - ST_Y(eci_eop)) < 0.001
+FROM (
+	SELECT
+		ST_ECEF_To_ECI(
+			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+			'2020-01-01 00:00:00+00'::timestamptz,
+			'ICRF') AS eci_basic,
+		ST_ECEF_To_ECI_EOP(
+			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+			'2020-01-01 00:00:00+00'::timestamptz,
+			'ICRF') AS eci_eop
+) sub;
+
+-- Z coordinate preserved through EOP-enhanced rotation
+SELECT 'eop_z_preserved',
+	abs(ST_Z(ST_ECEF_To_ECI_EOP(
+		ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
+		('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+		'ICRF')) - 4500000) < 1.0;
+
 -- Clean up EOP test data
 DELETE FROM postgis_eop WHERE mjd IN (60000.0, 60001.0, 60002.0);
 

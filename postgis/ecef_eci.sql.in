@@ -71,6 +71,70 @@ CREATE OR REPLACE FUNCTION ST_ECI_To_ECEF(geom geometry, epoch timestamptz, fram
 	PARALLEL SAFE;
 
 --------------------------------------------
+-- EOP-Enhanced Frame Conversion (C level)
+--------------------------------------------
+
+-- Internal C function: ECEF to ECI with explicit EOP parameters
+CREATE OR REPLACE FUNCTION _postgis_ecef_to_eci_eop(
+	geom geometry, epoch timestamptz, frame text,
+	dut1 float8, xp float8, yp float8)
+	RETURNS geometry
+	AS 'MODULE_PATHNAME', 'postgis_ecef_to_eci_eop'
+	LANGUAGE 'c' STABLE STRICT
+	PARALLEL SAFE;
+
+-- Internal C function: ECI to ECEF with explicit EOP parameters
+CREATE OR REPLACE FUNCTION _postgis_eci_to_ecef_eop(
+	geom geometry, epoch timestamptz, frame text,
+	dut1 float8, xp float8, yp float8)
+	RETURNS geometry
+	AS 'MODULE_PATHNAME', 'postgis_eci_to_ecef_eop'
+	LANGUAGE 'c' STABLE STRICT
+	PARALLEL SAFE;
+
+--------------------------------------------
+-- EOP-Enhanced Frame Conversion (SQL wrappers)
+--------------------------------------------
+
+-- Convert ECEF to ECI with automatic EOP lookup for enhanced precision.
+-- Falls back to simplified ERA-only rotation when EOP data is unavailable.
+CREATE OR REPLACE FUNCTION ST_ECEF_To_ECI_EOP(
+	geom geometry, epoch timestamptz, frame text DEFAULT 'ICRF')
+RETURNS geometry AS $$
+DECLARE
+	eop RECORD;
+BEGIN
+	SELECT * INTO eop FROM @extschema@.postgis_eop_interpolate(epoch);
+	IF eop IS NOT NULL THEN
+		RETURN @extschema@._postgis_ecef_to_eci_eop(geom, epoch, frame,
+			eop.dut1, eop.xp, eop.yp);
+	ELSE
+		RETURN @extschema@.ST_ECEF_To_ECI(geom, epoch, frame);
+	END IF;
+END;
+$$ LANGUAGE plpgsql STABLE STRICT
+PARALLEL SAFE;
+
+-- Convert ECI to ECEF with automatic EOP lookup for enhanced precision.
+-- Falls back to simplified ERA-only rotation when EOP data is unavailable.
+CREATE OR REPLACE FUNCTION ST_ECI_To_ECEF_EOP(
+	geom geometry, epoch timestamptz, frame text DEFAULT 'ICRF')
+RETURNS geometry AS $$
+DECLARE
+	eop RECORD;
+BEGIN
+	SELECT * INTO eop FROM @extschema@.postgis_eop_interpolate(epoch);
+	IF eop IS NOT NULL THEN
+		RETURN @extschema@._postgis_eci_to_ecef_eop(geom, epoch, frame,
+			eop.dut1, eop.xp, eop.yp);
+	ELSE
+		RETURN @extschema@.ST_ECI_To_ECEF(geom, epoch, frame);
+	END IF;
+END;
+$$ LANGUAGE plpgsql STABLE STRICT
+PARALLEL SAFE;
+
+--------------------------------------------
 -- ECEF Coordinate Accessors
 --------------------------------------------
 

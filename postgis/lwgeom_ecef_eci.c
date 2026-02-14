@@ -217,6 +217,130 @@ Datum postgis_eci_to_ecef(PG_FUNCTION_ARGS)
 }
 
 /* ----------------------------------------------------------------
+ * EOP-Enhanced Transforms
+ *
+ * postgis_ecef_to_eci_eop(geometry, timestamptz, text, float8, float8, float8) -> geometry
+ * postgis_eci_to_ecef_eop(geometry, timestamptz, text, float8, float8, float8) -> geometry
+ *
+ * These accept explicit EOP parameters (dut1, xp, yp) passed from SQL.
+ * ---------------------------------------------------------------- */
+
+PG_FUNCTION_INFO_V1(postgis_ecef_to_eci_eop);
+Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
+{
+	GSERIALIZED *geom_in;
+	LWGEOM *lwgeom;
+	GSERIALIZED *result;
+	TimestampTz ts;
+	text *frame_text;
+	char *frame_str;
+	int32_t srid_from;
+	int32_t srid_to;
+	double epoch;
+	double dut1, xp, yp;
+
+	geom_in = PG_GETARG_GSERIALIZED_P_COPY(0);
+	ts = PG_GETARG_TIMESTAMPTZ(1);
+	frame_text = PG_GETARG_TEXT_P(2);
+	dut1 = PG_GETARG_FLOAT8(3);
+	xp = PG_GETARG_FLOAT8(4);
+	yp = PG_GETARG_FLOAT8(5);
+
+	/* Validate input SRID */
+	srid_from = gserialized_get_srid(geom_in);
+	if (srid_from != SRID_ECEF)
+		elog(ERROR, "postgis_ecef_to_eci_eop: input must have SRID %d (ECEF), got %d",
+			 SRID_ECEF, srid_from);
+
+	/* Parse target frame */
+	frame_str = text_to_cstring(frame_text);
+	srid_to = parse_eci_frame(frame_str);
+	if (srid_to == 0)
+		elog(ERROR, "postgis_ecef_to_eci_eop: unrecognized frame '%s'", frame_str);
+
+	/* Convert timestamp to decimal year */
+	epoch = timestamptz_to_decimal_year(ts);
+
+	/* Transform with EOP corrections */
+	lwgeom = lwgeom_from_gserialized(geom_in);
+	if (lwgeom_transform_ecef_to_eci_eop(lwgeom, epoch, dut1, xp, yp) != LW_SUCCESS)
+	{
+		lwgeom_free(lwgeom);
+		PG_FREE_IF_COPY(geom_in, 0);
+		elog(ERROR, "postgis_ecef_to_eci_eop: transform failed");
+	}
+
+	lwgeom->srid = srid_to;
+	if (lwgeom->bbox)
+		lwgeom_refresh_bbox(lwgeom);
+
+	result = geometry_serialize(lwgeom);
+	lwgeom_free(lwgeom);
+	PG_FREE_IF_COPY(geom_in, 0);
+
+	PG_RETURN_POINTER(result);
+}
+
+PG_FUNCTION_INFO_V1(postgis_eci_to_ecef_eop);
+Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
+{
+	GSERIALIZED *geom_in;
+	LWGEOM *lwgeom;
+	GSERIALIZED *result;
+	TimestampTz ts;
+	text *frame_text;
+	char *frame_str;
+	int32_t srid_from;
+	int32_t srid_expected;
+	double epoch;
+	double dut1, xp, yp;
+
+	geom_in = PG_GETARG_GSERIALIZED_P_COPY(0);
+	ts = PG_GETARG_TIMESTAMPTZ(1);
+	frame_text = PG_GETARG_TEXT_P(2);
+	dut1 = PG_GETARG_FLOAT8(3);
+	xp = PG_GETARG_FLOAT8(4);
+	yp = PG_GETARG_FLOAT8(5);
+
+	/* Validate input SRID */
+	srid_from = gserialized_get_srid(geom_in);
+	if (!SRID_IS_ECI(srid_from))
+		elog(ERROR, "postgis_eci_to_ecef_eop: input must have ECI SRID (%d-%d), got %d",
+			 SRID_ECI_BASE, SRID_ECI_MAX, srid_from);
+
+	/* Parse frame and cross-check */
+	frame_str = text_to_cstring(frame_text);
+	srid_expected = parse_eci_frame(frame_str);
+	if (srid_expected == 0)
+		elog(ERROR, "postgis_eci_to_ecef_eop: unrecognized frame '%s'", frame_str);
+	if (srid_from != srid_expected)
+		elog(ERROR, "postgis_eci_to_ecef_eop: SRID %d does not match frame '%s' (SRID %d)",
+			 srid_from, frame_str, srid_expected);
+
+	/* Convert timestamp to decimal year */
+	epoch = timestamptz_to_decimal_year(ts);
+
+	/* Transform with EOP corrections */
+	lwgeom = lwgeom_from_gserialized(geom_in);
+	if (lwgeom_transform_eci_to_ecef_eop(lwgeom, epoch, dut1, xp, yp) != LW_SUCCESS)
+	{
+		lwgeom_free(lwgeom);
+		PG_FREE_IF_COPY(geom_in, 0);
+		elog(ERROR, "postgis_eci_to_ecef_eop: transform failed");
+	}
+
+	lwgeom->srid = SRID_ECEF;
+	if (lwgeom->bbox)
+		lwgeom_refresh_bbox(lwgeom);
+
+	result = geometry_serialize(lwgeom);
+	lwgeom_free(lwgeom);
+	PG_FREE_IF_COPY(geom_in, 0);
+
+	PG_RETURN_POINTER(result);
+}
+
+/* ----------------------------------------------------------------
  * ECEF Coordinate Accessors
  *
  * ST_ECEF_X(geometry) -> float8
