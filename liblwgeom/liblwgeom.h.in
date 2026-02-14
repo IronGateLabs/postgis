@@ -2667,6 +2667,22 @@ int lwgeom_transform_eci_to_ecef_m(LWGEOM *geom);
 int lwgeom_transform_ecef_to_eci_m(LWGEOM *geom);
 
 /**
+ * Transform ECEF to ECI with Earth Orientation Parameters.
+ * dut1: UT1-UTC in seconds, xp/yp: polar motion in arcseconds.
+ * Applies IERS 2003 convention: ECI = Rz(ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF
+ */
+int lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
+                                      double dut1, double xp, double yp);
+
+/**
+ * Transform ECI to ECEF with Earth Orientation Parameters.
+ * dut1: UT1-UTC in seconds, xp/yp: polar motion in arcseconds.
+ * Applies IERS 2003 convention: ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI
+ */
+int lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch,
+                                      double dut1, double xp, double yp);
+
+/**
  * Compute bounding box for an ECI geometry.
  * Uses standard Cartesian GBOX computation (no geodetic normalization).
  * M coordinate tracks temporal (epoch) extent when present.

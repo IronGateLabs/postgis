@@ -33,6 +33,10 @@ null_frame|t
 eop_interp|0.000105|0.000210|0.055
 eop_before_range|t
 eop_after_range|t
+eop_roundtrip|t
+eop_differs|t
+eop_fallback|t
+eop_z_preserved|t
 xform_m_epoch|t
 xform_m_roundtrip|t
 xform_explicit_epoch|t
