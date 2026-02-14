@@ -1,0 +1,242 @@
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+--
+-- PostGIS - ECEF/ECI Coordinate Frame Support
+-- http://postgis.net
+--
+-- Copyright (C) 2024 PostGIS Developers
+--
+-- This is free software; you can redistribute and/or modify it under
+-- the terms of the GNU General Public Licence. See the COPYING file.
+--
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#include "../postgis/sqldefines.h"
+
+-- INSTALL VERSION: POSTGIS_LIB_VERSION
+
+BEGIN;
+
+--------------------------------------------
+-- ECI Spatial Reference System Registration
+--------------------------------------------
+
+-- SRID 900001: Earth-Centered Inertial, International Celestial Reference Frame (ICRF)
+INSERT INTO spatial_ref_sys (srid, auth_name, auth_srid, srtext, proj4text)
+VALUES (
+	900001,
+	'PostGIS',
+	900001,
+	'LOCAL_CS["ECI-ICRF",LOCAL_DATUM["Earth-Centered Inertial (ICRF)",0],UNIT["metre",1],AXIS["X",OTHER],AXIS["Y",OTHER],AXIS["Z",OTHER],AUTHORITY["PostGIS","900001"]]',
+	'+proj=geocent +datum=WGS84 +units=m +no_defs'
+) ON CONFLICT (srid) DO NOTHING;
+
+-- SRID 900002: Earth-Centered Inertial, J2000 epoch frame
+INSERT INTO spatial_ref_sys (srid, auth_name, auth_srid, srtext, proj4text)
+VALUES (
+	900002,
+	'PostGIS',
+	900002,
+	'LOCAL_CS["ECI-J2000",LOCAL_DATUM["Earth-Centered Inertial (J2000)",0],UNIT["metre",1],AXIS["X",OTHER],AXIS["Y",OTHER],AXIS["Z",OTHER],AUTHORITY["PostGIS","900002"]]',
+	'+proj=geocent +datum=WGS84 +units=m +no_defs'
+) ON CONFLICT (srid) DO NOTHING;
+
+-- SRID 900003: True Equator Mean Equinox (TEME) frame
+INSERT INTO spatial_ref_sys (srid, auth_name, auth_srid, srtext, proj4text)
+VALUES (
+	900003,
+	'PostGIS',
+	900003,
+	'LOCAL_CS["ECI-TEME",LOCAL_DATUM["Earth-Centered Inertial (TEME)",0],UNIT["metre",1],AXIS["X",OTHER],AXIS["Y",OTHER],AXIS["Z",OTHER],AUTHORITY["PostGIS","900003"]]',
+	'+proj=geocent +datum=WGS84 +units=m +no_defs'
+) ON CONFLICT (srid) DO NOTHING;
+
+--------------------------------------------
+-- Frame Conversion Functions
+--------------------------------------------
+
+-- Convert ECEF (Earth-Centered Earth-Fixed) coordinates to ECI (Earth-Centered Inertial)
+-- The frame parameter selects the target ECI frame: 'ICRF', 'J2000', or 'TEME'
+CREATE OR REPLACE FUNCTION ST_ECEF_To_ECI(geom geometry, epoch timestamptz, frame text DEFAULT 'ICRF')
+	RETURNS geometry
+	AS 'MODULE_PATHNAME', 'postgis_ecef_to_eci'
+	LANGUAGE 'c' STABLE STRICT
+	PARALLEL SAFE;
+
+-- Convert ECI (Earth-Centered Inertial) coordinates to ECEF (Earth-Centered Earth-Fixed)
+-- The frame parameter selects the source ECI frame: 'ICRF', 'J2000', or 'TEME'
+CREATE OR REPLACE FUNCTION ST_ECI_To_ECEF(geom geometry, epoch timestamptz, frame text DEFAULT 'ICRF')
+	RETURNS geometry
+	AS 'MODULE_PATHNAME', 'postgis_eci_to_ecef'
+	LANGUAGE 'c' STABLE STRICT
+	PARALLEL SAFE;
+
+--------------------------------------------
+-- ECEF Coordinate Accessors
+--------------------------------------------
+
+-- Return the X coordinate of an ECEF point (metres)
+CREATE OR REPLACE FUNCTION ST_ECEF_X(geometry)
+	RETURNS float8
+	AS 'MODULE_PATHNAME', 'postgis_ecef_x'
+	LANGUAGE 'c' IMMUTABLE STRICT
+	PARALLEL SAFE;
+
+-- Return the Y coordinate of an ECEF point (metres)
+CREATE OR REPLACE FUNCTION ST_ECEF_Y(geometry)
+	RETURNS float8
+	AS 'MODULE_PATHNAME', 'postgis_ecef_y'
+	LANGUAGE 'c' IMMUTABLE STRICT
+	PARALLEL SAFE;
+
+-- Return the Z coordinate of an ECEF point (metres)
+CREATE OR REPLACE FUNCTION ST_ECEF_Z(geometry)
+	RETURNS float8
+	AS 'MODULE_PATHNAME', 'postgis_ecef_z'
+	LANGUAGE 'c' IMMUTABLE STRICT
+	PARALLEL SAFE;
+
+--------------------------------------------
+-- Earth Orientation Parameters (EOP) Table
+--------------------------------------------
+
+CREATE TABLE IF NOT EXISTS postgis_eop (
+	mjd FLOAT8 PRIMARY KEY,
+	xp FLOAT8 CHECK (xp BETWEEN -0.000278 AND 0.000278),
+	yp FLOAT8 CHECK (yp BETWEEN -0.000278 AND 0.000278),
+	dut1 FLOAT8 CHECK (dut1 BETWEEN -1.0 AND 1.0),
+	dx FLOAT8,
+	dy FLOAT8
+);
+
+--------------------------------------------
+-- EOP Functions
+--------------------------------------------
+
+-- Load Earth Orientation Parameters from IERS Bulletin A fixed-width format text.
+-- Parses lines and upserts into postgis_eop table.
+-- Bulletin A fixed-width columns (1-based):
+--   col  8-12: year (2-digit)
+--   col 13-14: month
+--   col 15-16: day
+--   col 19-27: MJD
+--   col 35-43: x (pole, arcsec)
+--   col 44-52: y (pole, arcsec)
+--   col 59-68: UT1-UTC (seconds)
+CREATE OR REPLACE FUNCTION postgis_eop_load(data TEXT)
+RETURNS integer AS $$
+DECLARE
+	line TEXT;
+	mjd_val FLOAT8;
+	xp_val FLOAT8;
+	yp_val FLOAT8;
+	dut1_val FLOAT8;
+	cnt INTEGER := 0;
+BEGIN
+	FOR line IN SELECT unnest(string_to_array(data, E'\n'))
+	LOOP
+		-- Skip lines that are too short or header lines
+		IF length(line) < 68 THEN
+			CONTINUE;
+		END IF;
+
+		-- Try to parse MJD from columns 19-27
+		BEGIN
+			mjd_val := trim(substring(line FROM 19 FOR 9))::FLOAT8;
+			xp_val := trim(substring(line FROM 35 FOR 9))::FLOAT8;
+			yp_val := trim(substring(line FROM 44 FOR 9))::FLOAT8;
+			dut1_val := trim(substring(line FROM 59 FOR 10))::FLOAT8;
+		EXCEPTION WHEN OTHERS THEN
+			CONTINUE;
+		END;
+
+		-- Validate parsed values
+		IF mjd_val IS NULL OR xp_val IS NULL OR yp_val IS NULL OR dut1_val IS NULL THEN
+			CONTINUE;
+		END IF;
+
+		INSERT INTO @extschema@.postgis_eop (mjd, xp, yp, dut1, dx, dy)
+		VALUES (mjd_val, xp_val, yp_val, dut1_val, NULL, NULL)
+		ON CONFLICT (mjd) DO UPDATE SET
+			xp = EXCLUDED.xp,
+			yp = EXCLUDED.yp,
+			dut1 = EXCLUDED.dut1;
+
+		cnt := cnt + 1;
+	END LOOP;
+
+	RETURN cnt;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+-- Interpolate Earth Orientation Parameters for a given epoch.
+-- Converts the epoch to Modified Julian Date, finds the two bracketing
+-- rows in postgis_eop, and performs linear interpolation.
+-- Returns NULL if the epoch is outside the available EOP data range.
+CREATE OR REPLACE FUNCTION postgis_eop_interpolate(epoch TIMESTAMPTZ)
+RETURNS TABLE (xp FLOAT8, yp FLOAT8, dut1 FLOAT8, dx FLOAT8, dy FLOAT8) AS $$
+DECLARE
+	mjd_epoch FLOAT8;
+	rec_before RECORD;
+	rec_after RECORD;
+	frac FLOAT8;
+BEGIN
+	-- Convert timestamptz to Modified Julian Date
+	-- MJD = JD - 2400000.5; Unix epoch 1970-01-01 = JD 2440587.5 = MJD 40587.0
+	-- EXTRACT(EPOCH FROM ...) returns seconds since Unix epoch (1970-01-01)
+	mjd_epoch := 40587.0 + EXTRACT(EPOCH FROM epoch) / 86400.0;
+
+	-- Find the row at or just before the epoch
+	SELECT e.* INTO rec_before
+	FROM @extschema@.postgis_eop e
+	WHERE e.mjd <= mjd_epoch
+	ORDER BY e.mjd DESC
+	LIMIT 1;
+
+	-- Find the row just after the epoch
+	SELECT e.* INTO rec_after
+	FROM @extschema@.postgis_eop e
+	WHERE e.mjd > mjd_epoch
+	ORDER BY e.mjd ASC
+	LIMIT 1;
+
+	-- If we do not have bracketing data, return NULL
+	IF rec_before IS NULL OR rec_after IS NULL THEN
+		RETURN;
+	END IF;
+
+	-- Exact match
+	IF rec_before.mjd = mjd_epoch THEN
+		xp := rec_before.xp;
+		yp := rec_before.yp;
+		dut1 := rec_before.dut1;
+		dx := rec_before.dx;
+		dy := rec_before.dy;
+		RETURN NEXT;
+		RETURN;
+	END IF;
+
+	-- Linear interpolation
+	frac := (mjd_epoch - rec_before.mjd) / (rec_after.mjd - rec_before.mjd);
+
+	xp := rec_before.xp + frac * (rec_after.xp - rec_before.xp);
+	yp := rec_before.yp + frac * (rec_after.yp - rec_before.yp);
+	dut1 := rec_before.dut1 + frac * (rec_after.dut1 - rec_before.dut1);
+	dx := COALESCE(rec_before.dx, 0) + frac * (COALESCE(rec_after.dx, 0) - COALESCE(rec_before.dx, 0));
+	dy := COALESCE(rec_before.dy, 0) + frac * (COALESCE(rec_after.dy, 0) - COALESCE(rec_before.dy, 0));
+
+	RETURN NEXT;
+	RETURN;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Placeholder procedure for scheduling periodic EOP data refresh.
+-- In production, connect this to pg_cron or similar scheduler to
+-- fetch updated IERS Bulletin A data.
+CREATE OR REPLACE PROCEDURE postgis_refresh_eop()
+AS $$
+BEGIN
+	RAISE NOTICE 'postgis_refresh_eop: placeholder — configure an external scheduler to fetch IERS Bulletin A data and call postgis_eop_load()';
+END;
+$$ LANGUAGE plpgsql;
+
+COMMIT;

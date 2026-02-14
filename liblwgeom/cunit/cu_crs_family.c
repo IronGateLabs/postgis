@@ -617,6 +617,78 @@ static void test_lwcrs_family_from_pj_type_complete(void)
 	CU_ASSERT_EQUAL(lwcrs_family_from_pj_type(PJ_TYPE_OTHER_CRS), LW_CRS_UNKNOWN);
 }
 
+static void test_lwcrs_family_enum_stability(void)
+{
+	/*
+	 * Enum integer values must never change across versions.
+	 * These values may be stored in caches, serialized formats,
+	 * or referenced by external tools. Changing them would break
+	 * binary compatibility.
+	 */
+	CU_ASSERT_EQUAL(LW_CRS_UNKNOWN,     0);
+	CU_ASSERT_EQUAL(LW_CRS_GEOGRAPHIC,  1);
+	CU_ASSERT_EQUAL(LW_CRS_PROJECTED,   2);
+	CU_ASSERT_EQUAL(LW_CRS_GEOCENTRIC,  3);
+	CU_ASSERT_EQUAL(LW_CRS_INERTIAL,    4);
+	CU_ASSERT_EQUAL(LW_CRS_TOPOCENTRIC, 5);
+	CU_ASSERT_EQUAL(LW_CRS_ENGINEERING, 6);
+}
+
+static void test_lwproj_is_latlong_via_crs_family(void)
+{
+	/*
+	 * Verify that lwproj_is_latlong() contract is satisfied by CRS family:
+	 * geographic → true, everything else → false.
+	 * Since lwproj_is_latlong() now returns (source_crs_family == LW_CRS_GEOGRAPHIC),
+	 * we verify the source_crs_family is correctly set for each CRS type.
+	 */
+	LWPROJ *lp;
+
+	/* Geographic (4326) should be latlong */
+	lp = lwproj_from_str("EPSG:4326", "EPSG:4326");
+	CU_ASSERT_PTR_NOT_NULL(lp);
+	if (lp)
+	{
+		CU_ASSERT_EQUAL(lp->source_crs_family, LW_CRS_GEOGRAPHIC);
+		CU_ASSERT_EQUAL(lp->source_crs_family == LW_CRS_GEOGRAPHIC, LW_TRUE);
+		proj_destroy(lp->pj);
+		lwfree(lp);
+	}
+
+	/* Projected (32632) should NOT be latlong */
+	lp = lwproj_from_str("EPSG:32632", "EPSG:32632");
+	CU_ASSERT_PTR_NOT_NULL(lp);
+	if (lp)
+	{
+		CU_ASSERT_EQUAL(lp->source_crs_family, LW_CRS_PROJECTED);
+		CU_ASSERT_EQUAL(lp->source_crs_family == LW_CRS_GEOGRAPHIC, LW_FALSE);
+		proj_destroy(lp->pj);
+		lwfree(lp);
+	}
+
+	/* Geocentric (4978) should NOT be latlong */
+	lp = lwproj_from_str("EPSG:4978", "EPSG:4978");
+	CU_ASSERT_PTR_NOT_NULL(lp);
+	if (lp)
+	{
+		CU_ASSERT_EQUAL(lp->source_crs_family, LW_CRS_GEOCENTRIC);
+		CU_ASSERT_EQUAL(lp->source_crs_family == LW_CRS_GEOGRAPHIC, LW_FALSE);
+		proj_destroy(lp->pj);
+		lwfree(lp);
+	}
+
+	/* Geographic 3D (4979) should be latlong */
+	lp = lwproj_from_str("EPSG:4979", "EPSG:4979");
+	CU_ASSERT_PTR_NOT_NULL(lp);
+	if (lp)
+	{
+		CU_ASSERT_EQUAL(lp->source_crs_family, LW_CRS_GEOGRAPHIC);
+		CU_ASSERT_EQUAL(lp->source_crs_family == LW_CRS_GEOGRAPHIC, LW_TRUE);
+		proj_destroy(lp->pj);
+		lwfree(lp);
+	}
+}
+
 static void test_lwcrs_family_name_complete(void)
 {
 	/* All enum values must have non-NULL names */
@@ -759,8 +831,10 @@ void crs_family_suite_setup(void)
 	/* Enum tests */
 	PG_ADD_TEST(suite, test_lwcrs_family_name);
 	PG_ADD_TEST(suite, test_lwcrs_family_from_pj_type);
+	PG_ADD_TEST(suite, test_lwcrs_family_enum_stability);
 	PG_ADD_TEST(suite, test_lwcrs_family_name_complete);
 	PG_ADD_TEST(suite, test_lwcrs_family_from_pj_type_complete);
+	PG_ADD_TEST(suite, test_lwproj_is_latlong_via_crs_family);
 
 	/* CRS family detection via LWPROJ */
 	PG_ADD_TEST(suite, test_lwproj_crs_family_geographic);

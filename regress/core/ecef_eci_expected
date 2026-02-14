@@ -1,0 +1,78 @@
+srid_icrf|900001|PostGIS
+srid_j2000|900002|PostGIS
+srid_teme|900003|PostGIS
+setsrid_eci|900001
+setsrid_eci|900002
+setsrid_eci|900003
+ecef_x|4000000
+ecef_y|3000000
+ecef_z|4500000
+psql:regress/core/ecef_eci.sql:27: ERROR:  Argument to ST_ECEF_X() must have SRID 4978 (ECEF/WGS 84 geocentric)
+psql:regress/core/ecef_eci.sql:28: ERROR:  Argument to ST_ECEF_Y() must have SRID 4978 (ECEF/WGS 84 geocentric)
+psql:regress/core/ecef_eci.sql:29: ERROR:  Argument to ST_ECEF_Z() must have SRID 4978 (ECEF/WGS 84 geocentric)
+psql:regress/core/ecef_eci.sql:32: ERROR:  Argument to ST_ECEF_X() must have type POINT
+ecef_x_empty|t
+ecef_z_2d|t
+ecef_x_null|t
+to_eci_icrf_srid|900001
+to_eci_j2000_srid|900002
+to_eci_teme_srid|900003
+to_eci_case|900001
+roundtrip|t
+roundtrip_3d|t
+to_ecef_srid|4978
+z_preserved|t
+diff_epochs|t
+psql:regress/core/ecef_eci.sql:128: ERROR:  ST_ECEFToECI: input geometry must have SRID 4978 (ECEF/WGS 84 geocentric), got 4326
+psql:regress/core/ecef_eci.sql:134: ERROR:  ST_ECEFToECI: unrecognized ECI frame 'INVALID' (expected ICRF, J2000, or TEME)
+psql:regress/core/ecef_eci.sql:140: ERROR:  ST_ECIToECEF: input geometry must have an ECI SRID (900001-900099), got 4326
+psql:regress/core/ecef_eci.sql:146: ERROR:  ST_ECIToECEF: geometry SRID 900001 does not match frame 'J2000' (SRID 900002)
+null_geom|t
+null_epoch|t
+null_frame|t
+INSERT 0 3
+eop_interp|0.000105|0.000210|0.055
+eop_before_range|t
+eop_after_range|t
+DELETE 3
+xform_m_epoch|t
+xform_m_roundtrip|t
+xform_explicit_epoch|t
+xform_explicit_roundtrip|t
+xform_eci_to_ecef|t
+psql:regress/core/ecef_eci.sql:269: ERROR:  ST_Transform: ECI transform requires epoch. Use M coordinates as epoch values or call ST_Transform(geom, srid, epoch) with an explicit timestamp.
+psql:regress/core/ecef_eci.sql:276: ERROR:  ST_Transform: Direct ECI-to-ECI frame transform is not supported. Transform to ECEF (SRID 4978) first.
+psql:regress/core/ecef_eci.sql:284: ERROR:  ST_Transform: Epoch parameter is only supported for ECI transforms. Source SRID 4326 and target SRID 4978 are not inertial frames.
+psql:regress/core/ecef_eci.sql:291: ERROR:  ECI transform: point 0 has invalid epoch M=-500.0000 (expected decimal year in range 1000-3000)
+xform_j2000|t
+xform_teme|t
+CREATE TABLE
+INSERT 0 595
+CREATE INDEX
+ANALYZE
+CREATE FUNCTION
+SET
+SET
+SET
+gist_nd_scan|t
+gist_nd_count|t
+gist_3ddwithin|t
+RESET
+RESET
+RESET
+DROP TABLE
+CREATE TABLE
+INSERT 0 162
+CREATE INDEX
+ANALYZE
+SET
+SET
+SET
+eci_gist_nd_scan|t
+eci_gist_nd_count|t
+eci_3ddwithin|t
+RESET
+RESET
+RESET
+DROP FUNCTION
+DROP TABLE

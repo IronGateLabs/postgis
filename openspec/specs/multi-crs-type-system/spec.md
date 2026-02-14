@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Integration of CRS family classification into PostGIS internals: extending LWPROJ, replacing boolean CRS checks with family-aware dispatch, caching CRS metadata, and maintaining backward compatibility.
+
+## Requirements
 
 ### Requirement: CRS family metadata in LWPROJ
 The `LWPROJ` struct SHALL be extended to include a `crs_family` field (using the CRS family enum) that is populated when a transformation is created via `lwproj_from_PJ` or `lwproj_from_str_pipeline`.
@@ -18,6 +22,8 @@ The `LWPROJ` struct SHALL be extended to include a `crs_family` field (using the
 ### Requirement: Replace source_is_latlong with CRS family check
 All code paths that branch on `LWPROJ.source_is_latlong` SHALL be refactored to branch on `LWPROJ.source_crs_family` (and where needed, `target_crs_family`) to correctly handle geocentric and inertial CRS types.
 
+The `source_is_latlong` field SHALL be retained but marked deprecated for one release cycle. All internal consumers SHALL be migrated to use the CRS family enum.
+
 #### Scenario: Geocentric source not treated as latlong
 - **WHEN** a transformation with ECEF source (SRID 4978) is processed
 - **THEN** the coordinate preparation code SHALL NOT apply radian conversion (ECEF coordinates are already in meters, not angular)
@@ -29,6 +35,18 @@ All code paths that branch on `LWPROJ.source_is_latlong` SHALL be refactored to 
 #### Scenario: Projected source bypasses angular handling
 - **WHEN** a transformation with projected source (SRID 32632) is processed
 - **THEN** no angular conversion SHALL be applied (same as current behavior)
+
+#### Scenario: lwproj_is_latlong uses CRS family
+- **WHEN** `lwproj_is_latlong()` is called on an LWPROJ with `source_crs_family == LW_CRS_GEOGRAPHIC`
+- **THEN** the function SHALL return true, deriving the answer from `source_crs_family` rather than the deprecated `source_is_latlong` boolean
+
+#### Scenario: srid_check_latlong uses CRS family internally
+- **WHEN** `srid_check_latlong()` validates a geography SRID
+- **THEN** the function SHALL check `source_crs_family == LW_CRS_GEOGRAPHIC` internally, while preserving its existing error message contract
+
+#### Scenario: srid_axis_precision uses CRS family
+- **WHEN** `srid_axis_precision()` determines decimal precision for a geographic CRS
+- **THEN** the function SHALL branch on `source_crs_family == LW_CRS_GEOGRAPHIC` rather than the `source_is_latlong` boolean
 
 ### Requirement: PROJ cache key includes CRS family
 The `PROJSRSCacheItem` struct SHALL cache the source and target CRS families alongside the SRID pair, so that CRS family lookups do not require repeated PROJ queries.
@@ -66,6 +84,22 @@ Spatial functions SHALL inspect the CRS family of their input geometries and dis
 #### Scenario: Mixed CRS families raise error
 - **WHEN** a binary spatial function (e.g., `ST_Intersects`) is called with one geographic and one geocentric geometry
 - **THEN** the function SHALL raise an error indicating CRS family mismatch, rather than producing incorrect results
+
+#### Scenario: ST_Area raises error for geocentric
+- **WHEN** `ST_Area` is called on a geocentric polygon
+- **THEN** the function SHALL raise an error indicating that area computation is not supported in geocentric coordinates
+
+#### Scenario: ST_Centroid raises error for geocentric
+- **WHEN** `ST_Centroid` is called on a geocentric geometry
+- **THEN** the function SHALL raise an error indicating that centroid computation is not supported in geocentric coordinates
+
+#### Scenario: ST_Length dispatches to 3D Euclidean for geocentric
+- **WHEN** `ST_Length` is called on a geocentric linestring
+- **THEN** the function SHALL compute 3D Euclidean length in meters
+
+#### Scenario: Error message includes function name and SRID
+- **WHEN** a spatial function raises a CRS family error
+- **THEN** the error message SHALL include the function name and SRID to aid debugging
 
 ### Requirement: Documentation of CRS family in metadata functions
 The `ST_SRID`, `PostGIS_Full_Version`, and related metadata functions SHALL expose CRS family information.

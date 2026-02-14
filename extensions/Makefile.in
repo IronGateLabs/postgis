@@ -31,6 +31,8 @@ ifeq (@SFCGAL@,sfcgal)
 	SUBDIRS += postgis_sfcgal
 endif
 
+SUBDIRS += postgis_ecef_eci
+
 ifeq (@ADDRESS_STANDARDIZER@,address_standardizer)
 	SUBDIRS += address_standardizer
 endif
