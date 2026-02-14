@@ -35,6 +35,11 @@
 #include "lwgeom_log.h"
 #include "lwgeom_pg.h"
 #include "geos_c.h"
+#include "liblwgeom.h"
+#include "../liblwgeom/lwgeom_accel.h"
+
+/* Valkey batch worker GUC registration */
+extern void postgis_valkey_register_gucs(void);
 
 #ifdef HAVE_LIBPROTOBUF
 #include "lwgeom_wagyu.h"
@@ -106,6 +111,15 @@ pjLogFunction(void* data, int logLevel, const char* message)
 }
 #endif
 
+/* GUC variables for hardware acceleration */
+static int postgis_gpu_dispatch_threshold = 10000;
+
+static void
+postgis_gpu_threshold_assign(int newval, void *extra)
+{
+	lwaccel_set_gpu_threshold((uint32_t)newval);
+}
+
 /*
  * Module load callback
  */
@@ -128,6 +142,23 @@ _PG_init(void)
 	proj_log_func(NULL, NULL, pjLogFunction);
 #endif
 
+	/* Register Valkey batch GUC parameters */
+	postgis_valkey_register_gucs();
+
+	/* GPU dispatch threshold GUC */
+	DefineCustomIntVariable(
+		"postgis.gpu_dispatch_threshold",
+		"Minimum POINTARRAY size for GPU dispatch (points).",
+		"POINTARRAYs with fewer points use CPU SIMD. Default 10000.",
+		&postgis_gpu_dispatch_threshold,
+		10000,    /* default */
+		1,        /* min */
+		INT_MAX,  /* max */
+		PGC_USERSET,
+		0,
+		NULL,
+		postgis_gpu_threshold_assign,
+		NULL);
 }
 
 /*

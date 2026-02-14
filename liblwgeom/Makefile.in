@@ -147,11 +147,47 @@ LDFLAGS += @SFCGAL_LDFLAGS@
 SA_OBJS += lwgeom_sfcgal.o
 endif
 
+# Acceleration dispatch (always built, contains runtime detection + scalar fallback)
+SA_OBJS += lwgeom_accel.o lwgeom_gpu.o
+
+# SIMD-accelerated files (compiled with ISA-specific flags)
+ACCEL_OBJS =
+ifeq (@HAVE_AVX2@,yes)
+ACCEL_OBJS += accel/rotate_z_avx2.o accel/rad_convert_avx2.o
+endif
+ifeq (@HAVE_AVX512@,yes)
+ACCEL_OBJS += accel/rotate_z_avx512.o
+endif
+ifeq (@HAVE_NEON@,yes)
+ACCEL_OBJS += accel/rotate_z_neon.o accel/rad_convert_neon.o
+endif
+
+# GPU backend files
+NVCC = @NVCC@
+HIPCC = @HIPCC@
+ICPX = @ICPX@
+ifeq (@HAVE_CUDA@,yes)
+ACCEL_OBJS += accel/gpu_cuda.o
+CPPFLAGS += @CUDA_CFLAGS@
+LDFLAGS += @CUDA_LDFLAGS@
+endif
+ifeq (@HAVE_ROCM@,yes)
+ACCEL_OBJS += accel/gpu_rocm.o
+CPPFLAGS += @ROCM_CFLAGS@
+LDFLAGS += @ROCM_LDFLAGS@
+endif
+ifeq (@HAVE_ONEAPI@,yes)
+ACCEL_OBJS += accel/gpu_oneapi.o
+CPPFLAGS += @ONEAPI_CFLAGS@
+LDFLAGS += @ONEAPI_LDFLAGS@
+endif
+
 LDFLAGS += -no-undefined
 
 LT_SA_OBJS = $(SA_OBJS:.o=.lo)
 LT_NM_OBJS = $(NM_OBJS:.o=.lo)
-LT_OBJS = $(LT_SA_OBJS) $(LT_NM_OBJS)
+LT_ACCEL_OBJS = $(ACCEL_OBJS:.o=.lo)
+LT_OBJS = $(LT_SA_OBJS) $(LT_NM_OBJS) $(LT_ACCEL_OBJS)
 
 SA_HEADERS = \
 	bytebuffer.h \
@@ -180,7 +216,9 @@ SA_HEADERS = \
 	measures.h \
 	stringbuffer.h \
 	varint.h \
-	lwgeom_remove_irrelevant_points_for_view.h
+	lwgeom_remove_irrelevant_points_for_view.h \
+	lwgeom_accel.h \
+	lwgeom_gpu.h
 
 all: liblwgeom.la
 
@@ -215,6 +253,7 @@ clean:
 	rm -f liblwgeom.la
 	rm -rf .libs
 	rm -rf topo/.libs
+	rm -rf accel/.libs accel/*.o accel/*.lo
 
 distclean: clean
 	$(MAKE) -C cunit distclean
@@ -251,3 +290,37 @@ lwin_wkt_lex.c: lwin_wkt_lex.l
 
 liblwgeom.h: liblwgeom.h.in
 	cd $(top_builddir) && ./config.status
+
+# SIMD-specific compilation rules (need ISA-specific flags)
+accel/rotate_z_avx2.lo: accel/rotate_z_avx2.c
+	@mkdir -p accel
+	$(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) @AVX2_CFLAGS@ -c -o $@ $<
+
+accel/rad_convert_avx2.lo: accel/rad_convert_avx2.c
+	@mkdir -p accel
+	$(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) @AVX2_CFLAGS@ -c -o $@ $<
+
+accel/rotate_z_avx512.lo: accel/rotate_z_avx512.c
+	@mkdir -p accel
+	$(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) @AVX512_CFLAGS@ -c -o $@ $<
+
+accel/rotate_z_neon.lo: accel/rotate_z_neon.c
+	@mkdir -p accel
+	$(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+accel/rad_convert_neon.lo: accel/rad_convert_neon.c
+	@mkdir -p accel
+	$(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+# GPU compilation rules
+accel/gpu_cuda.lo: accel/gpu_cuda.cu
+	@mkdir -p accel
+	$(NVCC) -c -Xcompiler "$(CPPFLAGS) $(CFLAGS)" -o accel/gpu_cuda.o $<
+
+accel/gpu_rocm.lo: accel/gpu_rocm.hip
+	@mkdir -p accel
+	$(HIPCC) -c $(CPPFLAGS) $(CFLAGS) -o accel/gpu_rocm.o $<
+
+accel/gpu_oneapi.lo: accel/gpu_oneapi.cpp
+	@mkdir -p accel
+	$(ICPX) -fsycl -c $(CPPFLAGS) $(CFLAGS) -o accel/gpu_oneapi.o $<

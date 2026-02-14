@@ -135,6 +135,7 @@ PG_OBJS= \
 	lwgeom_remove_irrelevant_points_for_view.o \
 	lwgeom_remove_small_parts.o \
 	lwgeom_ecef_eci.o \
+	lwgeom_valkey_batch.o \
 	postgis_legacy.o
 
 # Objects to build using PGXS

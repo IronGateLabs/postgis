@@ -42,6 +42,7 @@
 #include "../postgis_config.h"
 #include "liblwgeom.h"
 #include "lwgeom_pg.h"
+#include "../liblwgeom/lwgeom_accel.h"
 
 /* SRID for ECEF (WGS 84 geocentric) */
 #define SRID_ECEF 4978
@@ -281,4 +282,25 @@ Datum postgis_ecef_z(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 	PG_RETURN_FLOAT8(pt.z);
+}
+
+/**
+ * SQL: postgis_accel_features()
+ *
+ * Returns a text string describing detected hardware acceleration features:
+ * SIMD instruction set, GPU backend, and Valkey batching status.
+ */
+PG_FUNCTION_INFO_V1(postgis_accel_features);
+Datum
+postgis_accel_features(PG_FUNCTION_ARGS)
+{
+	char *features = lwaccel_features_string();
+	text *result;
+
+	if (!features)
+		PG_RETURN_NULL();
+
+	result = cstring_to_text(features);
+	lwfree(features);
+	PG_RETURN_TEXT_P(result);
 }
