@@ -20,6 +20,7 @@
 
 #include "../postgis_config.h"
 #include "liblwgeom_internal.h"
+#include "lwgeom_accel.h"
 #include "lwgeom_log.h"
 #include <math.h>
 #include <float.h>
@@ -85,34 +86,17 @@ lweci_earth_rotation_angle(double julian_ut1_date)
  *   y' = -x*sin(theta) + y*cos(theta)
  *   z' =  z
  */
-static void
-rotate_z(POINT4D *p, double theta)
-{
-	double cos_t = cos(theta);
-	double sin_t = sin(theta);
-	double x_new = p->x * cos_t + p->y * sin_t;
-	double y_new = -p->x * sin_t + p->y * cos_t;
-	p->x = x_new;
-	p->y = y_new;
-	/* z and m unchanged */
-}
+/* Single-point rotate_z moved to lwgeom_accel.c as ptarray_rotate_z_scalar */
 
 /**
  * Apply Z-axis rotation to all points in a POINTARRAY.
+ * Dispatches to SIMD-accelerated implementation when available.
  */
 static int
 ptarray_rotate_z(POINTARRAY *pa, double theta)
 {
-	uint32_t i;
-	POINT4D p;
-
-	for (i = 0; i < pa->npoints; i++)
-	{
-		getPoint4d_p(pa, i, &p);
-		rotate_z(&p, theta);
-		ptarray_set_point4d(pa, i, &p);
-	}
-	return LW_SUCCESS;
+	const LW_ACCEL_DISPATCH *accel = lwaccel_get();
+	return accel->rotate_z(pa, theta);
 }
 
 /**
@@ -214,37 +198,13 @@ lwgeom_transform_ecef_to_eci(LWGEOM *geom, double epoch)
  * Per-point M-epoch rotation for a POINTARRAY.
  * Each point's M value is used as the epoch (decimal year).
  * direction: -1 for ECI->ECEF (Rz(-ERA)), +1 for ECEF->ECI (Rz(+ERA))
+ * Dispatches to SIMD-accelerated implementation when available.
  */
 static int
 ptarray_rotate_z_m_epoch(POINTARRAY *pa, int direction)
 {
-	uint32_t i;
-	POINT4D p;
-
-	for (i = 0; i < pa->npoints; i++)
-	{
-		double jd, era;
-		getPoint4d_p(pa, i, &p);
-
-		if (p.m == LWPROJ_NO_EPOCH)
-		{
-			lwerror("ECI transform: point %u has no epoch (M=0)", i);
-			return LW_FAILURE;
-		}
-
-		if (p.m < 1000.0 || p.m > 3000.0)
-		{
-			lwerror("ECI transform: point %u has invalid epoch M=%.4f "
-				"(expected decimal year in range 1000-3000)", i, p.m);
-			return LW_FAILURE;
-		}
-
-		jd = lweci_epoch_to_jd(p.m);
-		era = lweci_earth_rotation_angle(jd);
-		rotate_z(&p, direction * era);
-		ptarray_set_point4d(pa, i, &p);
-	}
-	return LW_SUCCESS;
+	const LW_ACCEL_DISPATCH *accel = lwaccel_get();
+	return accel->rotate_z_m_epoch(pa, direction);
 }
 
 /**

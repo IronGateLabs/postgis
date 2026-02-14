@@ -239,4 +239,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Hardware acceleration feature detection
+CREATE OR REPLACE FUNCTION postgis_accel_features()
+RETURNS text
+AS 'MODULE_PATHNAME', 'postgis_accel_features'
+LANGUAGE c IMMUTABLE STRICT;
+
+COMMENT ON FUNCTION postgis_accel_features() IS
+'Returns detected hardware acceleration features: SIMD instruction set (AVX2/AVX-512/NEON), GPU backend (CUDA/ROCm/oneAPI/none), and Valkey batching status.';
+
 COMMIT;

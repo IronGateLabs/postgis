@@ -708,4 +708,175 @@ SELECT cron.schedule(
 
 </section>
 
+<section id="ecef_eci_acceleration">
+    <title>Hardware Acceleration</title>
+
+    <para>PostGIS can accelerate coordinate transforms using CPU SIMD instructions
+    and GPU compute when available. Acceleration is automatic: the system detects
+    hardware capabilities at startup and selects the optimal code path.</para>
+
+    <section id="ecef_eci_accel_simd">
+        <title>SIMD Acceleration</title>
+        <para>SIMD (Single Instruction, Multiple Data) acceleration processes
+        multiple coordinate points in parallel using CPU vector instructions:</para>
+        <itemizedlist>
+            <listitem><para><emphasis>AVX2+FMA</emphasis>: 4-wide double precision (Intel Haswell+, AMD Zen+)</para></listitem>
+            <listitem><para><emphasis>AVX-512</emphasis>: 8-wide double precision (Intel Skylake-X+, AMD Zen 4+)</para></listitem>
+            <listitem><para><emphasis>ARM NEON</emphasis>: 2-wide double precision (all ARMv8/aarch64)</para></listitem>
+        </itemizedlist>
+        <para>SIMD acceleration has zero dispatch overhead and is always used
+        when available. Build with <literal>--disable-simd</literal> to force
+        scalar-only code paths.</para>
+
+        <para>Configure flags:</para>
+        <programlisting>
+./configure --enable-avx2     # Enable AVX2 (auto-detected by default)
+./configure --enable-avx512   # Enable AVX-512 (auto-detected by default)
+./configure --disable-simd    # Disable all SIMD, portable scalar only
+        </programlisting>
+    </section>
+
+    <section id="ecef_eci_accel_gpu">
+        <title>GPU Acceleration</title>
+        <para>For large coordinate arrays (default: 10,000+ points), PostGIS
+        can dispatch transforms to GPU hardware. Three GPU backends are
+        supported:</para>
+        <itemizedlist>
+            <listitem><para><emphasis>CUDA</emphasis>: NVIDIA GPUs (requires CUDA toolkit)</para></listitem>
+            <listitem><para><emphasis>ROCm/HIP</emphasis>: AMD GPUs (requires ROCm toolkit)</para></listitem>
+            <listitem><para><emphasis>oneAPI/SYCL</emphasis>: Intel GPUs (requires oneAPI toolkit)</para></listitem>
+        </itemizedlist>
+
+        <para>Configure flags:</para>
+        <programlisting>
+./configure --with-cuda=/usr/local/cuda
+./configure --with-rocm=/opt/rocm
+./configure --with-oneapi=/opt/intel/oneapi
+        </programlisting>
+
+        <para>GUC parameters:</para>
+        <programlisting>
+-- Minimum points for GPU dispatch (default 10000)
+SET postgis.gpu_dispatch_threshold = 50000;
+        </programlisting>
+    </section>
+
+    <section id="ecef_eci_accel_valkey">
+        <title>Valkey GPU Batching</title>
+        <para>For streaming workloads (many small queries), Valkey-based batching
+        accumulates transform requests and dispatches them as GPU-sized batches.
+        This amortizes GPU dispatch overhead across multiple concurrent clients.</para>
+
+        <para>GUC parameters:</para>
+        <programlisting>
+-- Valkey connection (empty = disabled)
+SET postgis.gpu_valkey_url = '127.0.0.1:6379';
+
+-- Batch size threshold (points)
+SET postgis.gpu_batch_size = 10000;
+
+-- Batch timeout (ms) - flush partial batch after this time
+SET postgis.gpu_batch_timeout_ms = 100;
+        </programlisting>
+
+        <para>Requires: <literal>./configure --with-valkey</literal> and a running
+        Valkey/Redis instance.</para>
+    </section>
+
+    <section id="ecef_eci_accel_features">
+        <title>Feature Detection</title>
+        <para>Use <function>postgis_accel_features()</function> to see detected
+        acceleration capabilities:</para>
+        <programlisting>
+SELECT postgis_accel_features();
+-- Returns: "SIMD: AVX2+FMA; GPU: none; Valkey: disabled"
+        </programlisting>
+    </section>
+
+    <section id="ecef_eci_accel_benchmarks">
+        <title>Benchmark Results</title>
+        <para>Measured on x86_64 (gcc 12.2, -O2) with AVX2+FMA enabled.
+        Throughput in millions of points per second:</para>
+
+        <table>
+            <title>ECI Z-Rotation Throughput (millions pts/sec)</title>
+            <tgroup cols="4">
+                <colspec colname="points" />
+                <colspec colname="scalar" />
+                <colspec colname="avx2" />
+                <colspec colname="speedup" />
+                <thead>
+                    <row><entry>Points</entry><entry>Scalar</entry><entry>AVX2+FMA</entry><entry>Speedup</entry></row>
+                </thead>
+                <tbody>
+                    <row><entry>100</entry><entry>242</entry><entry>820</entry><entry>3.4x</entry></row>
+                    <row><entry>1,000</entry><entry>254</entry><entry>1,172</entry><entry>4.6x</entry></row>
+                    <row><entry>10,000</entry><entry>308</entry><entry>1,441</entry><entry>4.7x</entry></row>
+                    <row><entry>100,000</entry><entry>220</entry><entry>1,134</entry><entry>5.2x</entry></row>
+                    <row><entry>1,000,000</entry><entry>249</entry><entry>440</entry><entry>1.8x</entry></row>
+                    <row><entry>10,000,000</entry><entry>230</entry><entry>440</entry><entry>1.9x</entry></row>
+                </tbody>
+            </tgroup>
+        </table>
+
+        <table>
+            <title>Radian/Degree Conversion Throughput (millions pts/sec)</title>
+            <tgroup cols="4">
+                <colspec colname="points" />
+                <colspec colname="scalar" />
+                <colspec colname="avx2" />
+                <colspec colname="speedup" />
+                <thead>
+                    <row><entry>Points</entry><entry>Scalar</entry><entry>AVX2+FMA</entry><entry>Speedup</entry></row>
+                </thead>
+                <tbody>
+                    <row><entry>100</entry><entry>244</entry><entry>836</entry><entry>3.4x</entry></row>
+                    <row><entry>1,000</entry><entry>254</entry><entry>1,104</entry><entry>4.3x</entry></row>
+                    <row><entry>10,000</entry><entry>296</entry><entry>1,329</entry><entry>4.5x</entry></row>
+                    <row><entry>100,000</entry><entry>247</entry><entry>953</entry><entry>3.9x</entry></row>
+                    <row><entry>1,000,000</entry><entry>223</entry><entry>395</entry><entry>1.8x</entry></row>
+                    <row><entry>10,000,000</entry><entry>250</entry><entry>443</entry><entry>1.8x</entry></row>
+                </tbody>
+            </tgroup>
+        </table>
+
+        <para>Peak throughput is ~1.4 billion pts/sec (AVX2) at 10K points,
+        limited by L2 cache at larger sizes. Numerical accuracy: max difference
+        between scalar and AVX2+FMA is 9.31e-10 (sub-nanometer at Earth radius),
+        caused by FMA rounding.</para>
+    </section>
+
+    <refentry id="postgis_accel_features">
+        <refnamediv>
+            <refname>postgis_accel_features</refname>
+            <refpurpose>Returns detected hardware acceleration features.</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+            <funcsynopsis>
+                <funcprototype>
+                    <funcdef>text <function>postgis_accel_features</function></funcdef>
+                </funcprototype>
+            </funcsynopsis>
+        </refsynopsisdiv>
+
+        <refsection>
+            <title>Description</title>
+            <para>Returns a text string describing detected SIMD instruction set
+            (AVX2/AVX-512/ARM NEON/none), GPU backend (CUDA/ROCm/oneAPI/none with
+            device name), and Valkey batching status (enabled/disabled).</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+            <programlisting>
+SELECT postgis_accel_features();
+-- "SIMD: AVX2+FMA; GPU: NVIDIA GeForce RTX 4090 (compute 8.9); Valkey: disabled"
+-- "SIMD: ARM NEON; GPU: none; Valkey: disabled"
+-- "SIMD: none; GPU: none; Valkey: disabled"
+            </programlisting>
+        </refsection>
+    </refentry>
+</section>
+
 </section>

@@ -25,6 +25,7 @@
 
 #include "../postgis_config.h"
 #include "liblwgeom_internal.h"
+#include "lwgeom_accel.h"
 #include "lwgeom_log.h"
 #include <string.h>
 
@@ -123,21 +124,7 @@ lwsrid_get_crs_family(int32_t srid)
 	return family;
 }
 
-/** convert decimal degrees to radians */
-static void
-to_rad(POINT4D *pt)
-{
-	pt->x *= M_PI/180.0;
-	pt->y *= M_PI/180.0;
-}
-
-/** convert radians to decimal degrees */
-static void
-to_dec(POINT4D *pt)
-{
-	pt->x *= 180.0/M_PI;
-	pt->y *= 180.0/M_PI;
-}
+/* to_rad/to_dec replaced by SIMD-accelerated lwaccel_get()->rad_convert() */
 
 /***************************************************************************/
 
@@ -355,8 +342,6 @@ box3d_transform(GBOX *gbox, LWPROJ *pj)
 int
 ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 {
-	uint32_t i;
-	POINT4D p;
 	size_t n_converted;
 	size_t n_points = pa->npoints;
 	size_t point_size = ptarray_point_size(pa);
@@ -365,15 +350,11 @@ ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 
 	PJ_DIRECTION direction = pj->pipeline_is_forward ? PJ_FWD : PJ_INV;
 
-	/* Convert to radians if necessary */
+	/* Convert to radians if necessary (SIMD-accelerated when available) */
 	if (proj_angular_input(pj->pj, direction))
 	{
-		for (i = 0; i < pa->npoints; i++)
-		{
-			getPoint4d_p(pa, i, &p);
-			to_rad(&p);
-			ptarray_set_point4d(pa, i, &p);
-		}
+		const LW_ACCEL_DISPATCH *accel = lwaccel_get();
+		accel->rad_convert(pa, M_PI / 180.0);
 	}
 
 	if (n_points == 1)
@@ -435,15 +416,11 @@ ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 		}
 	}
 
-	/* Convert radians to degrees if necessary */
+	/* Convert radians to degrees if necessary (SIMD-accelerated when available) */
 	if (proj_angular_output(pj->pj, direction))
 	{
-		for (i = 0; i < pa->npoints; i++)
-		{
-			getPoint4d_p(pa, i, &p);
-			to_dec(&p);
-			ptarray_set_point4d(pa, i, &p);
-		}
+		const LW_ACCEL_DISPATCH *accel = lwaccel_get();
+		accel->rad_convert(pa, 180.0 / M_PI);
 	}
 
 	return LW_SUCCESS;

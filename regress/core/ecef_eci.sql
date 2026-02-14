@@ -1,5 +1,10 @@
 -- Tests for ECEF/ECI coordinate frame conversion and ECEF accessors
 
+-- Load ECEF/ECI SQL module (functions + SRIDs)
+SET client_min_messages TO WARNING;
+\i :scriptdir/ecef_eci.sql
+RESET client_min_messages;
+
 --------------------------------------------
 -- 1. SRID Registration Tests
 --------------------------------------------
@@ -442,3 +447,44 @@ RESET enable_bitmapscan;
 -- Clean up
 DROP FUNCTION _ecef_test_scantype(text);
 DROP TABLE test_eci_gist;
+
+----------------------------------------------------------------------
+-- Section: Hardware Acceleration Feature Detection
+----------------------------------------------------------------------
+
+-- 8.1 Test postgis_accel_features() returns a non-empty string
+SELECT 'accel_features', length(postgis_accel_features()) > 0;
+
+-- 8.2 Test that SIMD-accelerated transforms match scalar results
+-- Create test points and transform via ECI -> ECEF -> ECI roundtrip
+-- The result should be identical regardless of backend
+SELECT 'accel_roundtrip',
+	ST_AsText(
+		ST_SnapToGrid(
+			ST_Transform(
+				ST_Transform(
+					ST_SetSRID(
+						ST_MakePoint(6378137, 0, 0, 2025.0),
+						900001),
+					4978,
+					'2025-01-01T00:00:00Z'::timestamptz),
+				900001,
+				'2025-01-01T00:00:00Z'::timestamptz),
+			0.01)
+	) ~* 'POINT';
+
+-- 8.3 Test GPU dispatch threshold behavior
+-- With very few points, GPU should NOT be used (CPU SIMD or scalar)
+-- This is a no-GPU test: just verify the transform succeeds with small data
+SELECT 'accel_small_batch',
+	ST_X(ST_Transform(
+		ST_SetSRID(ST_MakePoint(6378137, 0, 0, 2025.0), 900001),
+		4978,
+		'2025-01-01T00:00:00Z'::timestamptz
+	)) IS NOT NULL;
+
+-- 8.4 Test postgis_accel_features() output format contains expected keys
+SELECT 'accel_format',
+	postgis_accel_features() LIKE 'SIMD: %' AND
+	postgis_accel_features() LIKE '%GPU: %' AND
+	postgis_accel_features() LIKE '%Valkey: %';

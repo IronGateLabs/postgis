@@ -1367,6 +1367,251 @@ fi
 AC_DEFINE([POSTGIS_DEBUG_LEVEL], [0], [Define debug level. Default 0])
 
 dnl ===========================================================================
+dnl Detect SIMD capabilities (AVX2, AVX-512, ARM NEON)
+dnl ===========================================================================
+
+dnl Master SIMD toggle
+AC_ARG_ENABLE([simd],
+  AS_HELP_STRING([--disable-simd], [Disable all SIMD acceleration]),
+  [ENABLE_SIMD=$enableval], [ENABLE_SIMD=yes])
+
+dnl Per-ISA toggles (only meaningful when SIMD is enabled)
+AC_ARG_ENABLE([avx2],
+  AS_HELP_STRING([--enable-avx2], [Enable AVX2 SIMD support (auto-detect)]),
+  [ENABLE_AVX2=$enableval], [ENABLE_AVX2=auto])
+
+AC_ARG_ENABLE([avx512],
+  AS_HELP_STRING([--enable-avx512], [Enable AVX-512 SIMD support (auto-detect)]),
+  [ENABLE_AVX512=$enableval], [ENABLE_AVX512=auto])
+
+HAVE_AVX2=no
+HAVE_AVX512=no
+HAVE_NEON=no
+AVX2_CFLAGS=""
+AVX512_CFLAGS=""
+
+if test "x$ENABLE_SIMD" = "xyes"; then
+
+  dnl --- AVX2 + FMA detection ---
+  if test "x$ENABLE_AVX2" != "xno"; then
+    CFLAGS_SAVE="$CFLAGS"
+    CFLAGS="$CFLAGS -mavx2 -mfma"
+    AC_MSG_CHECKING([whether $CC supports AVX2 intrinsics])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+      #include <immintrin.h>
+    ]], [[
+      __m256d a = _mm256_setzero_pd();
+      __m256d b = _mm256_set1_pd(1.0);
+      __m256d c = _mm256_fmadd_pd(a, b, b);
+      (void)c;
+    ]])], [
+      AC_MSG_RESULT([yes])
+      HAVE_AVX2=yes
+      AVX2_CFLAGS="-mavx2 -mfma"
+      AC_DEFINE([HAVE_AVX2], [1], [AVX2 and FMA SIMD support available])
+    ], [
+      AC_MSG_RESULT([no])
+      if test "x$ENABLE_AVX2" = "xyes"; then
+        AC_MSG_ERROR([--enable-avx2 specified but compiler does not support AVX2])
+      fi
+    ])
+    CFLAGS="$CFLAGS_SAVE"
+  fi
+
+  dnl --- AVX-512 detection ---
+  if test "x$ENABLE_AVX512" != "xno"; then
+    CFLAGS_SAVE="$CFLAGS"
+    CFLAGS="$CFLAGS -mavx512f"
+    AC_MSG_CHECKING([whether $CC supports AVX-512 intrinsics])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+      #include <immintrin.h>
+    ]], [[
+      __m512d a = _mm512_setzero_pd();
+      __m512d b = _mm512_set1_pd(1.0);
+      __m512d c = _mm512_fmadd_pd(a, b, b);
+      (void)c;
+    ]])], [
+      AC_MSG_RESULT([yes])
+      HAVE_AVX512=yes
+      AVX512_CFLAGS="-mavx512f"
+      AC_DEFINE([HAVE_AVX512], [1], [AVX-512 SIMD support available])
+    ], [
+      AC_MSG_RESULT([no])
+      if test "x$ENABLE_AVX512" = "xyes"; then
+        AC_MSG_ERROR([--enable-avx512 specified but compiler does not support AVX-512])
+      fi
+    ])
+    CFLAGS="$CFLAGS_SAVE"
+  fi
+
+  dnl --- ARM NEON detection (always available on ARMv8+) ---
+  AC_MSG_CHECKING([whether $CC supports ARM NEON intrinsics])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+    #include <arm_neon.h>
+  ]], [[
+    float64x2_t a = vdupq_n_f64(1.0);
+    float64x2_t b = vdupq_n_f64(2.0);
+    float64x2_t c = vmulq_f64(a, b);
+    (void)c;
+  ]])], [
+    AC_MSG_RESULT([yes])
+    HAVE_NEON=yes
+    AC_DEFINE([HAVE_NEON], [1], [ARM NEON SIMD support available])
+  ], [
+    AC_MSG_RESULT([no])
+  ])
+
+fi dnl ENABLE_SIMD
+
+AC_SUBST([HAVE_AVX2])
+AC_SUBST([HAVE_AVX512])
+AC_SUBST([HAVE_NEON])
+AC_SUBST([AVX2_CFLAGS])
+AC_SUBST([AVX512_CFLAGS])
+
+dnl ===========================================================================
+dnl Detect GPU toolkits (CUDA, ROCm/HIP, oneAPI/SYCL)
+dnl ===========================================================================
+
+AC_ARG_WITH([cuda],
+  AS_HELP_STRING([--with-cuda@<:@=DIR@:>@], [Enable CUDA GPU support]),
+  [WITH_CUDA=$withval], [WITH_CUDA=auto])
+
+AC_ARG_WITH([rocm],
+  AS_HELP_STRING([--with-rocm@<:@=DIR@:>@], [Enable ROCm/HIP GPU support]),
+  [WITH_ROCM=$withval], [WITH_ROCM=auto])
+
+AC_ARG_WITH([oneapi],
+  AS_HELP_STRING([--with-oneapi@<:@=DIR@:>@], [Enable oneAPI/SYCL GPU support]),
+  [WITH_ONEAPI=$withval], [WITH_ONEAPI=auto])
+
+HAVE_CUDA=no
+HAVE_ROCM=no
+HAVE_ONEAPI=no
+NVCC=""
+HIPCC=""
+ICPX=""
+
+dnl --- CUDA detection ---
+if test "x$WITH_CUDA" != "xno"; then
+  if test "x$WITH_CUDA" != "xauto" -a "x$WITH_CUDA" != "xyes"; then
+    CUDA_PATH="$WITH_CUDA"
+  else
+    CUDA_PATH="${CUDA_HOME:-/usr/local/cuda}"
+  fi
+  AC_PATH_PROG([NVCC], [nvcc], [no], [$CUDA_PATH/bin:$PATH])
+  if test "x$NVCC" != "xno"; then
+    HAVE_CUDA=yes
+    AC_DEFINE([HAVE_CUDA], [1], [NVIDIA CUDA GPU support available])
+    CUDA_CFLAGS="-I$CUDA_PATH/include"
+    CUDA_LDFLAGS="-L$CUDA_PATH/lib64 -lcudart"
+    AC_SUBST([CUDA_CFLAGS])
+    AC_SUBST([CUDA_LDFLAGS])
+  else
+    if test "x$WITH_CUDA" != "xauto"; then
+      AC_MSG_ERROR([--with-cuda specified but nvcc not found])
+    fi
+  fi
+fi
+AC_SUBST([NVCC])
+AC_SUBST([HAVE_CUDA])
+
+dnl --- ROCm/HIP detection ---
+if test "x$WITH_ROCM" != "xno"; then
+  if test "x$WITH_ROCM" != "xauto" -a "x$WITH_ROCM" != "xyes"; then
+    ROCM_PATH="$WITH_ROCM"
+  else
+    ROCM_PATH="${ROCM_HOME:-/opt/rocm}"
+  fi
+  AC_PATH_PROG([HIPCC], [hipcc], [no], [$ROCM_PATH/bin:$PATH])
+  if test "x$HIPCC" != "xno"; then
+    HAVE_ROCM=yes
+    AC_DEFINE([HAVE_ROCM], [1], [AMD ROCm/HIP GPU support available])
+    ROCM_CFLAGS="-I$ROCM_PATH/include"
+    ROCM_LDFLAGS="-L$ROCM_PATH/lib -lamdhip64"
+    AC_SUBST([ROCM_CFLAGS])
+    AC_SUBST([ROCM_LDFLAGS])
+  else
+    if test "x$WITH_ROCM" != "xauto"; then
+      AC_MSG_ERROR([--with-rocm specified but hipcc not found])
+    fi
+  fi
+fi
+AC_SUBST([HIPCC])
+AC_SUBST([HAVE_ROCM])
+
+dnl --- oneAPI/SYCL detection ---
+if test "x$WITH_ONEAPI" != "xno"; then
+  if test "x$WITH_ONEAPI" != "xauto" -a "x$WITH_ONEAPI" != "xyes"; then
+    ONEAPI_PATH="$WITH_ONEAPI"
+  else
+    ONEAPI_PATH="${ONEAPI_ROOT:-/opt/intel/oneapi}"
+  fi
+  AC_PATH_PROG([ICPX], [icpx], [no], [$ONEAPI_PATH/compiler/latest/bin:$PATH])
+  if test "x$ICPX" != "xno"; then
+    HAVE_ONEAPI=yes
+    AC_DEFINE([HAVE_ONEAPI], [1], [Intel oneAPI/SYCL GPU support available])
+    ONEAPI_CFLAGS="-I$ONEAPI_PATH/compiler/latest/include/sycl"
+    ONEAPI_LDFLAGS="-L$ONEAPI_PATH/compiler/latest/lib -lsycl"
+    AC_SUBST([ONEAPI_CFLAGS])
+    AC_SUBST([ONEAPI_LDFLAGS])
+  else
+    if test "x$WITH_ONEAPI" != "xauto"; then
+      AC_MSG_ERROR([--with-oneapi specified but icpx not found])
+    fi
+  fi
+fi
+AC_SUBST([ICPX])
+AC_SUBST([HAVE_ONEAPI])
+
+dnl ===========================================================================
+dnl Detect Valkey/hiredis client library for GPU batch queueing
+dnl ===========================================================================
+
+AC_ARG_WITH([valkey],
+  AS_HELP_STRING([--with-valkey@<:@=DIR@:>@], [Enable Valkey/hiredis support for GPU batch queueing]),
+  [WITH_VALKEY=$withval], [WITH_VALKEY=auto])
+
+HAVE_VALKEY=no
+
+if test "x$WITH_VALKEY" != "xno"; then
+  if test "x$WITH_VALKEY" != "xauto" -a "x$WITH_VALKEY" != "xyes"; then
+    VALKEY_PATH="$WITH_VALKEY"
+    VALKEY_CFLAGS="-I$VALKEY_PATH/include"
+    VALKEY_LDFLAGS="-L$VALKEY_PATH/lib -lhiredis"
+  else
+    VALKEY_CFLAGS=""
+    VALKEY_LDFLAGS="-lhiredis"
+  fi
+
+  CPPFLAGS_SAVE="$CPPFLAGS"
+  LDFLAGS_SAVE="$LDFLAGS"
+  CPPFLAGS="$CPPFLAGS $VALKEY_CFLAGS"
+  LDFLAGS="$LDFLAGS $VALKEY_LDFLAGS"
+
+  AC_CHECK_HEADER([hiredis/hiredis.h], [
+    AC_CHECK_LIB([hiredis], [redisConnect], [
+      HAVE_VALKEY=yes
+      AC_DEFINE([HAVE_VALKEY], [1], [Valkey/hiredis client library available])
+      AC_SUBST([VALKEY_CFLAGS])
+      AC_SUBST([VALKEY_LDFLAGS])
+    ], [
+      if test "x$WITH_VALKEY" != "xauto"; then
+        AC_MSG_ERROR([--with-valkey specified but libhiredis not found])
+      fi
+    ])
+  ], [
+    if test "x$WITH_VALKEY" != "xauto"; then
+      AC_MSG_ERROR([--with-valkey specified but hiredis/hiredis.h not found])
+    fi
+  ])
+
+  CPPFLAGS="$CPPFLAGS_SAVE"
+  LDFLAGS="$LDFLAGS_SAVE"
+fi
+AC_SUBST([HAVE_VALKEY])
+
+dnl ===========================================================================
 dnl Allow the developer to disable the automatic updates of postgis_revision.h
 dnl with --without-phony-revision
 dnl
@@ -2070,6 +2315,18 @@ else
     AC_MSG_RESULT([  PostGIS Tiger Geocoder:                   disabled])
 fi
 
+AC_MSG_RESULT()
+AC_MSG_RESULT([ ------------ Acceleration --------------- ])
+AC_MSG_RESULT([  SIMD support:         ${ENABLE_SIMD}])
+if test "x$ENABLE_SIMD" = "xyes"; then
+  AC_MSG_RESULT([  AVX2:                 ${HAVE_AVX2}])
+  AC_MSG_RESULT([  AVX-512:              ${HAVE_AVX512}])
+  AC_MSG_RESULT([  ARM NEON:             ${HAVE_NEON}])
+fi
+AC_MSG_RESULT([  CUDA (nvcc):          ${HAVE_CUDA}])
+AC_MSG_RESULT([  ROCm (hipcc):         ${HAVE_ROCM}])
+AC_MSG_RESULT([  oneAPI (icpx):        ${HAVE_ONEAPI}])
+AC_MSG_RESULT([  Valkey (hiredis):     ${HAVE_VALKEY}])
 AC_MSG_RESULT()
 AC_MSG_RESULT([ -------- Documentation Generation -------- ])
 AC_MSG_RESULT([  xsltproc:             ${XSLTPROC}])
