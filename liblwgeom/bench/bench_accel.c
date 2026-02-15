@@ -36,6 +36,7 @@ typedef struct {
 	char operation[64];
 	char backend[32];
 	int validate;
+	int calibrate;
 	int csv;
 	int help;
 } BenchOptions;
@@ -320,6 +321,7 @@ print_usage(void)
 	printf("                       auto    - Best available (default)\n");
 	printf("                       scalar  - Scalar only\n");
 	printf("  --validate         Compare SIMD vs scalar for correctness\n");
+	printf("  --calibrate        Run GPU auto-calibration and show result\n");
 	printf("  --csv              Output as CSV\n");
 	printf("  --help             Show this help\n");
 }
@@ -328,25 +330,27 @@ int
 main(int argc, char *argv[])
 {
 	BenchOptions opts = { .operation = "all", .backend = "auto",
-			      .validate = 0, .csv = 0, .help = 0 };
+			      .validate = 0, .calibrate = 0, .csv = 0, .help = 0 };
 
 	static struct option long_opts[] = {
-		{"operation", required_argument, 0, 'o'},
-		{"backend",   required_argument, 0, 'b'},
-		{"validate",  no_argument,       0, 'v'},
-		{"csv",       no_argument,       0, 'c'},
-		{"help",      no_argument,       0, 'h'},
+		{"operation",  required_argument, 0, 'o'},
+		{"backend",    required_argument, 0, 'b'},
+		{"validate",   no_argument,       0, 'v'},
+		{"calibrate",  no_argument,       0, 'C'},
+		{"csv",        no_argument,       0, 'c'},
+		{"help",       no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
 	int opt;
-	while ((opt = getopt_long(argc, argv, "o:b:vch", long_opts, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "o:b:vCch", long_opts, NULL)) != -1)
 	{
 		switch (opt)
 		{
 		case 'o': strncpy(opts.operation, optarg, sizeof(opts.operation) - 1); break;
 		case 'b': strncpy(opts.backend, optarg, sizeof(opts.backend) - 1); break;
 		case 'v': opts.validate = 1; break;
+		case 'C': opts.calibrate = 1; break;
 		case 'c': opts.csv = 1; break;
 		case 'h': opts.help = 1; break;
 		default: print_usage(); return 1;
@@ -377,6 +381,28 @@ main(int argc, char *argv[])
 	/* Validation mode */
 	if (opts.validate)
 		return validate_backends();
+
+	/* Calibration mode */
+	if (opts.calibrate)
+	{
+		if (!lwgpu_available())
+		{
+			printf("No GPU available, calibration requires GPU.\n");
+			return 1;
+		}
+		printf("Running GPU auto-calibration...\n\n");
+		uint32_t threshold = lwaccel_calibrate_gpu();
+		printf("\nCalibrated GPU dispatch threshold: %u points\n", threshold);
+		printf("Set via: SET postgis.gpu_dispatch_threshold = %u;\n", threshold);
+		printf("Or 0 for auto-calibrate on first use (default).\n");
+
+		/* Show updated features string */
+		lwaccel_set_gpu_threshold(threshold);
+		char *features2 = lwaccel_features_string();
+		printf("\nFeatures: %s\n", features2);
+		lwfree(features2);
+		return 0;
+	}
 
 	/* CSV header */
 	if (opts.csv)
