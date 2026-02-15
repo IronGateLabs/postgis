@@ -500,6 +500,9 @@ Datum geography_from_geometry(PG_FUNCTION_ARGS)
 		lwgeom->srid = SRID_DEFAULT;
 	}
 
+	/* Error on geocentric (ECEF) SRID with specific message */
+	srid_check_crs_family_not_geocentric(lwgeom->srid, "geometry::geography");
+
 	/* Error on any SRID != default */
 	srid_check_latlong(lwgeom->srid);
 

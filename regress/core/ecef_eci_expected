@@ -58,3 +58,16 @@ accel_features|t
 accel_roundtrip|t
 accel_small_batch|t
 accel_format|t
+ERROR:  ST_Perimeter: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Azimuth: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Project: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Project: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Segmentize: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  geometry::geography: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+neg_perimeter|t
+neg_azimuth|t
+neg_project|t
+neg_segmentize|t
+ERROR:  LWGEOM_dwithin3d: Operation on mixed SRID geometries (Point, 4978) != (Point, 4326)
+ERROR:  LWGEOM_dwithin3d: Operation on mixed SRID geometries (Point, 4978) != (Point, 900001)
+same_srid_eci|t
