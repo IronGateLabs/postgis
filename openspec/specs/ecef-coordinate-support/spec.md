@@ -58,10 +58,12 @@ Spatial functions that assume geographic or projected input (e.g., `ST_Distance`
 Functions are classified into three behavior categories for geocentric input:
 
 1. **Dispatch**: Functions where a correct geocentric result exists and the function SHALL automatically produce it (e.g., `ST_Distance` dispatching to 3D Euclidean distance).
-2. **Error**: Functions where no meaningful geocentric result exists and the function SHALL raise an error with a message identifying the CRS family (e.g., `ST_Area`, `ST_Buffer`).
+2. **Error**: Functions where no meaningful geocentric result exists and the function SHALL raise an error with a message containing "geocentric" and indicating the operation is not supported for this CRS family. Error-class functions include: `ST_Area`, `ST_Buffer`, `ST_OffsetCurve`, `ST_Centroid`, `ST_BuildArea`, `ST_Perimeter`, `ST_Azimuth`, `ST_Project`, `ST_Segmentize`.
 3. **Pass-through**: Functions that are coordinate-system-agnostic and require no special handling (e.g., `ST_AsText`, `ST_X`, `ST_Y`, `ST_Z`, `ST_NPoints`).
 
 The CRS family SHALL be determined by calling `lwsrid_get_crs_family()` on the geometry's SRID. A return value of `LW_CRS_GEOCENTRIC` triggers the dispatch or error behavior.
+
+The `geometry → geography` cast SHALL raise a geocentric-specific error when the input geometry has a geocentric SRID, before the existing `srid_check_latlong` validation runs.
 
 #### Scenario: ST_Distance on ECEF geometries returns 3D Euclidean distance
 - **GIVEN** two ECEF points with SRID 4978: A at (6378137, 0, 0) and B at (0, 6378137, 0)
@@ -99,6 +101,32 @@ The CRS family SHALL be determined by calling `lwsrid_get_crs_family()` on the g
 - **GIVEN** an ECEF point with SRID 4978 at (6378137, 0, 0)
 - **WHEN** `ST_X`, `ST_Y`, `ST_Z`, `ST_AsText`, `ST_AsEWKT`, `ST_NPoints` are called
 - **THEN** each function SHALL return the correct result without error (pass-through behavior)
+
+#### Scenario: ST_Perimeter on ECEF polygon raises error
+- **WHEN** `ST_Perimeter` is called on a polygon with SRID 4978
+- **THEN** the system SHALL raise an error with a message containing "geocentric" and the SRID value
+
+#### Scenario: ST_Azimuth on ECEF points raises error
+- **WHEN** `ST_Azimuth` is called on two points with SRID 4978
+- **THEN** the system SHALL raise an error with a message containing "geocentric" and the SRID value
+
+#### Scenario: ST_Project on ECEF point raises error
+- **WHEN** `ST_Project` is called on a point with SRID 4978
+- **THEN** the system SHALL raise an error with a message containing "geocentric" and the SRID value
+- **AND** both the direction variant and the geometry variant of ST_Project SHALL raise the same error
+
+#### Scenario: ST_Segmentize on ECEF linestring raises error
+- **WHEN** `ST_Segmentize` is called on a linestring with SRID 4978
+- **THEN** the system SHALL raise an error with a message containing "geocentric" and the SRID value
+
+#### Scenario: Geography cast on ECEF geometry raises geocentric-specific error
+- **WHEN** a geometry with SRID 4978 is cast to geography via `geom::geography`
+- **THEN** the system SHALL raise an error with a message containing "geocentric" before the generic latlong validation runs
+- **AND** the error message SHALL advise transforming to a geographic CRS first
+
+#### Scenario: Guards do not affect non-geocentric input
+- **WHEN** `ST_Perimeter`, `ST_Azimuth`, `ST_Project`, or `ST_Segmentize` is called on a geometry with SRID 4326 (geographic) or SRID 32632 (projected)
+- **THEN** the function SHALL execute normally without error
 
 ### Requirement: ECEF SRID in spatial_ref_sys
 The `spatial_ref_sys` table SHALL include EPSG:4978 (WGS 84 geocentric) with correct `srtext` (WKT) and `proj4text` definitions.
