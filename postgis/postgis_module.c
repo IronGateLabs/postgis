@@ -111,8 +111,9 @@ pjLogFunction(void* data, int logLevel, const char* message)
 }
 #endif
 
-/* GUC variables for hardware acceleration */
-static int postgis_gpu_dispatch_threshold = 10000;
+/* GUC variables for hardware acceleration.
+ * 0 = auto-calibrate at first GPU use (default). */
+static int postgis_gpu_dispatch_threshold = 0;
 
 static void
 postgis_gpu_threshold_assign(int newval, void *extra)
@@ -149,10 +150,11 @@ _PG_init(void)
 	DefineCustomIntVariable(
 		"postgis.gpu_dispatch_threshold",
 		"Minimum POINTARRAY size for GPU dispatch (points).",
-		"POINTARRAYs with fewer points use CPU SIMD. Default 10000.",
+		"0 = auto-calibrate at first GPU use (default). "
+		"Set to a specific value to override.",
 		&postgis_gpu_dispatch_threshold,
-		10000,    /* default */
-		1,        /* min */
+		0,        /* default: auto-calibrate */
+		0,        /* min: 0 = auto */
 		INT_MAX,  /* max */
 		PGC_USERSET,
 		0,

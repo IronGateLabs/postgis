@@ -72,10 +72,19 @@ char *lwaccel_features_string(void);
 
 /**
  * Set/get the GPU dispatch threshold. POINTARRAYs with >= threshold
- * points will be dispatched to GPU if available. Default: 10000.
+ * points will be dispatched to GPU if available.
+ * Default: 0 (auto-calibrate at first GPU use).
  */
 void lwaccel_set_gpu_threshold(uint32_t threshold);
 uint32_t lwaccel_get_gpu_threshold(void);
+
+/**
+ * Auto-calibrate the GPU dispatch threshold by benchmarking GPU vs
+ * CPU SIMD at several point counts. Called automatically when
+ * threshold is 0 (default) and GPU is available. Returns the
+ * calibrated threshold, or 0 if GPU is not available.
+ */
+uint32_t lwaccel_calibrate_gpu(void);
 
 /*
  * SIMD backend implementations (called through dispatch table).
