@@ -360,9 +360,11 @@ PG_FUNCTION_INFO_V1(LWGEOM_perimeter_poly);
 Datum LWGEOM_perimeter_poly(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
-	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM *lwgeom;
 	double perimeter = 0.0;
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Perimeter");
+	lwgeom = lwgeom_from_gserialized(geom);
 	perimeter = lwgeom_perimeter(lwgeom);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_FLOAT8(perimeter);
@@ -379,9 +381,11 @@ PG_FUNCTION_INFO_V1(LWGEOM_perimeter2d_poly);
 Datum LWGEOM_perimeter2d_poly(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
-	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM *lwgeom;
 	double perimeter = 0.0;
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Perimeter");
+	lwgeom = lwgeom_from_gserialized(geom);
 	perimeter = lwgeom_perimeter_2d(lwgeom);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_FLOAT8(perimeter);
@@ -1876,6 +1880,7 @@ Datum LWGEOM_segmentize2d(PG_FUNCTION_ARGS)
 	POSTGIS_DEBUG(2, "LWGEOM_segmentize2d called");
 
 	ingeom = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(ingeom, "ST_Segmentize");
 	dist = PG_GETARG_FLOAT8(1);
 	type = gserialized_get_type(ingeom);
 
@@ -2552,6 +2557,7 @@ Datum LWGEOM_azimuth(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 	srid = lwpoint->srid;
+	srid_check_crs_family_not_geocentric(srid, "ST_Azimuth");
 	if (!getPoint2d_p(lwpoint->point, 0, &p1))
 	{
 		PG_FREE_IF_COPY(geom, 0);
@@ -2617,6 +2623,7 @@ Datum geometry_project_direction(PG_FUNCTION_ARGS)
 	double distance, azimuth;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_Project");
 	distance = PG_GETARG_FLOAT8(1);
 	azimuth = PG_GETARG_FLOAT8(2);
 	lwgeom1 = lwgeom_from_gserialized(geom1);
@@ -2651,6 +2658,7 @@ Datum geometry_project_geometry(PG_FUNCTION_ARGS)
 	double distance;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_Project");
 	geom2 = PG_GETARG_GSERIALIZED_P(1);
 	distance = PG_GETARG_FLOAT8(2);
 
