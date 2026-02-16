@@ -888,12 +888,15 @@ Datum ST_SimplifyPolygonHull(PG_FUNCTION_ARGS)
 	GSERIALIZED* geom = PG_GETARG_GSERIALIZED_P(0);
 	double vertex_fraction = PG_GETARG_FLOAT8(1);
 	uint32_t is_outer = PG_GETARG_BOOL(2);
+	LWGEOM* lwgeom;
+	LWGEOM* lwresult;
+	GSERIALIZED* result;
 
 	gserialized_check_crs_family_not_geocentric(geom, "ST_SimplifyPolygonHull");
 
-	LWGEOM* lwgeom = lwgeom_from_gserialized(geom);
-	LWGEOM* lwresult = lwgeom_simplify_polygonal(lwgeom, vertex_fraction, is_outer);
-	GSERIALIZED* result = geometry_serialize(lwresult);
+	lwgeom = lwgeom_from_gserialized(geom);
+	lwresult = lwgeom_simplify_polygonal(lwgeom, vertex_fraction, is_outer);
+	result = geometry_serialize(lwresult);
 
 	lwgeom_free(lwgeom);
 	lwgeom_free(lwresult);
