@@ -18,10 +18,10 @@
 
 ## 3. Regression Tests for Guards
 
-- [ ] 3.1 Add guard error tests to `regress/core/ecef_eci.sql` — verify ERROR raised for each guarded function with ECEF (SRID 4978) input
-- [ ] 3.2 Add guard error tests for ECI (SRID 900001) input on a subset of guarded functions
-- [ ] 3.3 Add adaptive dispatch tests — verify ST_ClosestPoint and ST_ShortestLine return correct 3D results for ECEF input
-- [ ] 3.4 Update expected output files for the new tests
+- [x] 3.1 Add guard error tests to `regress/core/ecef_eci.sql` — verify ERROR raised for each guarded function with ECEF (SRID 4978) input
+- [x] 3.2 Add guard error tests for ECI (SRID 900001) input on a subset of guarded functions
+- [x] 3.3 Add adaptive dispatch tests — verify ST_ClosestPoint and ST_ShortestLine return correct 3D results for ECEF input
+- [x] 3.4 Update expected output files for the new tests
 
 ## 4. GiST 3D Benchmark Expansion
 

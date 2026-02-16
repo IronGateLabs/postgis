@@ -76,3 +76,14 @@ neg_segmentize|t
 ERROR:  LWGEOM_dwithin3d: Operation on mixed SRID geometries (Point, 4978) != (Point, 4326)
 ERROR:  LWGEOM_dwithin3d: Operation on mixed SRID geometries (Point, 4978) != (Point, 900001)
 same_srid_eci|t
+ERROR:  ST_Simplify: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_SimplifyPreserveTopology: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_ConvexHull: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_DelaunayTriangles: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Voronoi: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_LineInterpolatePoint: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Simplify: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
+ERROR:  ST_ConvexHull: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
+closestpoint_3d_ecef|POINT Z (6378137 0 0)
+shortestline_3d_ecef|LINESTRING Z (6378137 0 0,6378237 100 50)
+lineinterp3d_ecef_ok|POINT Z (6378187 50 25)

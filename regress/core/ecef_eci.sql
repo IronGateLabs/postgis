@@ -621,7 +621,50 @@ SELECT 'same_srid_eci', ST_3DDWithin(
 	ST_SetSRID(ST_MakePoint(6378137, 100, 0), 900001), 1000);
 
 --------------------------------------------
--- 10. Cleanup
+-- 10. Extended Geocentric Guard Tests
+--------------------------------------------
+
+-- 10.1 ST_Simplify rejects ECEF
+SELECT 'guard_simplify_ecef', ST_Simplify(
+	ST_SetSRID(ST_MakeLine(ST_MakePoint(6378137, 0, 0), ST_MakePoint(6378237, 100, 0)), 4978), 100.0);
+-- 10.2 ST_SimplifyPreserveTopology rejects ECEF
+SELECT 'guard_simpprestopo_ecef', ST_SimplifyPreserveTopology(
+	ST_SetSRID(ST_MakeLine(ST_MakePoint(6378137, 0, 0), ST_MakePoint(6378237, 100, 0)), 4978), 100.0);
+-- 10.3 ST_ConvexHull rejects ECEF
+SELECT 'guard_convexhull_ecef', ST_ConvexHull(
+	ST_SetSRID(ST_Collect(ARRAY[ST_MakePoint(6378137,0,0), ST_MakePoint(0,6378137,0), ST_MakePoint(4510731,4510731,0)]), 4978));
+-- 10.4 ST_DelaunayTriangles rejects ECEF
+SELECT 'guard_delaunay_ecef', ST_DelaunayTriangles(
+	ST_SetSRID(ST_Collect(ARRAY[ST_MakePoint(6378137,0,0), ST_MakePoint(0,6378137,0), ST_MakePoint(4510731,4510731,0)]), 4978));
+-- 10.5 ST_VoronoiPolygons rejects ECEF
+SELECT 'guard_voronoi_ecef', ST_VoronoiPolygons(
+	ST_SetSRID(ST_Collect(ARRAY[ST_MakePoint(6378137,0,0), ST_MakePoint(0,6378137,0), ST_MakePoint(4510731,4510731,0)]), 4978));
+-- 10.6 ST_LineInterpolatePoint rejects ECEF
+SELECT 'guard_lineinterp_ecef', ST_LineInterpolatePoint(
+	ST_SetSRID(ST_MakeLine(ST_MakePoint(6378137, 0, 0), ST_MakePoint(6378237, 100, 0)), 4978), 0.5);
+
+-- 10.7 ST_Simplify rejects ECI
+SELECT 'guard_simplify_eci', ST_Simplify(
+	ST_SetSRID(ST_MakeLine(ST_MakePoint(6378137, 0, 0), ST_MakePoint(6378237, 100, 0)), 900001), 100.0);
+-- 10.8 ST_ConvexHull rejects ECI
+SELECT 'guard_convexhull_eci', ST_ConvexHull(
+	ST_SetSRID(ST_Collect(ARRAY[ST_MakePoint(6378137,0,0), ST_MakePoint(0,6378137,0), ST_MakePoint(4510731,4510731,0)]), 900001));
+
+-- 10.9 ST_ClosestPoint with ECEF dispatches to 3D
+SELECT 'closestpoint_3d_ecef', ST_AsText(ST_ClosestPoint(
+	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+	ST_SetSRID(ST_MakePoint(6378237, 100, 50), 4978)));
+-- 10.10 ST_ShortestLine with ECEF dispatches to 3D
+SELECT 'shortestline_3d_ecef', ST_AsText(ST_ShortestLine(
+	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+	ST_SetSRID(ST_MakePoint(6378237, 100, 50), 4978)));
+
+-- 10.11 ST_3DLineInterpolatePoint continues to work with ECEF
+SELECT 'lineinterp3d_ecef_ok', ST_AsText(ST_3DLineInterpolatePoint(
+	ST_SetSRID(ST_MakeLine(ST_MakePoint(6378137, 0, 0), ST_MakePoint(6378237, 100, 50)), 4978), 0.5));
+
+--------------------------------------------
+-- 11. Cleanup
 --------------------------------------------
 
 -- ECI SRIDs (900001-900003) are managed by test infrastructure
