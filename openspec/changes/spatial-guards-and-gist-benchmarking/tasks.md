@@ -25,8 +25,8 @@
 
 ## 4. GiST 3D Benchmark Expansion
 
-- [ ] 4.1 Expand `regress/core/ecef_gist_benchmark.sql` dataset generation to support 100K and 500K scales with LEO/MEO/GEO distribution
-- [ ] 4.2 Add proximity search template (`ST_3DDWithin` with index) with timing
-- [ ] 4.3 Add k-NN search template (`ORDER BY <#> LIMIT k`) with timing
-- [ ] 4.4 Add range scan template (`&&&` 3D bbox operator) with timing
-- [ ] 4.5 Add multi-run timing collection (5 runs per template, report median/p95/stddev)
+- [x] 4.1 Expand `regress/core/ecef_gist_benchmark.sql` dataset generation to support 100K and 500K scales with LEO/MEO/GEO distribution
+- [x] 4.2 Add proximity search template (`ST_3DDWithin` with index) with timing
+- [x] 4.3 Add k-NN search template (`ORDER BY <#> LIMIT k`) with timing
+- [x] 4.4 Add range scan template (`&&&` 3D bbox operator) with timing
+- [x] 4.5 Add multi-run timing collection (5 runs per template, report median/p95/stddev)
