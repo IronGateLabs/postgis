@@ -147,21 +147,21 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 	GSERIALIZED *g = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwg = lwgeom_from_gserialized(g);
 	char *lwresult = lwgeom_summary(lwg, 0);
+	const char *summary_str = lwresult ? lwresult : "";
 	uint32_t gver = gserialized_get_version(g);
 	int32_t srid = gserialized_get_srid(g);
-	size_t lwresult_len = lwresult ? strlen(lwresult) : 0;
-	size_t result_sz = lwresult_len + 64; /* extra room for CRS family */
+	size_t result_sz = strlen(summary_str) + 64; /* extra room for CRS family */
 	char *result;
 	int written;
 	if (gver == 0)
 	{
 		result = lwalloc(result_sz + 2);
-		written = snprintf(result, result_sz, "0:%s", lwresult ? lwresult : "");
+		written = snprintf(result, result_sz, "0:%s", summary_str);
 	}
 	else
 	{
 		result = lwalloc(result_sz);
-		written = snprintf(result, result_sz, "%s", lwresult ? lwresult : "");
+		written = snprintf(result, result_sz, "%s", summary_str);
 	}
 
 	/* Append CRS family when SRID is set */

@@ -26,83 +26,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include <assert.h>
 #include <math.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <setjmp.h>
-
-#include <set>
-
-extern "C"
-{
-#include "liblwgeom.h"
-#include "geos_stub.h"
-#include "proj_stub.h"
-}
-
-extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv);
-
-std::set<void*> oSetPointers;
-jmp_buf jmpBuf;
-
-extern "C"
-{
-    static void *
-    allocator(size_t size)
-    {
-            void *mem = malloc(size);
-            oSetPointers.insert(mem);
-            return mem;
-    }
-
-    static void
-    freeor(void *mem)
-    {
-            oSetPointers.erase(mem);
-            free(mem);
-    }
-
-    static void *
-    reallocator(void *mem, size_t size)
-    {
-            oSetPointers.erase(mem);
-            void *ret = realloc(mem, size);
-            oSetPointers.insert(ret);
-            return ret;
-    }
-
-    static void
-    noticereporter(const char *, va_list )
-    {
-    }
-
-    static void
-    errorreporter(const char *, va_list )
-    {
-        for(std::set<void*>::iterator oIter = oSetPointers.begin();
-            oIter != oSetPointers.end(); ++oIter )
-        {
-            free(*oIter);
-        }
-        oSetPointers.clear();
-        longjmp(jmpBuf, 1);
-    }
-
-    static void
-    debuglogger(int, const char *, va_list)
-    {
-    }
-}
-
-int LLVMFuzzerInitialize(int* /*argc*/, char*** /*argv*/)
-{
-	lwgeom_set_handlers(malloc, realloc, free, noticereporter, noticereporter);
-	lwgeom_set_debuglogger(debuglogger);
-	return 0;
-}
+#include "fuzzer_common.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len);
 
