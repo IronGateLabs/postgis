@@ -149,27 +149,28 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 	char *lwresult = lwgeom_summary(lwg, 0);
 	uint32_t gver = gserialized_get_version(g);
 	int32_t srid = gserialized_get_srid(g);
-	size_t result_sz = strlen(lwresult) + 64; /* extra room for CRS family */
+	size_t lwresult_len = lwresult ? strlen(lwresult) : 0;
+	size_t result_sz = lwresult_len + 64; /* extra room for CRS family */
 	char *result;
+	int written;
 	if (gver == 0)
 	{
 		result = lwalloc(result_sz + 2);
-		snprintf(result, result_sz, "0:%s", lwresult);
+		written = snprintf(result, result_sz, "0:%s", lwresult ? lwresult : "");
 	}
 	else
 	{
 		result = lwalloc(result_sz);
-		snprintf(result, result_sz, "%s", lwresult);
+		written = snprintf(result, result_sz, "%s", lwresult ? lwresult : "");
 	}
 
 	/* Append CRS family when SRID is set */
-	if (srid > 0 && srid != SRID_UNKNOWN)
+	if (srid > 0 && srid != SRID_UNKNOWN && written >= 0 && (size_t)written < result_sz)
 	{
 		LW_CRS_FAMILY family = srid_get_crs_family(srid);
 		if (family != LW_CRS_UNKNOWN)
 		{
-			size_t cur_len = strlen(result);
-			snprintf(result + cur_len, result_sz - cur_len,
+			snprintf(result + written, result_sz - written,
 				" crs_family=%s", lwcrs_family_name(family));
 		}
 	}

@@ -508,7 +508,7 @@ lwaccel_features_string(void)
 			simd_name);
 
 	{
-		size_t len = strlen(buf) + 1;
+		size_t len = strnlen(buf, sizeof(buf)) + 1;
 		char *result = lwalloc(len);
 		if (result)
 			memcpy(result, buf, len);

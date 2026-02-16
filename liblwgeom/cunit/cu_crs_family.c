@@ -701,8 +701,13 @@ static void test_lwcrs_family_name_complete(void)
 	CU_ASSERT_PTR_NOT_NULL(lwcrs_family_name(LW_CRS_ENGINEERING));
 
 	/* Names should not be empty strings */
-	CU_ASSERT(strlen(lwcrs_family_name(LW_CRS_UNKNOWN)) > 0);
-	CU_ASSERT(strlen(lwcrs_family_name(LW_CRS_GEOCENTRIC)) > 0);
+	{
+		const char *name;
+		name = lwcrs_family_name(LW_CRS_UNKNOWN);
+		CU_ASSERT(name != NULL && name[0] != '\0');
+		name = lwcrs_family_name(LW_CRS_GEOCENTRIC);
+		CU_ASSERT(name != NULL && name[0] != '\0');
+	}
 }
 
 /***********************************************************************
