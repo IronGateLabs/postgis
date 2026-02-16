@@ -624,5 +624,5 @@ SELECT 'same_srid_eci', ST_3DDWithin(
 -- 10. Cleanup
 --------------------------------------------
 
--- Clean up ECI SRIDs added to spatial_ref_sys
-DELETE FROM spatial_ref_sys WHERE srid IN (900001, 900002, 900003);
+-- ECI SRIDs (900001-900003) are managed by test infrastructure
+-- (loaded via ecef_eci.sql in prepare_spatial), so no cleanup needed here.

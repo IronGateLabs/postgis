@@ -558,19 +558,13 @@ srid_axis_precision(int32_t srid, int precision)
 LW_CRS_FAMILY
 srid_get_crs_family(int32_t srid)
 {
-	LWPROJ *pj;
-
-	/* SRID 0 (unknown/unset) is not in spatial_ref_sys */
-	if (srid == SRID_UNKNOWN)
-		return LW_CRS_UNKNOWN;
-
-	/* Check for custom ECI SRID range (not in EPSG registry) */
-	if (SRID_IS_ECI(srid))
-		return LW_CRS_INERTIAL;
-
-	if (lwproj_lookup(srid, srid, &pj) == LW_FAILURE)
-		return LW_CRS_UNKNOWN;
-	return pj->source_crs_family;
+	/*
+	 * Delegate to lwsrid_get_crs_family() which uses proj_create()
+	 * directly instead of SPI-based spatial_ref_sys lookup.
+	 * This avoids elog(ERROR) for SRIDs not in spatial_ref_sys
+	 * (e.g., test SRIDs 2, 3, 42 or SRID 0).
+	 */
+	return lwsrid_get_crs_family(srid);
 }
 
 int
