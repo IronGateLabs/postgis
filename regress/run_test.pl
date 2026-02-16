@@ -1872,6 +1872,12 @@ sub upgrade_spatial
         return 0 unless load_sql_file($script, 1);
     }
 
+    if ( -f "${STAGED_SCRIPTS_DIR}/ecef_eci_upgrade.sql" )
+    {
+        print "Upgrading ECEF/ECI\n";
+        return 0 unless load_sql_file("${STAGED_SCRIPTS_DIR}/ecef_eci_upgrade.sql", 1);
+    }
+
     return 1;
 }
 
