@@ -565,6 +565,12 @@ srid_exists(int32_t srid)
 	int spi_result;
 	char buf[256];
 	bool found;
+	const char *srs_table;
+
+	/* postgis_spatial_ref_sys() returns NULL if cache is not yet initialized */
+	srs_table = postgis_spatial_ref_sys();
+	if (!srs_table)
+		srs_table = "spatial_ref_sys";
 
 	spi_result = SPI_connect();
 	if (spi_result != SPI_OK_CONNECT)
@@ -572,7 +578,7 @@ srid_exists(int32_t srid)
 
 	snprintf(buf, sizeof(buf),
 		"SELECT 1 FROM %s WHERE srid = %d LIMIT 1",
-		postgis_spatial_ref_sys(), srid);
+		srs_table, srid);
 	spi_result = SPI_execute(buf, true, 1);
 	found = (spi_result == SPI_OK_SELECT && SPI_processed > 0);
 
