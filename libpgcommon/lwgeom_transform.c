@@ -18,7 +18,6 @@
 #include "utils/memutils.h"
 #include "executor/spi.h"
 #include "access/hash.h"
-#include "access/xact.h"
 #include "utils/hsearch.h"
 
 /* PostGIS headers */
@@ -556,11 +555,35 @@ srid_axis_precision(int32_t srid, int precision)
 	return sp;
 }
 
+/*
+ * Check if an SRID exists in spatial_ref_sys without throwing errors.
+ * Returns true if found, false otherwise.
+ */
+static bool
+srid_exists(int32_t srid)
+{
+	int spi_result;
+	char buf[256];
+	bool found;
+
+	spi_result = SPI_connect();
+	if (spi_result != SPI_OK_CONNECT)
+		return false;
+
+	snprintf(buf, sizeof(buf),
+		"SELECT 1 FROM %s WHERE srid = %d LIMIT 1",
+		postgis_spatial_ref_sys(), srid);
+	spi_result = SPI_execute(buf, true, 1);
+	found = (spi_result == SPI_OK_SELECT && SPI_processed > 0);
+
+	SPI_finish();
+	return found;
+}
+
 LW_CRS_FAMILY
 srid_get_crs_family(int32_t srid)
 {
 	LWPROJ *pj;
-	volatile LW_CRS_FAMILY family = LW_CRS_UNKNOWN;
 
 	/* SRID 0 (unknown/unset) is not in spatial_ref_sys */
 	if (srid == SRID_UNKNOWN)
@@ -571,27 +594,29 @@ srid_get_crs_family(int32_t srid)
 		return LW_CRS_INERTIAL;
 
 	/*
-	 * Use a subtransaction to catch errors from lwproj_lookup().
-	 * Some SRIDs (e.g., test SRIDs 2, 3, 42) may not exist in
-	 * spatial_ref_sys, and GetProjStringsSPI throws elog(ERROR)
-	 * for unknown SRIDs.  We catch the error gracefully and
-	 * return LW_CRS_UNKNOWN instead of aborting the transaction.
+	 * For regular SRIDs (< SRID_RESERVE_OFFSET), check existence
+	 * in spatial_ref_sys first to avoid elog(ERROR) from
+	 * GetProjStringsSPI for unknown SRIDs.
 	 */
-	BeginInternalSubTransaction(NULL);
-	PG_TRY();
+	if (srid < SRID_RESERVE_OFFSET)
 	{
-		if (lwproj_lookup(srid, srid, &pj) == LW_SUCCESS)
-			family = pj->source_crs_family;
-		ReleaseCurrentSubTransaction();
+		if (!srid_exists(srid))
+			return LW_CRS_UNKNOWN;
 	}
-	PG_CATCH();
+	else
 	{
-		RollbackAndReleaseCurrentSubTransaction();
-		FlushErrorState();
+		/*
+		 * Reserved SRIDs: only known automagic ranges are valid.
+		 * Unknown reserved SRIDs (e.g., 999999) would cause
+		 * elog(ERROR) in GetProjStrings, so return unknown.
+		 */
+		if (srid > SRID_LAEA_END)
+			return LW_CRS_UNKNOWN;
 	}
-	PG_END_TRY();
 
-	return family;
+	if (lwproj_lookup(srid, srid, &pj) == LW_FAILURE)
+		return LW_CRS_UNKNOWN;
+	return pj->source_crs_family;
 }
 
 int
