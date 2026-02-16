@@ -60,11 +60,15 @@ The frame conversion functions SHALL raise a clear error when an unrecognized fr
 - **THEN** the system SHALL raise an error listing the valid frame names: 'ICRF', 'J2000', 'TEME'
 
 ### Requirement: Function volatility and parallel safety
-`ST_ECEF_To_ECI` and `ST_ECI_To_ECEF` SHALL be declared STABLE (the result depends on EOP data when available) and PARALLEL SAFE.
+`ST_ECEF_To_ECI` and `ST_ECI_To_ECEF` SHALL be declared STABLE (the result depends on EOP data when available) and PARALLEL SAFE. The epoch-parameterized `ST_Transform(geometry, integer, timestamptz)` overload SHALL also be declared STABLE (not IMMUTABLE) because its result depends on EOP table data at query time.
 
 #### Scenario: Function used in parallel query
 - **WHEN** `ST_ECEF_To_ECI` is used in a query with `parallel_setup_cost = 0` on a partitioned table
 - **THEN** the query planner SHALL be able to use parallel workers to execute the function
+
+#### Scenario: ST_Transform epoch overload is STABLE
+- **WHEN** `SELECT provolatile FROM pg_proc WHERE proname = 'st_transform' AND pronargs = 3` is queried for the `(geometry, integer, timestamptz)` overload
+- **THEN** provolatile SHALL be `'s'` (STABLE), not `'i'` (IMMUTABLE), because the result depends on EOP data loaded in `postgis_eop`
 
 ### Requirement: NULL input handling
 Frame conversion functions SHALL return NULL when the input geometry is NULL, following PostgreSQL convention for STRICT functions.

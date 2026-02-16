@@ -2994,7 +2994,7 @@ CREATE OR REPLACE FUNCTION ST_Transform(geometry,integer)
 CREATE OR REPLACE FUNCTION ST_Transform(geom geometry, to_srid integer, epoch timestamptz)
 	RETURNS geometry
 	AS 'MODULE_PATHNAME','transform_epoch'
-	LANGUAGE 'c' IMMUTABLE STRICT PARALLEL SAFE
+	LANGUAGE 'c' STABLE STRICT PARALLEL SAFE
 	_COST_HIGH;
 
 -- Availability: 2.3.0

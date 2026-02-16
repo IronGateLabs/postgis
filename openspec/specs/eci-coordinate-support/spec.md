@@ -15,6 +15,13 @@ The system SHALL identify Earth-Centered Inertial (ECI) coordinate systems (ICRF
 - **WHEN** two geometries exist, one with an ECI SRID and one with ECEF SRID 4978
 - **THEN** the system SHALL classify them under different CRS families and prevent direct spatial operations between them without explicit transformation
 
+#### Scenario: ECI SRIDs blocked by spatial function guards
+- **WHEN** an error-class spatial function (e.g., `ST_Area`, `ST_Buffer`, `ST_Perimeter`) is called on a geometry with an ECI SRID (900001-900003)
+- **THEN** the `srid_check_crs_family_not_geocentric()` guard SHALL block the call with an error, same as for ECEF/geocentric SRIDs
+- **AND** the error message SHALL indicate that the operation is not supported for this CRS family
+
+> **Note (contract alignment v0.2.0):** The guard function `srid_check_crs_family_not_geocentric()` scope was broadened to block both `LW_CRS_GEOCENTRIC` and `LW_CRS_INERTIAL` CRS families. See the `ecef-coordinate-support` spec for the full list of error-class functions.
+
 ### Requirement: Epoch-parameterized ECI-to-ECEF transformation
 The system SHALL support transformation between ECI and ECEF frames with an epoch parameter that accounts for Earth's rotation. The epoch MAY be provided as the M coordinate of `POINT4D` geometries or as an explicit parameter to `ST_Transform`.
 

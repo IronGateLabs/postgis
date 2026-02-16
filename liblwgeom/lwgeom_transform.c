@@ -110,6 +110,10 @@ lwsrid_get_crs_family(int32_t srid)
 	PJ *pj_crs;
 	LW_CRS_FAMILY family;
 
+	/* SRID 0 (unknown/unset) is not in EPSG registry */
+	if (srid == SRID_UNKNOWN)
+		return LW_CRS_UNKNOWN;
+
 	/* Check for custom ECI SRID range (not in EPSG registry) */
 	if (SRID_IS_ECI(srid))
 		return LW_CRS_INERTIAL;

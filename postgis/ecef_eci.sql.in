@@ -178,13 +178,13 @@ CREATE TABLE IF NOT EXISTS postgis_eop (
 
 -- Load Earth Orientation Parameters from IERS Bulletin A fixed-width format text.
 -- Parses lines and upserts into postgis_eop table.
--- Bulletin A fixed-width columns (1-based):
---   col  8-12: year (2-digit)
---   col 13-14: month
---   col 15-16: day
---   col 19-27: MJD
---   col 35-43: x (pole, arcsec)
---   col 44-52: y (pole, arcsec)
+-- IERS finals2000A fixed-width columns (1-based):
+--   col  1- 2: year (2-digit)
+--   col  3- 4: month
+--   col  5- 6: day
+--   col  8-15: MJD
+--   col 19-27: x (pole, arcsec)
+--   col 38-46: y (pole, arcsec)
 --   col 59-68: UT1-UTC (seconds)
 CREATE OR REPLACE FUNCTION postgis_eop_load(data TEXT)
 RETURNS integer AS $$
@@ -203,11 +203,11 @@ BEGIN
 			CONTINUE;
 		END IF;
 
-		-- Try to parse MJD from columns 19-27
+		-- Parse fixed-width fields per IERS finals2000A spec
 		BEGIN
-			mjd_val := trim(substring(line FROM 19 FOR 9))::FLOAT8;
-			xp_val := trim(substring(line FROM 35 FOR 9))::FLOAT8;
-			yp_val := trim(substring(line FROM 44 FOR 9))::FLOAT8;
+			mjd_val := trim(substring(line FROM 8 FOR 8))::FLOAT8;
+			xp_val := trim(substring(line FROM 19 FOR 9))::FLOAT8;
+			yp_val := trim(substring(line FROM 38 FOR 9))::FLOAT8;
 			dut1_val := trim(substring(line FROM 59 FOR 10))::FLOAT8;
 		EXCEPTION WHEN OTHERS THEN
 			CONTINUE;
@@ -300,6 +300,17 @@ CREATE OR REPLACE PROCEDURE postgis_refresh_eop()
 AS $$
 BEGIN
 	RAISE NOTICE 'postgis_refresh_eop: placeholder — configure an external scheduler to fetch IERS Bulletin A data and call postgis_eop_load()';
+END;
+$$ LANGUAGE plpgsql;
+
+-- TimescaleDB-compatible overload: add_job() passes (job_id INT, config JSONB).
+-- The parameters are accepted but not used; they exist so that
+-- SELECT add_job('postgis_refresh_eop', schedule_interval => INTERVAL '1 day');
+-- works without an adapter wrapper.
+CREATE OR REPLACE PROCEDURE postgis_refresh_eop(job_id INT, config JSONB)
+AS $$
+BEGIN
+	CALL @extschema@.postgis_refresh_eop();
 END;
 $$ LANGUAGE plpgsql;
 

@@ -555,14 +555,70 @@ srid_axis_precision(int32_t srid, int precision)
 	return sp;
 }
 
+/*
+ * Check if an SRID exists in spatial_ref_sys without throwing errors.
+ * Returns true if found, false otherwise.
+ */
+static bool
+srid_exists(int32_t srid)
+{
+	int spi_result;
+	char buf[256];
+	bool found;
+	const char *srs_table;
+
+	/* postgis_spatial_ref_sys() returns NULL if cache is not yet initialized */
+	srs_table = postgis_spatial_ref_sys();
+	if (!srs_table)
+		srs_table = "spatial_ref_sys";
+
+	spi_result = SPI_connect();
+	if (spi_result != SPI_OK_CONNECT)
+		return false;
+
+	snprintf(buf, sizeof(buf),
+		"SELECT 1 FROM %s WHERE srid = %d LIMIT 1",
+		srs_table, srid);
+	spi_result = SPI_execute(buf, true, 1);
+	found = (spi_result == SPI_OK_SELECT && SPI_processed > 0);
+
+	SPI_finish();
+	return found;
+}
+
 LW_CRS_FAMILY
 srid_get_crs_family(int32_t srid)
 {
 	LWPROJ *pj;
 
+	/* SRID 0 (unknown/unset) is not in spatial_ref_sys */
+	if (srid == SRID_UNKNOWN)
+		return LW_CRS_UNKNOWN;
+
 	/* Check for custom ECI SRID range (not in EPSG registry) */
 	if (SRID_IS_ECI(srid))
 		return LW_CRS_INERTIAL;
+
+	/*
+	 * For regular SRIDs (< SRID_RESERVE_OFFSET), check existence
+	 * in spatial_ref_sys first to avoid elog(ERROR) from
+	 * GetProjStringsSPI for unknown SRIDs.
+	 */
+	if (srid < SRID_RESERVE_OFFSET)
+	{
+		if (!srid_exists(srid))
+			return LW_CRS_UNKNOWN;
+	}
+	else
+	{
+		/*
+		 * Reserved SRIDs: only known automagic ranges are valid.
+		 * Unknown reserved SRIDs (e.g., 999999) would cause
+		 * elog(ERROR) in GetProjStrings, so return unknown.
+		 */
+		if (srid > SRID_LAEA_END)
+			return LW_CRS_UNKNOWN;
+	}
 
 	if (lwproj_lookup(srid, srid, &pj) == LW_FAILURE)
 		return LW_CRS_UNKNOWN;
@@ -599,6 +655,14 @@ srid_check_crs_family_not_geocentric(int32_t srid, const char *funcname)
 		ereport(ERROR, (
 			errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 			errmsg("%s: Operation is not supported for geocentric (ECEF) coordinates (SRID=%d). "
+				"Transform to a geographic or projected CRS first.",
+				funcname, srid)));
+	}
+	if (family == LW_CRS_INERTIAL)
+	{
+		ereport(ERROR, (
+			errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+			errmsg("%s: Operation is not supported for inertial (ECI) coordinates (SRID=%d). "
 				"Transform to a geographic or projected CRS first.",
 				funcname, srid)));
 	}
