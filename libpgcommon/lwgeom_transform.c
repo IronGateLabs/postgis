@@ -560,7 +560,7 @@ LW_CRS_FAMILY
 srid_get_crs_family(int32_t srid)
 {
 	LWPROJ *pj;
-	LW_CRS_FAMILY family = LW_CRS_UNKNOWN;
+	volatile LW_CRS_FAMILY family = LW_CRS_UNKNOWN;
 
 	/* SRID 0 (unknown/unset) is not in spatial_ref_sys */
 	if (srid == SRID_UNKNOWN)
