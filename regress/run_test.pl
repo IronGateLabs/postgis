@@ -2120,6 +2120,10 @@ sub drop_spatial_extensions
         }
     }
 
+    # ECEF/ECI extension (always drop if present, before main postgis)
+    $cmd = "psql $psql_opts -c \"DROP EXTENSION IF EXISTS postgis_ecef_eci;\" $DB >> $REGRESS_LOG 2>&1";
+    system($cmd); # Ignore errors - extension may not be installed
+
     $cmd = "psql $psql_opts -c \"DROP EXTENSION postgis\" $DB >> $REGRESS_LOG 2>&1";
     $rv = system($cmd);
     if ( $rv ) {

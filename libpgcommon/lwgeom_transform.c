@@ -18,6 +18,7 @@
 #include "utils/memutils.h"
 #include "executor/spi.h"
 #include "access/hash.h"
+#include "access/xact.h"
 #include "utils/hsearch.h"
 
 /* PostGIS headers */
@@ -558,13 +559,39 @@ srid_axis_precision(int32_t srid, int precision)
 LW_CRS_FAMILY
 srid_get_crs_family(int32_t srid)
 {
+	LWPROJ *pj;
+	LW_CRS_FAMILY family = LW_CRS_UNKNOWN;
+
+	/* SRID 0 (unknown/unset) is not in spatial_ref_sys */
+	if (srid == SRID_UNKNOWN)
+		return LW_CRS_UNKNOWN;
+
+	/* Check for custom ECI SRID range (not in EPSG registry) */
+	if (SRID_IS_ECI(srid))
+		return LW_CRS_INERTIAL;
+
 	/*
-	 * Delegate to lwsrid_get_crs_family() which uses proj_create()
-	 * directly instead of SPI-based spatial_ref_sys lookup.
-	 * This avoids elog(ERROR) for SRIDs not in spatial_ref_sys
-	 * (e.g., test SRIDs 2, 3, 42 or SRID 0).
+	 * Use a subtransaction to catch errors from lwproj_lookup().
+	 * Some SRIDs (e.g., test SRIDs 2, 3, 42) may not exist in
+	 * spatial_ref_sys, and GetProjStringsSPI throws elog(ERROR)
+	 * for unknown SRIDs.  We catch the error gracefully and
+	 * return LW_CRS_UNKNOWN instead of aborting the transaction.
 	 */
-	return lwsrid_get_crs_family(srid);
+	BeginInternalSubTransaction(NULL);
+	PG_TRY();
+	{
+		if (lwproj_lookup(srid, srid, &pj) == LW_SUCCESS)
+			family = pj->source_crs_family;
+		ReleaseCurrentSubTransaction();
+	}
+	PG_CATCH();
+	{
+		RollbackAndReleaseCurrentSubTransaction();
+		FlushErrorState();
+	}
+	PG_END_TRY();
+
+	return family;
 }
 
 int
