@@ -347,8 +347,8 @@ main(int argc, char *argv[])
 	{
 		switch (opt)
 		{
-		case 'o': strncpy(opts.operation, optarg, sizeof(opts.operation) - 1); break;
-		case 'b': strncpy(opts.backend, optarg, sizeof(opts.backend) - 1); break;
+		case 'o': strncpy(opts.operation, optarg, sizeof(opts.operation) - 1); opts.operation[sizeof(opts.operation) - 1] = '\0'; break;
+		case 'b': strncpy(opts.backend, optarg, sizeof(opts.backend) - 1); opts.backend[sizeof(opts.backend) - 1] = '\0'; break;
 		case 'v': opts.validate = 1; break;
 		case 'C': opts.calibrate = 1; break;
 		case 'c': opts.csv = 1; break;
