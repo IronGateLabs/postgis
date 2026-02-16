@@ -494,18 +494,28 @@ lwaccel_features_string(void)
 	default:              simd_name = "none"; break;
 	}
 
-	if (lwgpu_available() && gpu_threshold_calibrated)
-		snprintf(buf, sizeof(buf),
-			"SIMD: %s; GPU: %s (threshold: %u pts); Valkey: disabled",
-			simd_name, lwgpu_backend_name(), gpu_dispatch_threshold);
-	else if (lwgpu_available())
-		snprintf(buf, sizeof(buf),
-			"SIMD: %s; GPU: %s (threshold: auto); Valkey: disabled",
-			simd_name, lwgpu_backend_name());
-	else
-		snprintf(buf, sizeof(buf),
-			"SIMD: %s; GPU: none; Valkey: disabled",
-			simd_name);
+	{
+		const char *valkey_status;
+#ifdef HAVE_VALKEY
+		valkey_status = "compiled";
+#else
+		valkey_status = "not compiled";
+#endif
+
+		if (lwgpu_available() && gpu_threshold_calibrated)
+			snprintf(buf, sizeof(buf),
+				"SIMD: %s; GPU: %s (threshold: %u pts); Valkey: %s",
+				simd_name, lwgpu_backend_name(), gpu_dispatch_threshold,
+				valkey_status);
+		else if (lwgpu_available())
+			snprintf(buf, sizeof(buf),
+				"SIMD: %s; GPU: %s (threshold: auto); Valkey: %s",
+				simd_name, lwgpu_backend_name(), valkey_status);
+		else
+			snprintf(buf, sizeof(buf),
+				"SIMD: %s; GPU: none; Valkey: %s",
+				simd_name, valkey_status);
+	}
 
 	{
 		size_t len = strnlen(buf, sizeof(buf)) + 1;

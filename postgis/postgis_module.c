@@ -41,6 +41,11 @@
 /* Valkey batch worker GUC registration */
 extern void postgis_valkey_register_gucs(void);
 
+#ifdef HAVE_VALKEY
+#include "postmaster/bgworker.h"
+extern void postgis_valkey_batch_main(Datum main_arg);
+#endif
+
 #ifdef HAVE_LIBPROTOBUF
 #include "lwgeom_wagyu.h"
 #endif
@@ -145,6 +150,23 @@ _PG_init(void)
 
 	/* Register Valkey batch GUC parameters */
 	postgis_valkey_register_gucs();
+
+#ifdef HAVE_VALKEY
+	/* Register Valkey GPU batch background worker */
+	{
+		BackgroundWorker worker;
+		memset(&worker, 0, sizeof(worker));
+		snprintf(worker.bgw_name, BGW_MAXLEN, "PostGIS Valkey GPU batch worker");
+		snprintf(worker.bgw_type, BGW_MAXLEN, "postgis_valkey_batch");
+		worker.bgw_flags = BGWORKER_SHMEM_ACCESS;
+		worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
+		worker.bgw_restart_time = 60; /* restart after 60s on crash */
+		snprintf(worker.bgw_library_name, BGW_MAXLEN, "postgis-" POSTGIS_MAJOR_VERSION);
+		snprintf(worker.bgw_function_name, BGW_MAXLEN, "postgis_valkey_batch_main");
+		worker.bgw_main_arg = (Datum) 0;
+		RegisterBackgroundWorker(&worker);
+	}
+#endif
 
 	/* GPU dispatch threshold GUC */
 	DefineCustomIntVariable(

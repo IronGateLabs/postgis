@@ -165,7 +165,7 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 	}
 
 	/* Append CRS family when SRID is set */
-	if (srid > 0 && srid != SRID_UNKNOWN && written >= 0 && (size_t)written < result_sz)
+	if (srid > 0 && written >= 0 && (size_t)written < result_sz)
 	{
 		LW_CRS_FAMILY family = srid_get_crs_family(srid);
 		if (family != LW_CRS_UNKNOWN)

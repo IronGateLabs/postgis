@@ -11,6 +11,11 @@
 #include "lwgeom_gpu.h"
 #include "lwgeom_log.h"
 
+/* Convenience macro: true when at least one GPU backend is compiled in */
+#if defined(HAVE_CUDA) || defined(HAVE_ROCM) || defined(HAVE_ONEAPI)
+#define HAVE_ANY_GPU 1
+#endif
+
 static LW_GPU_BACKEND active_backend = LW_GPU_NONE;
 static int gpu_initialized = 0;
 
@@ -25,6 +30,7 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 	/* If a specific backend is requested, try only that one */
 	if (preferred != LW_GPU_NONE)
 	{
+#ifdef HAVE_ANY_GPU
 		switch (preferred)
 		{
 #ifdef HAVE_CUDA
@@ -60,6 +66,9 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 		default:
 			break;
 		}
+#else
+		(void)preferred;
+#endif
 		return 0;
 	}
 
@@ -110,6 +119,7 @@ lwgpu_backend(void)
 const char *
 lwgpu_backend_name(void)
 {
+#ifdef HAVE_ANY_GPU
 	switch (active_backend)
 	{
 #ifdef HAVE_CUDA
@@ -123,12 +133,16 @@ lwgpu_backend_name(void)
 #endif
 	default:            return "none";
 	}
+#else
+	return "none";
+#endif
 }
 
 int
 lwgpu_rotate_z_batch(double *xy_pairs, size_t stride,
 		     uint32_t npoints, double theta)
 {
+#ifdef HAVE_ANY_GPU
 	switch (active_backend)
 	{
 #ifdef HAVE_CUDA
@@ -146,6 +160,10 @@ lwgpu_rotate_z_batch(double *xy_pairs, size_t stride,
 	default:
 		return 0;
 	}
+#else
+	(void)xy_pairs; (void)stride; (void)npoints; (void)theta;
+	return 0;
+#endif
 }
 
 int
@@ -153,6 +171,7 @@ lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride,
 			     uint32_t npoints, size_t m_offset,
 			     int direction)
 {
+#ifdef HAVE_ANY_GPU
 	switch (active_backend)
 	{
 #ifdef HAVE_CUDA
@@ -173,11 +192,16 @@ lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride,
 	default:
 		return 0;
 	}
+#else
+	(void)xyzm; (void)stride; (void)npoints; (void)m_offset; (void)direction;
+	return 0;
+#endif
 }
 
 void
 lwgpu_shutdown(void)
 {
+#ifdef HAVE_ANY_GPU
 	switch (active_backend)
 	{
 #ifdef HAVE_CUDA
@@ -198,6 +222,7 @@ lwgpu_shutdown(void)
 	default:
 		break;
 	}
+#endif
 	active_backend = LW_GPU_NONE;
 	gpu_initialized = 0;
 }
