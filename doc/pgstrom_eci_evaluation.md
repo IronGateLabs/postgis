@@ -4,106 +4,119 @@
 
 PG-Strom is a PostgreSQL extension that accelerates SQL queries using NVIDIA GPU hardware.
 It intercepts query plans at the PostgreSQL executor level and offloads computation to
-CUDA-capable GPUs. PG-Strom includes limited PostGIS function support via `gpu_postgis.cu`.
+CUDA-capable GPUs.  PG-Strom includes PostGIS function support via `xpu_postgis.cu`,
+with 24 function signatures covering spatial predicates, point construction, and
+bounding box operations — all 2D only.
 
-This document evaluates PG-Strom for ECI/ECEF coordinate transform workloads and describes
-how to contribute ECI device functions to PG-Strom.
+This document evaluates PG-Strom for ECI/ECEF coordinate transform workloads in
+high-rate sensor ingestion pipelines (20-50Hz, TimescaleDB) and describes the
+planned integration.
 
-## Evaluation Status
+## How PG-Strom Complements Our Custom Acceleration
 
-### 6.1 PG-Strom Installation
+PostGIS has two independent GPU acceleration paths that serve different use cases:
 
-PG-Strom requires:
-- PostgreSQL 15+ (matches our environment)
+| Layer | What It Accelerates | When It Helps |
+|-------|---------------------|---------------|
+| **Custom SIMD/GPU dispatch** (liblwgeom) | Points within a single geometry (POINTARRAY batching) | Large geometries with 100K+ points |
+| **PG-Strom** (query executor) | SQL expressions across many rows in a table scan | Millions of rows with small geometries |
+
+In a TimescaleDB pipeline at 50Hz × 1000 sensors, each row contains a single POINT
+geometry.  The custom SIMD layer provides no benefit (1-point arrays), but PG-Strom
+can evaluate WHERE clauses and SELECT expressions on GPU across entire TimescaleDB
+chunks (millions of rows per chunk).
+
+## PG-Strom Requirements
+
+- PostgreSQL 15+
 - NVIDIA GPU with compute capability 6.0+ (Pascal or newer)
 - CUDA toolkit 12.0+
 - Linux only (no Windows/macOS support)
 
-Docker build environment setup:
-```bash
-# Install CUDA toolkit in build container
-apt-get install nvidia-cuda-toolkit
+## Current PG-Strom PostGIS GPU Support
 
-# Clone and build PG-Strom
-git clone https://github.com/heterodb/pg-strom.git
-cd pg-strom/src && make PG_CONFIG=/usr/local/pgsql/bin/pg_config install
+PG-Strom v6.1 supports these PostGIS functions on GPU (via `src/xpu_postgis.cu`):
+
+| Category | Functions | Notes |
+|----------|-----------|-------|
+| Point construction | ST_Point, ST_MakePoint (2D/3D/4D) | All variants |
+| SRID management | ST_SetSRID | |
+| Distance | ST_Distance | 2D only, point/polygon |
+| Proximity | ST_DWithin | 2D only, optimised for joins |
+| Containment | ST_Contains, ST_Crosses, ST_Relate | Recursive geometry support |
+| Operators | &&, @, ~ (geometry and box2df) | Bounding box operations |
+| Expansion | ST_Expand | |
+| Crossing | ST_LineCrossingDirection | |
+
+**Not currently supported:** Any 3D spatial operations, any `postgis_ecef_eci`
+extension functions, any ECI/ECEF transforms.
+
+## Planned Integration
+
+Full design and specifications are tracked in the PG-Strom fork at
+`IronGateLabs/pg-strom`, OpenSpec change `ecef-eci-device-functions`.
+
+### Phase 1: ECI Frame Conversion
+
+GPU device functions for `ST_ECEF_To_ECI(geometry, timestamptz, text)` and
+`ST_ECI_To_ECEF(geometry, timestamptz, text)`.
+
+**Key design insight:** PostgreSQL `timestamptz` is int64 microseconds since
+2000-01-01 (PG epoch).  `POSTGRES_EPOCH_JDATE = 2451545` is exactly J2000.0.
+Therefore `Du = tstz_usec / USECS_PER_DAY` — no calendar decomposition needed.
+ERA is computed directly via IERS 2003 formula on GPU.
+
+Registration in `xpu_opcodes.h`:
+```c
+FUNC_OPCODE(st_ecef_to_eci, geometry/timestamptz/text, DEVKIND__ANY, st_ecef_to_eci, 20, "postgis_ecef_eci")
+FUNC_OPCODE(st_eci_to_ecef, geometry/timestamptz/text, DEVKIND__ANY, st_eci_to_ecef, 20, "postgis_ecef_eci")
 ```
 
-### 6.2 Baseline GPU Acceleration (Standard PostGIS Functions)
+Use case: `SELECT object_id, ST_ECEF_To_ECI(geom, epoch) FROM tracks WHERE epoch > now() - '10 min'`
+— PG-Strom runs ECI rotation for 30K rows on GPU in one kernel launch.
 
-PG-Strom's `gpu_postgis.cu` supports these PostGIS functions on GPU:
+### Phase 2: ECEF Coordinate Accessors
 
-| Function | GPU Support | Notes |
-|----------|-------------|-------|
-| ST_Distance | Yes | Point-to-point, point-to-polygon |
-| ST_DWithin | Yes | Optimized for spatial joins |
-| ST_Contains | Yes | Basic polygon containment |
-| ST_Intersects | Partial | Simple geometries only |
-| ST_MakePoint | Yes | Point construction |
-| geometry_eq | Yes | Equality comparison |
-| geometry_lt/gt | Yes | Ordering |
+GPU device functions for `ST_ECEF_X(geometry)`, `ST_ECEF_Y(geometry)`,
+`ST_ECEF_Z(geometry)`.  Trivial coordinate extraction from point rawdata.
 
-For ECEF geometries (standard SRID 4978 points), these functions can be GPU-accelerated
-for WHERE-clause evaluation. Benefit is highest for large table scans with spatial filters.
+Use case: `WHERE ST_ECEF_X(geom) BETWEEN 6000000 AND 7000000` — range filtering
+across chunk scans.
 
-### 6.3 ECI Function GPU Support
+### Phase 3: 3D Spatial Operations
 
-Current PG-Strom behavior with ECI-specific functions:
+GPU device functions for `ST_3DDistance(geometry, geometry)` and
+`ST_3DDWithin(geometry, geometry, float8)`.  Point-to-point 3D Euclidean
+distance only (non-point falls back to CPU).
 
-| Function | GPU Support | Behavior |
-|----------|-------------|----------|
-| ST_ECEF_To_ECI | No | Falls back to CPU |
-| ST_ECI_To_ECEF | No | Falls back to CPU |
-| ST_Transform (ECI SRID) | No | Falls back to CPU |
-| postgis_accel_features() | No | Falls back to CPU |
+Use case: `WHERE ST_3DDWithin(geom, target, 100000)` — the most common spatial
+predicate for ECEF/ECI data.
 
-PG-Strom does NOT currently support ECI functions because:
-1. ECI SRIDs (900001-900003) are custom, not in EPSG registry
-2. ECI transform functions (ST_ECEF_To_ECI, etc.) are not registered in PG-Strom's device function catalog
-3. The ERA computation requires trig functions which PG-Strom does support on GPU
+### Deferred: EOP-Enhanced Transforms
 
-### 6.4 ECI Device Function Implementation
+`ST_ECEF_To_ECI_EOP` and `ST_ECI_To_ECEF_EOP` require EOP table lookups which
+cannot run on GPU.  The SQL wrapper does the lookup on CPU, but PG-Strom cannot
+intercept the inner plpgsql function.  Deferred to a follow-on change.
 
-See `liblwgeom/accel/gpu_eci_rotate.cu` for the CUDA device functions:
+## Reference Implementation
 
-- `pgstrom_eci_epoch_to_jd()` - Decimal year to Julian Date
-- `pgstrom_eci_earth_rotation_angle()` - IERS 2003 ERA computation
-- `pgstrom_eci_rotate_z()` - Z-axis rotation matrix application
-- `pgstrom_eci_transform()` - Combined epoch-to-rotation transform
+The PostGIS codebase contains reference CUDA device functions at
+`liblwgeom/accel/gpu_eci_rotate.cu`:
 
-These functions are numerically equivalent to the CPU implementation in `lwgeom_eci.c`.
+- `pgstrom_eci_epoch_to_jd()` — Decimal year to Julian Date
+- `pgstrom_eci_earth_rotation_angle()` — IERS 2003 ERA computation
+- `pgstrom_eci_rotate_z()` — Z-axis rotation matrix application
+- `pgstrom_eci_transform()` — Combined epoch-to-rotation transform
+- `pgstrom_eci_validate_kernel` — GPU vs CPU numerical validation (max diff < 1e-10)
 
-### 6.5 Numerical Equivalence Testing
-
-The `pgstrom_eci_validate_kernel` in `gpu_eci_rotate.cu` provides a test harness:
-- Applies ECI transforms on GPU
-- Compares results against CPU-computed expected values
-- Reports maximum absolute difference per coordinate
-- Pass criteria: max difference < 1e-10
-
-### 6.6 PG-Strom Contribution
-
-To contribute ECI functions to PG-Strom:
-
-1. **Device functions**: Copy `pgstrom_eci_*` functions from `gpu_eci_rotate.cu` into
-   PG-Strom's `src/gpu_postgis.cu`
-
-2. **Function registration**: Add entries to `pgstrom_devfunc_catalog[]` in `src/codegen.c`:
-   ```c
-   { "st_ecef_to_eci", 3, {GEOMETRYOID, TIMESTAMPTZOID, TEXTOID},
-     "pgstrom_eci_transform", ... },
-   ```
-
-3. **Test coverage**: Add SQL test cases to `test/sql/postgis.sql` validating:
-   - ECI-to-ECEF roundtrip on GPU
-   - ECEF-to-ECI roundtrip on GPU
-   - Numerical equivalence with CPU at multiple epochs
-
-4. **Submit**: Create PR against heterodb/pg-strom with the above changes.
+These serve as reference for the PG-Strom XPU device function implementations.
+The actual PG-Strom integration uses PG-Strom's `XPU_PGFUNCTION_ARGS` pattern
+and `KEXP_PROCESS_ARGS*` macros, which differ from the standalone CUDA kernel style.
 
 ## Limitations
 
 - PG-Strom is CUDA-only (NVIDIA hardware required)
-- PG-Strom accelerates WHERE-clause evaluation, not arbitrary function calls in SELECT
-- For AMD/Intel GPUs, use the custom GPU dispatch layer (Sections 4-5) instead
+- PG-Strom accelerates GpuScan/GpuJoin/GpuPreAgg nodes, not arbitrary function calls
+- For AMD/Intel GPUs, use the custom GPU dispatch layer (liblwgeom) instead
 - PG-Strom and our custom SIMD/GPU dispatch are complementary, not competing
+- 3D spatial operations are point-to-point only on GPU; complex geometries fall back to CPU

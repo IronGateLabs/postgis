@@ -1069,6 +1069,39 @@ SELECT postgis_accel_features();
             </programlisting>
         </refsection>
     </refentry>
+
+    <section id="ecef_eci_accel_pgstrom">
+        <title>PG-Strom Query-Level GPU Acceleration</title>
+        <para>For workloads with many rows of small geometries (e.g., high-rate
+        sensor ingestion at 20-50Hz into TimescaleDB), the built-in SIMD/GPU
+        dispatch operates within a single geometry and provides no benefit for
+        1-point rows.  <ulink url="https://github.com/heterodb/pg-strom">PG-Strom</ulink>
+        complements the built-in acceleration by operating at the SQL query
+        level, evaluating WHERE clauses and SELECT expressions on GPU across
+        entire table scans (millions of rows per TimescaleDB chunk).</para>
+
+        <para>PG-Strom integration for ECEF/ECI functions is planned in three
+        phases:</para>
+        <orderedlist>
+            <listitem><para><emphasis>ECI frame conversion</emphasis>:
+            <function>ST_ECEF_To_ECI</function> and
+            <function>ST_ECI_To_ECEF</function> as GPU device functions,
+            computing the Earth Rotation Angle and Z-axis rotation per row
+            on GPU.</para></listitem>
+            <listitem><para><emphasis>ECEF coordinate accessors</emphasis>:
+            <function>ST_ECEF_X</function>, <function>ST_ECEF_Y</function>,
+            <function>ST_ECEF_Z</function> for GPU-accelerated range
+            filtering across chunk scans.</para></listitem>
+            <listitem><para><emphasis>3D spatial operations</emphasis>:
+            <function>ST_3DDistance</function> and
+            <function>ST_3DDWithin</function> for point-to-point 3D
+            Euclidean proximity queries on GPU.</para></listitem>
+        </orderedlist>
+
+        <para>PG-Strom requires NVIDIA GPU hardware and Linux.  For details,
+        see <filename>doc/pgstrom_eci_evaluation.md</filename> in the PostGIS
+        source tree.</para>
+    </section>
 </section>
 
 </section>
