@@ -2,7 +2,7 @@ CF1|geographic
 CF2|projected
 CF3|geocentric
 CF4|projected
-ERROR:  Invalid reserved SRID (999999)
+CF5|unknown
 CF6|unknown
 CF7|geographic
 CF8|geographic

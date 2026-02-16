@@ -64,6 +64,11 @@ ERROR:  ST_Project: Operation is not supported for geocentric (ECEF) coordinates
 ERROR:  ST_Project: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
 ERROR:  ST_Segmentize: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
 ERROR:  geometry::geography: Operation is not supported for geocentric (ECEF) coordinates (SRID=4978). Transform to a geographic or projected CRS first.
+ERROR:  ST_Perimeter: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
+ERROR:  ST_Azimuth: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
+ERROR:  ST_Project: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
+ERROR:  ST_Segmentize: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
+ERROR:  geometry::geography: Operation is not supported for inertial (ECI) coordinates (SRID=900001). Transform to a geographic or projected CRS first.
 neg_perimeter|t
 neg_azimuth|t
 neg_project|t

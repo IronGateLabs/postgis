@@ -1722,6 +1722,20 @@ sub prepare_spatial_extensions
 		}
 	}
 
+	# ECEF/ECI extension (always load if available)
+	{
+		my $sql = "CREATE EXTENSION IF NOT EXISTS postgis_ecef_eci";
+		$sql .= " SCHEMA " . $OPT_SCHEMA;
+
+		print "Preparing db '${DB}' using: ${sql}\n";
+
+		$cmd = "psql $psql_opts -c \"" . $sql . "\" $DB >> $REGRESS_LOG 2>&1";
+		$rv = system($cmd);
+		if ( $rv ) {
+			print "NOTICE: postgis_ecef_eci extension not available, skipping\n";
+		}
+	}
+
  	return 1;
 }
 
@@ -1762,6 +1776,12 @@ sub prepare_spatial
 		print "Loading SFCGAL into '${DB}'\n";
 		return 0 unless load_sql_file("${scriptdir}/sfcgal.sql", 1, $werror);
 		return 0 unless load_sql_file("${scriptdir}/sfcgal_comments.sql", 0, $werror);
+	}
+
+	if ( -f "${scriptdir}/ecef_eci.sql" )
+	{
+		print "Loading ECEF/ECI into '${DB}'\n";
+		return 0 unless load_sql_file("${scriptdir}/ecef_eci.sql", 1, $werror);
 	}
 
 	return 1;
@@ -1829,6 +1849,12 @@ sub upgrade_spatial
         $script = "${STAGED_SCRIPTS_DIR}/sfcgal_upgrade.sql";
         print "Upgrading sfcgal\n";
         return 0 unless load_sql_file($script, 1);
+    }
+
+    if ( -f "${STAGED_SCRIPTS_DIR}/ecef_eci_upgrade.sql" )
+    {
+        print "Upgrading ECEF/ECI\n";
+        return 0 unless load_sql_file("${STAGED_SCRIPTS_DIR}/ecef_eci_upgrade.sql", 1);
     }
 
     return 1;
@@ -2064,6 +2090,10 @@ sub drop_spatial_extensions
             return 0;
         }
     }
+
+    # ECEF/ECI extension (always drop if present, before main postgis)
+    $cmd = "psql $psql_opts -c \"DROP EXTENSION IF EXISTS postgis_ecef_eci;\" $DB >> $REGRESS_LOG 2>&1";
+    system($cmd); # Ignore errors - extension may not be installed
 
     $cmd = "psql $psql_opts -c \"DROP EXTENSION postgis\" $DB >> $REGRESS_LOG 2>&1";
     $rv = system($cmd);
