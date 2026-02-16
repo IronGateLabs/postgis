@@ -2,14 +2,14 @@
 
 ### PostGIS Side
 
-- [ ] Fix `postgis_eop_load()` column offsets in `postgis/ecef_eci.sql.in`
+- [x] Fix `postgis_eop_load()` column offsets in `postgis/ecef_eci.sql.in`
   - MJD: change `FROM 19 FOR 9` to `FROM 8 FOR 8`
   - PM-x: change `FROM 35 FOR 9` to `FROM 19 FOR 9`
   - PM-y: change `FROM 44 FOR 9` to `FROM 38 FOR 9`
   - Add regression test with real IERS data snippet
   - **Priority**: Low (TimescaleDB pipeline bypasses this parser)
 
-- [ ] Verify `postgis_eop` table schema compatibility with TimescaleDB sync
+- [x] Verify `postgis_eop` table schema compatibility with TimescaleDB sync
   - Confirm columns: mjd (PK), xp, yp, dut1, dx, dy
   - Confirm `ON CONFLICT (mjd)` works for upsert
 
@@ -42,5 +42,5 @@
 
 ### Cross-Repo Coordination
 
-- [ ] Verify end-to-end with both extensions installed
-- [ ] Update PostGIS contract copy to v0.4.0
+- [x] Verify end-to-end with both extensions installed
+- [x] Update PostGIS contract copy to v0.4.0
