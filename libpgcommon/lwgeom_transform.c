@@ -560,6 +560,10 @@ srid_get_crs_family(int32_t srid)
 {
 	LWPROJ *pj;
 
+	/* SRID 0 (unknown/unset) is not in spatial_ref_sys */
+	if (srid == SRID_UNKNOWN)
+		return LW_CRS_UNKNOWN;
+
 	/* Check for custom ECI SRID range (not in EPSG registry) */
 	if (SRID_IS_ECI(srid))
 		return LW_CRS_INERTIAL;
@@ -599,6 +603,14 @@ srid_check_crs_family_not_geocentric(int32_t srid, const char *funcname)
 		ereport(ERROR, (
 			errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 			errmsg("%s: Operation is not supported for geocentric (ECEF) coordinates (SRID=%d). "
+				"Transform to a geographic or projected CRS first.",
+				funcname, srid)));
+	}
+	if (family == LW_CRS_INERTIAL)
+	{
+		ereport(ERROR, (
+			errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+			errmsg("%s: Operation is not supported for inertial (ECI) coordinates (SRID=%d). "
 				"Transform to a geographic or projected CRS first.",
 				funcname, srid)));
 	}

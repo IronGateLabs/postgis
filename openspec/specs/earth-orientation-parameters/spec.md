@@ -46,7 +46,7 @@ The system SHALL provide a `postgis_eop_interpolate(epoch TIMESTAMPTZ)` function
 - **THEN** the function SHALL return NULL (not extrapolate beyond loaded data)
 
 ### Requirement: EOP refresh procedure
-The system SHALL provide a `postgis_refresh_eop()` procedure suitable for scheduling with `pg_cron` or TimescaleDB's `add_job` to periodically update EOP data.
+The system SHALL provide a `postgis_refresh_eop()` procedure suitable for scheduling with `pg_cron` or TimescaleDB's `add_job` to periodically update EOP data. A `postgis_refresh_eop(job_id INT, config JSONB)` overload SHALL also be provided for direct compatibility with TimescaleDB's `add_job()` callback signature.
 
 #### Scenario: Procedure callable by scheduler
 - **WHEN** `CALL postgis_refresh_eop()` is executed
@@ -55,6 +55,10 @@ The system SHALL provide a `postgis_refresh_eop()` procedure suitable for schedu
 #### Scenario: Compatible with TimescaleDB job scheduler
 - **WHEN** `SELECT add_job('postgis_refresh_eop', schedule_interval => INTERVAL '1 day')` is executed
 - **THEN** the job SHALL be created successfully (procedure signature is compatible with `add_job` requirements)
+
+#### Scenario: TimescaleDB add_job callback overload
+- **WHEN** TimescaleDB invokes `postgis_refresh_eop(job_id := 1000, config := '{}')` via the job scheduler callback
+- **THEN** the `(INT, JSONB)` overload SHALL execute the same EOP refresh logic as the no-argument form, ignoring the `job_id` and `config` parameters
 
 ### Requirement: EOP data validation
 The system SHALL validate EOP values during loading to prevent obviously incorrect data from being stored.

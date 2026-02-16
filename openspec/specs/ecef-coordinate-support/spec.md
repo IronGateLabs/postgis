@@ -63,6 +63,8 @@ Functions are classified into three behavior categories for geocentric input:
 
 The CRS family SHALL be determined by calling `lwsrid_get_crs_family()` on the geometry's SRID. A return value of `LW_CRS_GEOCENTRIC` triggers the dispatch or error behavior.
 
+> **Note (contract alignment v0.2.0):** The guard function `srid_check_crs_family_not_geocentric()` now also blocks `LW_CRS_INERTIAL` (ECI SRIDs 900001+). This means error-class spatial functions raise the same guard errors for both geocentric and inertial CRS families. See the `eci-coordinate-support` spec for details on ECI guard behavior.
+
 The `geometry → geography` cast SHALL raise a geocentric-specific error when the input geometry has a geocentric SRID, before the existing `srid_check_latlong` validation runs.
 
 #### Scenario: ST_Distance on ECEF geometries returns 3D Euclidean distance

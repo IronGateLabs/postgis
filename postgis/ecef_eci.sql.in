@@ -303,6 +303,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- TimescaleDB-compatible overload: add_job() passes (job_id INT, config JSONB).
+-- The parameters are accepted but not used; they exist so that
+-- SELECT add_job('postgis_refresh_eop', schedule_interval => INTERVAL '1 day');
+-- works without an adapter wrapper.
+CREATE OR REPLACE PROCEDURE postgis_refresh_eop(job_id INT, config JSONB)
+AS $$
+BEGIN
+	CALL @extschema@.postgis_refresh_eop();
+END;
+$$ LANGUAGE plpgsql;
+
 -- Hardware acceleration feature detection
 CREATE OR REPLACE FUNCTION postgis_accel_features()
 RETURNS text

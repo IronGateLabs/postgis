@@ -1,9 +1,5 @@
 -- Tests for ECEF/ECI coordinate frame conversion and ECEF accessors
-
--- Load ECEF/ECI via extension (requires postgis extension already loaded)
-SET client_min_messages TO WARNING;
-CREATE EXTENSION IF NOT EXISTS postgis_ecef_eci;
-RESET client_min_messages;
+-- ECEF/ECI functions are loaded by the test infrastructure (run_test.pl)
 
 --------------------------------------------
 -- 1. SRID Registration Tests
@@ -581,7 +577,24 @@ SELECT 'guard_segmentize', ST_AsText(ST_Segmentize(
 -- 9.6 Geography cast on ECEF geometry should raise geocentric error
 SELECT 'guard_geog_cast', ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978)::geography;
 
--- 9.7 Negative tests: guards do NOT fire on geographic/projected input
+-- 9.7 ECI guard tests: same functions should also error on ECI input
+SELECT 'guard_eci_perimeter', ST_Perimeter(ST_SetSRID(ST_GeomFromText(
+	'POLYGON((6378137 0 0, 0 6378137 0, 0 0 6378137, 6378137 0 0))'), 900001));
+
+SELECT 'guard_eci_azimuth', ST_Azimuth(
+	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 900001),
+	ST_SetSRID(ST_MakePoint(0, 6378137, 0), 900001));
+
+SELECT 'guard_eci_project_dir', ST_AsText(ST_Project(
+	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 900001), 1000, 0.5));
+
+SELECT 'guard_eci_segmentize', ST_AsText(ST_Segmentize(
+	ST_SetSRID(ST_MakeLine(ST_MakePoint(6378137, 0, 0), ST_MakePoint(0, 6378137, 0)), 900001),
+	100000));
+
+SELECT 'guard_eci_geog_cast', ST_SetSRID(ST_MakePoint(6378137, 0, 0), 900001)::geography;
+
+-- 9.8 Negative tests: guards do NOT fire on geographic/projected input
 SELECT 'neg_perimeter', ST_Perimeter(ST_SetSRID(ST_GeomFromText(
 	'POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'), 4326)) > 0;
 SELECT 'neg_azimuth', ST_Azimuth(
@@ -592,29 +605,24 @@ SELECT 'neg_project', ST_AsText(ST_Project(
 SELECT 'neg_segmentize', ST_NPoints(ST_Segmentize(
 	ST_SetSRID(ST_MakeLine(ST_MakePoint(0, 0), ST_MakePoint(10, 10)), 4326), 1)) > 2;
 
--- 9.8 Mixed-SRID safety: ECEF vs geographic should error
+-- 9.9 Mixed-SRID safety: ECEF vs geographic should error
 SELECT 'mixed_ecef_geog', ST_3DDWithin(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
 	ST_SetSRID(ST_MakePoint(0, 0, 0), 4326), 1000);
 
--- 9.9 Mixed-SRID safety: ECEF vs ECI should error
+-- 9.10 Mixed-SRID safety: ECEF vs ECI should error
 SELECT 'mixed_ecef_eci', ST_3DDWithin(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 900001), 1000);
 
--- 9.10 Same-SRID ECI query should succeed
+-- 9.11 Same-SRID ECI query should succeed
 SELECT 'same_srid_eci', ST_3DDWithin(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 900001),
 	ST_SetSRID(ST_MakePoint(6378137, 100, 0), 900001), 1000);
 
 --------------------------------------------
--- 10. Extension Cleanup
+-- 10. Cleanup
 --------------------------------------------
 
--- Drop extension to verify clean removal (functions, tables, etc.)
-SET client_min_messages TO WARNING;
-DROP EXTENSION IF EXISTS postgis_ecef_eci CASCADE;
-RESET client_min_messages;
-
--- Clean up ECI SRIDs added to spatial_ref_sys (not tracked by extension)
+-- Clean up ECI SRIDs added to spatial_ref_sys
 DELETE FROM spatial_ref_sys WHERE srid IN (900001, 900002, 900003);

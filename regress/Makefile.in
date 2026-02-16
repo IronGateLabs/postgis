@@ -92,8 +92,12 @@ staged-install-core:
 	$(MAKE) -C ../ REGRESS=1 DESTDIR=$(REGRESS_INSTALLDIR) comments-install
 	#$(MAKE) -C ../loader REGRESS=1 DESTDIR=$(REGRESS_INSTALLDIR) install
 
+staged-install-ecef-eci:
+	$(MAKE) -C ../extensions/postgis_ecef_eci REGRESS=1 DESTDIR=$(REGRESS_INSTALLDIR) install
+
 staged-install:
 	$(MAKE) staged-install-core
+	$(MAKE) staged-install-ecef-eci
 	$(MAKE) staged-install-raster
 	$(MAKE) staged-install-topology
 	$(MAKE) staged-install-sfcgal
