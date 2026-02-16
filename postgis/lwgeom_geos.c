@@ -789,6 +789,8 @@ Datum convexhull(PG_FUNCTION_ARGS)
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_ConvexHull");
+
 	/* Empty.ConvexHull() == Empty */
 	if ( gserialized_is_empty(geom1) )
 		PG_RETURN_POINTER(geom1);
@@ -887,6 +889,8 @@ Datum ST_SimplifyPolygonHull(PG_FUNCTION_ARGS)
 	double vertex_fraction = PG_GETARG_FLOAT8(1);
 	uint32_t is_outer = PG_GETARG_BOOL(2);
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_SimplifyPolygonHull");
+
 	LWGEOM* lwgeom = lwgeom_from_gserialized(geom);
 	LWGEOM* lwresult = lwgeom_simplify_polygonal(lwgeom, vertex_fraction, is_outer);
 	GSERIALIZED* result = geometry_serialize(lwresult);
@@ -911,6 +915,9 @@ Datum topologypreservesimplify(PG_FUNCTION_ARGS)
 
 	gs1 = PG_GETARG_GSERIALIZED_P(0);
 	tolerance = PG_GETARG_FLOAT8(1);
+
+	gserialized_check_crs_family_not_geocentric(gs1, "ST_SimplifyPreserveTopology");
+
 	lwg1 = lwgeom_from_gserialized(gs1);
 
 	/* Empty.Simplify() == Empty */
@@ -2216,6 +2223,8 @@ Datum ST_DelaunayTriangles(PG_FUNCTION_ARGS)
 	tolerance = PG_GETARG_FLOAT8(1);
 	flags = PG_GETARG_INT32(2);
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_DelaunayTriangles");
+
 	lwgeom_in = lwgeom_from_gserialized(geom);
 	lwgeom_out = lwgeom_delaunay_triangulation(lwgeom_in, tolerance, flags);
 	lwgeom_free(lwgeom_in) ;
@@ -2519,6 +2528,8 @@ Datum ST_Voronoi(PG_FUNCTION_ARGS)
 
 	/* Read our input geometry */
 	input = PG_GETARG_GSERIALIZED_P(0);
+
+	gserialized_check_crs_family_not_geocentric(input, "ST_Voronoi");
 
 	lwgeom_input = lwgeom_from_gserialized(input);
 

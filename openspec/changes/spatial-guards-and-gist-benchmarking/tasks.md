@@ -2,19 +2,19 @@
 
 ## 1. Geocentric Guards — Reject
 
-- [ ] 1.1 Add guard to `LWGEOM_simplify2d` (ST_Simplify) in `postgis/lwgeom_functions_analytic.c`
-- [ ] 1.2 Add guard to `topologypreservesimplify` (ST_SimplifyPreserveTopology) in `postgis/lwgeom_geos.c`
-- [ ] 1.3 Add guard to `ST_SimplifyPolygonHull` in `postgis/lwgeom_geos.c`
-- [ ] 1.4 Add guard to `ST_CoverageSimplify` in `postgis/lwgeom_window.c`
-- [ ] 1.5 Add guard to `convexhull` (ST_ConvexHull) in `postgis/lwgeom_geos.c`
-- [ ] 1.6 Add guard to `ST_DelaunayTriangles` in `postgis/lwgeom_geos.c`
-- [ ] 1.7 Add guard to `ST_Voronoi` in `postgis/lwgeom_geos.c`
-- [ ] 1.8 Add guard to `LWGEOM_line_interpolate_point` (ST_LineInterpolatePoint 2D) in `postgis/lwgeom_functions_analytic.c`
+- [x] 1.1 Add guard to `LWGEOM_simplify2d` (ST_Simplify) in `postgis/lwgeom_functions_analytic.c`
+- [x] 1.2 Add guard to `topologypreservesimplify` (ST_SimplifyPreserveTopology) in `postgis/lwgeom_geos.c`
+- [x] 1.3 Add guard to `ST_SimplifyPolygonHull` in `postgis/lwgeom_geos.c`
+- [x] 1.4 Add guard to `ST_CoverageSimplify` in `postgis/lwgeom_window.c`
+- [x] 1.5 Add guard to `convexhull` (ST_ConvexHull) in `postgis/lwgeom_geos.c`
+- [x] 1.6 Add guard to `ST_DelaunayTriangles` in `postgis/lwgeom_geos.c`
+- [x] 1.7 Add guard to `ST_Voronoi` in `postgis/lwgeom_geos.c`
+- [x] 1.8 Add guard to `LWGEOM_line_interpolate_point` (ST_LineInterpolatePoint 2D) in `postgis/lwgeom_functions_analytic.c`
 
 ## 2. Geocentric Guards — Adaptive 3D Dispatch
 
-- [ ] 2.1 Add adaptive 3D dispatch to `LWGEOM_closestpoint` (ST_ClosestPoint 2D) — route to `lwgeom_closestpoint3d` when input SRID is geocentric
-- [ ] 2.2 Add adaptive 3D dispatch to `LWGEOM_shortestline2d` (ST_ShortestLine 2D) — route to `lwgeom_shortestline3d` when input SRID is geocentric
+- [x] 2.1 Add adaptive 3D dispatch to `LWGEOM_closestpoint` (ST_ClosestPoint 2D) — route to `lwgeom_closestpoint3d` when input SRID is geocentric
+- [x] 2.2 Add adaptive 3D dispatch to `LWGEOM_shortestline2d` (ST_ShortestLine 2D) — route to `lwgeom_shortestline3d` when input SRID is geocentric
 
 ## 3. Regression Tests for Guards
 

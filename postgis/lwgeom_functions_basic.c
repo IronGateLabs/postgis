@@ -651,7 +651,10 @@ Datum LWGEOM_closestpoint(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
-	point = lwgeom_closest_point(lwgeom1, lwgeom2);
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		point = lwgeom_closest_point_3d(lwgeom1, lwgeom2);
+	else
+		point = lwgeom_closest_point(lwgeom1, lwgeom2);
 
 	if (lwgeom_is_empty(point))
 		PG_RETURN_NULL();
@@ -680,7 +683,10 @@ Datum LWGEOM_shortestline2d(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
-	theline = lwgeom_closest_line(lwgeom1, lwgeom2);
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		theline = lwgeom_closest_line_3d(lwgeom1, lwgeom2);
+	else
+		theline = lwgeom_closest_line(lwgeom1, lwgeom2);
 
 	if (lwgeom_is_empty(theline))
 		PG_RETURN_NULL();
