@@ -4,17 +4,17 @@
 
 ### Local Tooling
 
-- [ ] Create `.pre-commit-config.yaml` at project root with clang-format hook (check mode, exclude deps/regress/doc) and cppcheck hook (advisory mode, warning+performance categories)
-- [ ] Verify `.clang-format` config handles topology 2-space indent exception correctly; add directory-level override if needed
-- [ ] Add `make lint` target to top-level `Makefile.in` that runs clang-format check and cppcheck across all source directories (liblwgeom, postgis, raster, topology, sfcgal, loader, libpgcommon)
+- [x] Create `.pre-commit-config.yaml` at project root with clang-format hook (check mode, exclude deps/regress/doc) and cppcheck hook (advisory mode, warning+performance categories)
+- [x] Verify `.clang-format` config handles topology 2-space indent exception correctly; add directory-level override if needed
+- [x] Add `make lint` target to top-level `Makefile.in` that runs clang-format check and cppcheck across all source directories (liblwgeom, postgis, raster, topology, sfcgal, loader, libpgcommon)
 - [ ] Test pre-commit hooks locally: stage a C file with intentional formatting violation, confirm hook blocks commit; stage a clean file, confirm commit succeeds
 - [ ] Test `git commit --no-verify` bypasses hooks successfully
 - [ ] Test `make lint` runs end-to-end and reports findings
 
 ### CI Integration
 
-- [ ] Create `sonar-project.properties` at project root with project key `IronGateLabs_postgis`, org `irongatelabs`, sources, exclusions, and encoding settings
-- [ ] Create `.github/workflows/sonar.yml` GitHub Actions workflow: trigger on PRs to develop and pushes to develop, checkout with fetch-depth 0, run make lint, run SonarCloud scanner
+- [x] Create `sonar-project.properties` at project root with project key `IronGateLabs_postgis`, org `irongatelabs`, sources, exclusions, and encoding settings
+- [x] Create `.github/workflows/sonar.yml` GitHub Actions workflow: trigger on PRs to develop and pushes to develop, checkout with fetch-depth 0, run make lint, run SonarCloud scanner
 - [ ] Add `SONAR_TOKEN` as a GitHub Actions repository secret (value: `527c819b53c81f7a233600a72a1091c82278295a`)
 - [ ] Configure SonarCloud quality gate: 0 new bugs, 0 new vulnerabilities, 100% new hotspots reviewed, maintainability/reliability/security rating A on new code
 - [ ] Configure SonarCloud to use `develop` as the main branch for analysis (not `master`)

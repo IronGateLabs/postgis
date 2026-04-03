@@ -1,0 +1,58 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: build-wrapper-output
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history required for SonarCloud blame and branch analysis
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            postgresql-server-dev-all \
+            libgeos-dev \
+            libproj-dev \
+            libgdal-dev \
+            libxml2-dev \
+            libjson-c-dev \
+            libprotobuf-c-dev \
+            protobuf-c-compiler \
+            xsltproc \
+            libcunit1-dev \
+            libsfcgal-dev
+
+      - name: Install SonarCloud build wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v3
+
+      - name: Configure and build with build wrapper
+        run: |
+          ./autogen.sh
+          ./configure --with-raster --with-topology --with-sfcgal
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} make -j$(nproc)
+
+      - name: Run SonarCloud scanner
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
