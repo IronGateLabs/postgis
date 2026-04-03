@@ -27,8 +27,8 @@
 ### S1854: Dead Store Removal (789 issues)
 
 - [ ] Query SonarCloud API to export all S1854 issues with file paths and line numbers
-- [ ] Fix S1854 dead stores in `liblwgeom/` (~241 directory issues, S1854 subset): remove unused assignments, preserve side-effect function calls with `(void)` cast
-- [ ] Fix S1854 dead stores in `postgis/`: remove unused assignments, verify no pointer aliasing reads
+- [x] Fix S1854 dead stores in `liblwgeom/` (~241 directory issues, S1854 subset): remove unused assignments, preserve side-effect function calls with `(void)` cast
+- [x] Fix S1854 dead stores in `postgis/`: remove unused assignments, verify no pointer aliasing reads
 - [ ] Fix S1854 dead stores in `raster/rt_pg/` (~263 directory issues, S1854 subset)
 - [ ] Fix S1854 dead stores in `topology/`
 - [ ] Fix S1854 dead stores in `sfcgal/` and `loader/`
@@ -37,17 +37,17 @@
 
 ### S1116: Empty Statement Removal (676 issues)
 
-- [ ] Fix S1116 empty statements in `liblwgeom/`: remove stray semicolons after control structures
-- [ ] Fix S1116 empty statements in `postgis/`
+- [x] Fix S1116 empty statements in `liblwgeom/`: remove stray semicolons after control structures
+- [x] Fix S1116 empty statements in `postgis/`
 - [ ] Fix S1116 empty statements in `raster/`
 - [ ] Fix S1116 empty statements in `topology/`, `sfcgal/`, `loader/`
-- [ ] Review and convert intentional empty loop bodies to `{ /* intentionally empty */ }` form
+- [x] Review and convert intentional empty loop bodies to `{ /* intentionally empty */ }` form
 - [ ] Run `make check` full regression suite after all S1116 fixes
 
 ### S125: Commented-Out Code Removal (614 issues)
 
-- [ ] Fix S125 in `liblwgeom/`: delete commented-out code blocks, preserve useful context as prose comments
-- [ ] Fix S125 in `postgis/`
+- [x] Fix S125 in `liblwgeom/`: delete commented-out code blocks, preserve useful context as prose comments
+- [x] Fix S125 in `postgis/`
 - [ ] Fix S125 in `raster/`
 - [ ] Fix S125 in `topology/`, `sfcgal/`, `loader/`
 - [ ] Run `make check` full regression suite after all S125 fixes
