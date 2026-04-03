@@ -343,6 +343,38 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 }
 
 
+/*
+ * Filter polygon rings: compact surviving rings, free empty interior
+ * rings, and discard the polygon entirely when the exterior ring is
+ * empty.  Returns the new ring count.
+ */
+static unsigned int
+filter_polygon_rings(LWPOLY *polygon)
+{
+	unsigned int i;
+	unsigned int iw = 0;
+
+	for (i = 0; i < polygon->nrings; i++)
+	{
+		if (polygon->rings[i]->npoints)
+		{
+			polygon->rings[iw++] = polygon->rings[i];
+		}
+		else
+		{
+			if (!i)
+			{
+				unsigned int k;
+				for (k = 0; k < polygon->nrings; k++)
+					lwfree(polygon->rings[k]);
+				return 0;
+			}
+			lwfree(polygon->rings[i]);
+		}
+	}
+	return iw;
+}
+
 void lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool cartesian_hint) {
 
 	unsigned int i;
@@ -379,30 +411,9 @@ void lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool car
 	if (geom->type == POLYGONTYPE) {
 
 		LWPOLY* polygon = (LWPOLY*)geom;
-		iw = 0;
-		for (i=0; i<polygon->nrings; i++) {
+		for (i=0; i<polygon->nrings; i++)
 			removePoints(polygon->rings[i], bbox, true, cartesian_hint);
-
-			if (polygon->rings[i]->npoints) {
-				// keep (reduced) ring
-				polygon->rings[iw++] = polygon->rings[i];
-			}
-			else {
-				if (!i) {
-					// exterior ring outside, free and skip all rings
-					unsigned int k;
-					for (k=0; k<polygon->nrings; k++) {
-						lwfree(polygon->rings[k]);
-					}
-					break;
-				}
-				else {
-					// free and remove current interior ring
-					lwfree(polygon->rings[i]);
-				}
-			}
-		}
-		polygon->nrings = iw;
+		polygon->nrings = filter_polygon_rings(polygon);
 	}
 
 	if (geom->type == MULTIPOLYGONTYPE) {
@@ -412,36 +423,15 @@ void lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool car
 		for (j=0; j<mpolygon->ngeoms; j++) {
 
 			LWPOLY* polygon = mpolygon->geoms[j];
-			iw = 0;
-			for (i=0; i<polygon->nrings; i++) {
+			for (i=0; i<polygon->nrings; i++)
 				removePoints(polygon->rings[i], bbox, true, cartesian_hint);
+			polygon->nrings = filter_polygon_rings(polygon);
 
-				if (polygon->rings[i]->npoints) {
-					// keep (reduced) ring
-					polygon->rings[iw++] = polygon->rings[i];
-				}
-				else {
-					if (!i) {
-						// exterior ring outside, free and skip all rings
-						unsigned int k;
-						for (k=0; k<polygon->nrings; k++) {
-							lwfree(polygon->rings[k]);
-						}
-						break;
-					}
-					else {
-						// free and remove current interior ring
-						lwfree(polygon->rings[i]);
-					}
-				}
-			}
-			polygon->nrings = iw;
-
-			if (iw) {
+			if (polygon->nrings) {
 				mpolygon->geoms[jw++] = polygon;
 			}
 			else {
-				// free and remove polygon from multipolygon
+				/* free and remove polygon from multipolygon */
 				lwfree(polygon);
 			}
 		}

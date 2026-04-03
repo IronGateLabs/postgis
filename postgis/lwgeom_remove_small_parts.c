@@ -69,10 +69,45 @@ static void ptarray_remove_dim_helper(POINTARRAY *points, double mindx, double m
 	}
 }
 
-// ===============================================================================
-// remove small (sub-)geometries being smaller than given dimensions.
-// 2D-(MULTI)POLYGONs and (MULTI)LINESTRINGs are evaluated, others keep untouched.
-// ===============================================================================
+/*
+ * Filter polygon rings after point removal: compact surviving rings,
+ * free empty interior rings, and discard the polygon entirely when
+ * the exterior ring is empty.  Returns the new ring count.
+ */
+static unsigned int
+filter_polygon_rings(LWPOLY *polygon)
+{
+	unsigned int i;
+	unsigned int iw = 0;
+
+	for (i = 0; i < polygon->nrings; i++)
+	{
+		if (polygon->rings[i]->npoints)
+		{
+			/* keep (reduced) ring */
+			polygon->rings[iw++] = polygon->rings[i];
+		}
+		else
+		{
+			if (!i)
+			{
+				/* exterior ring too small, free and skip all rings */
+				unsigned int k;
+				for (k = 0; k < polygon->nrings; k++)
+					lwfree(polygon->rings[k]);
+				return 0;
+			}
+			/* free and remove current interior ring */
+			lwfree(polygon->rings[i]);
+		}
+	}
+	return iw;
+}
+
+/* ===============================================================================
+ * remove small (sub-)geometries being smaller than given dimensions.
+ * 2D-(MULTI)POLYGONs and (MULTI)LINESTRINGs are evaluated, others keep untouched.
+ * =============================================================================== */
 PG_FUNCTION_INFO_V1(ST_RemoveSmallParts);
 Datum ST_RemoveSmallParts(PG_FUNCTION_ARGS) {
 
@@ -154,30 +189,9 @@ Datum ST_RemoveSmallParts(PG_FUNCTION_ARGS) {
 	if (geom->type == POLYGONTYPE) {
 
 		LWPOLY* polygon = (LWPOLY*)geom;
-		iw = 0;
-		for (i=0; i<polygon->nrings; i++) {
+		for (i=0; i<polygon->nrings; i++)
 			ptarray_remove_dim_helper(polygon->rings[i], mindx, mindy);
-
-			if (polygon->rings[i]->npoints) {
-				// keep (reduced) ring
-				polygon->rings[iw++] = polygon->rings[i];
-			}
-			else {
-				if (!i) {
-					// exterior ring too small, free and skip all rings
-					unsigned int k;
-					for (k=0; k<polygon->nrings; k++) {
-						lwfree(polygon->rings[k]);
-					}
-					break;
-				}
-				else {
-					// free and remove current interior ring
-					lwfree(polygon->rings[i]);
-				}
-			}
-		}
-		polygon->nrings = iw;
+		polygon->nrings = filter_polygon_rings(polygon);
 	}
 
 	if (geom->type == MULTIPOLYGONTYPE) {
@@ -187,36 +201,15 @@ Datum ST_RemoveSmallParts(PG_FUNCTION_ARGS) {
 		for (j=0; j<mpolygon->ngeoms; j++) {
 
 			LWPOLY* polygon = mpolygon->geoms[j];
-			iw = 0;
-			for (i=0; i<polygon->nrings; i++) {
+			for (i=0; i<polygon->nrings; i++)
 				ptarray_remove_dim_helper(polygon->rings[i], mindx, mindy);
+			polygon->nrings = filter_polygon_rings(polygon);
 
-				if (polygon->rings[i]->npoints) {
-					// keep (reduced) ring
-					polygon->rings[iw++] = polygon->rings[i];
-				}
-				else {
-					if (!i) {
-						// exterior ring too small, free and skip all rings
-						unsigned int k;
-						for (k=0; k<polygon->nrings; k++) {
-							lwfree(polygon->rings[k]);
-						}
-						break;
-					}
-					else {
-						// free and remove current interior ring
-						lwfree(polygon->rings[i]);
-					}
-				}
-			}
-			polygon->nrings = iw;
-
-			if (iw) {
+			if (polygon->nrings) {
 				mpolygon->geoms[jw++] = polygon;
 			}
 			else {
-				// free and remove polygon from multipolygon
+				/* free and remove polygon from multipolygon */
 				lwfree(polygon);
 			}
 		}

@@ -431,26 +431,16 @@ lwgeom_from_geojson(const char *geojson, char **srs)
 	json_tokener_free(jstok);
 
 	*srs = NULL;
-	json_object *poObjSrs = findMemberByName(poObj, "crs");
-	if (poObjSrs != NULL)
 	{
-		json_object *poObjSrsType = findMemberByName(poObjSrs, "type");
-		if (poObjSrsType != NULL)
+		json_object *poObjSrs = findMemberByName(poObj, "crs");
+		json_object *poObjSrsType = poObjSrs ? findMemberByName(poObjSrs, "type") : NULL;
+		json_object *poObjSrsProps = poObjSrsType ? findMemberByName(poObjSrs, "properties") : NULL;
+		json_object *poNameURL = poObjSrsProps ? findMemberByName(poObjSrsProps, "name") : NULL;
+		const char *pszName = poNameURL ? json_object_get_string(poNameURL) : NULL;
+		if (pszName)
 		{
-			json_object *poObjSrsProps = findMemberByName(poObjSrs, "properties");
-			if (poObjSrsProps)
-			{
-				json_object *poNameURL = findMemberByName(poObjSrsProps, "name");
-				if (poNameURL)
-				{
-					const char *pszName = json_object_get_string(poNameURL);
-					if (pszName)
-					{
-						*srs = lwalloc(strlen(pszName) + 1);
-						strcpy(*srs, pszName);
-					}
-				}
-			}
+			*srs = lwalloc(strlen(pszName) + 1);
+			strcpy(*srs, pszName);
 		}
 	}
 

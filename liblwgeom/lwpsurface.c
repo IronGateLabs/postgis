@@ -100,16 +100,40 @@ struct struct_psurface_arcs
 };
 typedef struct struct_psurface_arcs *psurface_arcs;
 
+/*
+ * Search for a matching arc in the arc list.  If found, increment its
+ * count and return 1.  If the count exceeds 2, return -1 to signal an
+ * invalid surface.  If not found, return 0.
+ */
+static int
+arc_find_and_update(psurface_arcs arcs, uint32_t carc,
+                    const POINT4D *pa, const POINT4D *pb, uint32_t face)
+{
+	uint32_t k;
+	for (k = 0; k < carc; k++)
+	{
+		if (arcs[k].ax == pa->x && arcs[k].ay == pa->y &&
+		    arcs[k].az == pa->z && arcs[k].bx == pb->x &&
+		    arcs[k].by == pb->y && arcs[k].bz == pb->z &&
+		    arcs[k].face != face)
+		{
+			arcs[k].cnt++;
+			if (arcs[k].cnt > 2)
+				return -1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /* We supposed that the geometry is valid
    we could have wrong result if not */
 int lwpsurface_is_closed(const LWPSURFACE *psurface)
 {
 	uint32_t i;
 	uint32_t j;
-	uint32_t k;
 	uint32_t narcs;
 	uint32_t carc;
-	int found;
 	psurface_arcs arcs;
 	POINT4D pa;
 	POINT4D pb;
@@ -135,6 +159,7 @@ int lwpsurface_is_closed(const LWPSURFACE *psurface)
 		patch = (LWPOLY *) psurface->geoms[i];
 		for (j=0; j < patch->rings[0]->npoints - 1; j++)
 		{
+			int rc;
 
 			getPoint4d_p(patch->rings[0], j,   &pa);
 			getPoint4d_p(patch->rings[0], j+1, &pb);
@@ -151,28 +176,14 @@ int lwpsurface_is_closed(const LWPSURFACE *psurface)
 				getPoint4d_p(patch->rings[0], j, &pb);
 			}
 
-			for (found=0, k=0; k < carc ; k++)
+			rc = arc_find_and_update(arcs, carc, &pa, &pb, i);
+			if (rc < 0)
 			{
-
-				if (  ( arcs[k].ax == pa.x && arcs[k].ay == pa.y &&
-				        arcs[k].az == pa.z && arcs[k].bx == pb.x &&
-				        arcs[k].by == pb.y && arcs[k].bz == pb.z &&
-				        arcs[k].face != i) )
-				{
-					arcs[k].cnt++;
-					found = 1;
-
-					/* Look like an invalid PolyhedralSurface
-					      anyway not a closed one */
-					if (arcs[k].cnt > 2)
-					{
-						lwfree(arcs);
-						return 0;
-					}
-				}
+				lwfree(arcs);
+				return 0;
 			}
 
-			if (!found)
+			if (!rc)
 			{
 				arcs[carc].cnt=1;
 				arcs[carc].face=i;
@@ -184,8 +195,6 @@ int lwpsurface_is_closed(const LWPSURFACE *psurface)
 				arcs[carc].bz = pb.z;
 				carc++;
 
-				/* Look like an invalid PolyhedralSurface
-				      anyway not a closed one */
 				if (carc > narcs)
 				{
 					lwfree(arcs);
