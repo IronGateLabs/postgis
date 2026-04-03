@@ -45,9 +45,9 @@
 
 ## 5. Testing and Benchmarking
 
-- [ ] 5.1 Add Metal backend to the existing `liblwgeom/bench/bench_accel.c` benchmark harness: detect Metal availability, run `rotate_z` and `rad_convert` benchmarks at 1K, 10K, 100K, 1M, 10M point counts
-- [ ] 5.2 Add Metal vs NEON comparison output to the benchmark CSV and text-mode chart
-- [ ] 5.3 Add `--validate` mode for Metal: compare Metal output against scalar reference for all three kernels, fail if max absolute difference > 1e-10
+- [x] 5.1 Add Metal backend to the existing `liblwgeom/bench/bench_accel.c` benchmark harness: detect Metal availability, run `rotate_z` and `rad_convert` benchmarks at 1K, 10K, 100K, 1M, 10M point counts
+- [x] 5.2 Add Metal vs NEON comparison output to the benchmark CSV and text-mode chart
+- [x] 5.3 Add `--validate` mode for Metal: compare Metal output against scalar reference for all three kernels, fail if max absolute difference > 1e-10
 - [ ] 5.4 Add CUnit test for Metal initialization: verify `lwgpu_metal_init()` succeeds on macOS with Metal, returns 0 on non-Metal systems
 - [ ] 5.5 Add CUnit test for Metal Z-rotation correctness: generate known-answer test vectors, compare Metal output to scalar
 - [ ] 5.6 Add CUnit test for Metal M-epoch rotation correctness: verify ERA computation matches CPU implementation

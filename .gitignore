@@ -105,6 +105,7 @@ java/jdbc/lib/
 java/jdbc/pom.xml
 java/jdbc/target/
 liblwgeom/bench/bench_accel
+liblwgeom/bench/bench_metal
 liblwgeom/cunit/cu_tester
 liblwgeom/cunit/Makefile
 liblwgeom/geobuf.pb-c.c
