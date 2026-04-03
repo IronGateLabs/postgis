@@ -48,17 +48,17 @@
 - [x] 5.1 Add Metal backend to the existing `liblwgeom/bench/bench_accel.c` benchmark harness: detect Metal availability, run `rotate_z` and `rad_convert` benchmarks at 1K, 10K, 100K, 1M, 10M point counts
 - [x] 5.2 Add Metal vs NEON comparison output to the benchmark CSV and text-mode chart
 - [x] 5.3 Add `--validate` mode for Metal: compare Metal output against scalar reference for all three kernels, fail if max absolute difference > 1e-10
-- [ ] 5.4 Add CUnit test for Metal initialization: verify `lwgpu_metal_init()` succeeds on macOS with Metal, returns 0 on non-Metal systems
-- [ ] 5.5 Add CUnit test for Metal Z-rotation correctness: generate known-answer test vectors, compare Metal output to scalar
-- [ ] 5.6 Add CUnit test for Metal M-epoch rotation correctness: verify ERA computation matches CPU implementation
-- [ ] 5.7 Add CUnit test for Metal rad_convert correctness: verify exact multiplication results
-- [ ] 5.8 Add CUnit test for Metal fallback: verify that when Metal dispatch returns 0 (simulated failure), the caller falls back to NEON without error
-- [ ] 5.9 Guard Metal tests in test Makefiles with `ifeq (@HAVE_METAL@,yes)` conditionals
+- [x] 5.4 Add CUnit test for Metal initialization: verify `lwgpu_metal_init()` succeeds on macOS with Metal, returns 0 on non-Metal systems
+- [x] 5.5 Add CUnit test for Metal Z-rotation correctness: generate known-answer test vectors, compare Metal output to scalar
+- [x] 5.6 Add CUnit test for Metal M-epoch rotation correctness: verify ERA computation matches CPU implementation
+- [x] 5.7 Add CUnit test for Metal rad_convert correctness: verify exact multiplication results
+- [x] 5.8 Add CUnit test for Metal fallback: verify that when Metal dispatch returns 0 (simulated failure), the caller falls back to NEON without error
+- [x] 5.9 Guard Metal tests in test Makefiles with `ifeq (@HAVE_METAL@,yes)` conditionals
 
 ## 6. Documentation
 
-- [ ] 6.1 Update `configure` summary section documentation to include the `Metal GPU (xcrun)` line
-- [ ] 6.2 Update `postgis.gpu_backend` GUC documentation to include `'metal'` as a valid value
-- [ ] 6.3 Add macOS build instructions noting Xcode Command Line Tools requirement for Metal support
-- [ ] 6.4 Document Metal dispatch threshold behavior and auto-calibration in the acceleration configuration section
-- [ ] 6.5 Add Metal backend to `postgis_accel_features()` output documentation
+- [x] 6.1 Update `configure` summary section documentation to include the `Metal GPU (xcrun)` line
+- [x] 6.2 Update `postgis.gpu_backend` GUC documentation to include `'metal'` as a valid value
+- [x] 6.3 Add macOS build instructions noting Xcode Command Line Tools requirement for Metal support
+- [x] 6.4 Document Metal dispatch threshold behavior and auto-calibration in the acceleration configuration section
+- [x] 6.5 Add Metal backend to `postgis_accel_features()` output documentation
