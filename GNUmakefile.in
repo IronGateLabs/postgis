@@ -260,6 +260,25 @@ raster-sql:
 fmt:
 	./astyle.sh
 
+.PHONY: lint
+lint:
+	@echo "Running clang-format check..."
+	@find $(top_srcdir)/liblwgeom $(top_srcdir)/postgis $(top_srcdir)/raster \
+		$(top_srcdir)/topology $(top_srcdir)/sfcgal $(top_srcdir)/loader \
+		$(top_srcdir)/libpgcommon \
+		\( -name '*.c' -o -name '*.h' \) \
+		! -path '*/cunit/*' ! -path '*/test/*' | \
+		xargs clang-format --dry-run --Werror 2>&1 || \
+		{ echo "clang-format failures found. Run 'git clang-format' to fix."; exit 1; }
+	@echo "Running cppcheck..."
+	@find $(top_srcdir)/liblwgeom $(top_srcdir)/postgis $(top_srcdir)/raster \
+		$(top_srcdir)/topology $(top_srcdir)/sfcgal $(top_srcdir)/loader \
+		$(top_srcdir)/libpgcommon \
+		-name '*.c' ! -path '*/cunit/*' ! -path '*/test/*' | \
+		xargs cppcheck --enable=warning,performance \
+		--suppress=missingIncludeSystem --quiet 2>&1 || true
+	@echo "Lint complete."
+
 commit:
 	$(MAKE) fmt && $(MAKE) clean && $(MAKE) check && svn commit
 

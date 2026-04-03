@@ -1,0 +1,30 @@
+# Pre-commit hooks for PostGIS code quality
+# Install: pip install pre-commit && pre-commit install
+# Bypass:  git commit --no-verify
+# See: https://pre-commit.com
+
+repos:
+  # clang-format: enforces .clang-format style on staged C/H files
+  # BLOCKING - commit will fail if formatting violations are found
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+        args: ['--dry-run', '--Werror']
+        exclude: '^(deps/|regress/|doc/)'
+
+  # cppcheck: static analysis for common C defects
+  # ADVISORY - reports warnings but does not block commits
+  # To make blocking, change --error-exitcode=0 to --error-exitcode=1
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: cppcheck
+        types: [c]
+        args:
+          - '--enable=warning,performance'
+          - '--suppress=missingIncludeSystem'
+          - '--error-exitcode=0'
+          - '--quiet'
+        exclude: '^(deps/|regress/|doc/)'
