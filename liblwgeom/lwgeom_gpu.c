@@ -4,7 +4,7 @@
  * http://postgis.net
  *
  * GPU abstraction layer implementation.
- * Routes calls to the compiled backend (CUDA, ROCm, or oneAPI).
+ * Routes calls to the compiled backend (CUDA, ROCm, oneAPI, or Metal).
  *
  **********************************************************************/
 
@@ -12,7 +12,7 @@
 #include "lwgeom_log.h"
 
 /* Convenience macro: true when at least one GPU backend is compiled in */
-#if defined(HAVE_CUDA) || defined(HAVE_ROCM) || defined(HAVE_ONEAPI)
+#if defined(HAVE_CUDA) || defined(HAVE_ROCM) || defined(HAVE_ONEAPI) || defined(HAVE_METAL)
 #define HAVE_ANY_GPU 1
 #endif
 
@@ -67,6 +67,18 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 		}
 		else
 #endif
+#ifdef HAVE_METAL
+		    if (preferred == LW_GPU_METAL)
+		{
+			if (lwgpu_metal_init())
+			{
+				active_backend = LW_GPU_METAL;
+				LWDEBUG(1, "GPU: Metal backend initialized");
+				return 1;
+			}
+		}
+		else
+#endif
 		{
 			/* Unknown or unsupported backend */
 			(void)0;
@@ -105,6 +117,15 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 	}
 #endif
 
+#ifdef HAVE_METAL
+	if (lwgpu_metal_init())
+	{
+		active_backend = LW_GPU_METAL;
+		LWDEBUG(1, "GPU: Metal backend auto-detected");
+		return 1;
+	}
+#endif
+
 	LWDEBUG(1, "GPU: no backend available");
 	return 0;
 }
@@ -137,6 +158,10 @@ lwgpu_backend_name(void)
 	if (active_backend == LW_GPU_ONEAPI)
 		return lwgpu_oneapi_device_name();
 #endif
+#ifdef HAVE_METAL
+	if (active_backend == LW_GPU_METAL)
+		return lwgpu_metal_device_name();
+#endif
 #endif
 	return "none";
 }
@@ -156,6 +181,10 @@ lwgpu_rotate_z_batch(double *xy_pairs, size_t stride, uint32_t npoints, double t
 #ifdef HAVE_ONEAPI
 	if (active_backend == LW_GPU_ONEAPI)
 		return lwgpu_oneapi_rotate_z(xy_pairs, stride, npoints, theta);
+#endif
+#ifdef HAVE_METAL
+	if (active_backend == LW_GPU_METAL)
+		return lwgpu_metal_rotate_z(xy_pairs, stride, npoints, theta);
 #endif
 #else
 	(void)xy_pairs;
@@ -181,6 +210,10 @@ lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride, uint32_t npoints, size
 #ifdef HAVE_ONEAPI
 	if (active_backend == LW_GPU_ONEAPI)
 		return lwgpu_oneapi_rotate_z_m_epoch(xyzm, stride, npoints, m_offset, direction);
+#endif
+#ifdef HAVE_METAL
+	if (active_backend == LW_GPU_METAL)
+		return lwgpu_metal_rotate_z_m_epoch(xyzm, stride, npoints, m_offset, direction);
 #endif
 #else
 	(void)xyzm;
@@ -209,6 +242,11 @@ lwgpu_shutdown(void)
 #ifdef HAVE_ONEAPI
 	    if (active_backend == LW_GPU_ONEAPI)
 		lwgpu_oneapi_shutdown();
+	else
+#endif
+#ifdef HAVE_METAL
+	    if (active_backend == LW_GPU_METAL)
+		lwgpu_metal_shutdown();
 	else
 #endif
 	{
