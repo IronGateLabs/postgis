@@ -258,7 +258,7 @@ lwarc_linearize(POINTARRAY *to,
 	POINT2D *t2 = (POINT2D*)p2;
 	POINT2D *t3 = (POINT2D*)p3;
 	POINT4D pt;
-	int p2_side = 0;
+	int p2_side;
 	int clockwise = LW_TRUE;
 	double radius; /* Arc radius */
 	double increment; /* Angle per segment */

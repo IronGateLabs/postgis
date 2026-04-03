@@ -301,8 +301,8 @@ lw_dist2d_recursive(const LWGEOM *lwg1, const LWGEOM *lwg2, DISTPTS *dl)
 	int i, j;
 	int n1 = 1;
 	int n2 = 1;
-	LWGEOM *g1 = NULL;
-	LWGEOM *g2 = NULL;
+	LWGEOM *g1;
+	LWGEOM *g2;
 	LWCOLLECTION *c1 = NULL;
 	LWCOLLECTION *c2 = NULL;
 

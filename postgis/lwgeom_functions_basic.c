@@ -259,7 +259,7 @@ Datum LWGEOM_npoints(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
-	int npoints = 0;
+	int npoints;
 
 	npoints = lwgeom_count_vertices(lwgeom);
 	lwgeom_free(lwgeom);
@@ -274,7 +274,7 @@ Datum LWGEOM_nrings(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
-	int nrings = 0;
+	int nrings;
 
 	nrings = lwgeom_count_rings(lwgeom);
 	lwgeom_free(lwgeom);
@@ -2747,8 +2747,8 @@ Datum LWGEOM_angle(PG_FUNCTION_ARGS)
 	double az1, az2;
 	double result;
 	int32_t srids[4];
-	int i = 0;
-	int j = 0;
+	int i;
+	int j;
 	int err_code = 0;
 	int n_args = PG_NARGS();
 
@@ -2959,9 +2959,9 @@ PG_FUNCTION_INFO_V1(ST_GeoHash);
 Datum ST_GeoHash(PG_FUNCTION_ARGS)
 {
 
-	GSERIALIZED *geom = NULL;
+	GSERIALIZED *geom;
 	int precision = 0;
-	lwvarlena_t *geohash = NULL;
+	lwvarlena_t *geohash;
 
 	if (PG_ARGISNULL(0))
 	{

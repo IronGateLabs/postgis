@@ -295,7 +295,7 @@ static uint32_t integer_from_wkb_state(wkb_parse_state *s)
 	/* Swap? Copy into a stack-allocated integer. */
 	if( s->swap_bytes )
 	{
-		int j = 0;
+		int j;
 		uint8_t tmp;
 
 		for( j = 0; j < WKB_INT_SIZE/2; j++ )
@@ -316,14 +316,14 @@ static uint32_t integer_from_wkb_state(wkb_parse_state *s)
 */
 static double double_from_wkb_state(wkb_parse_state *s)
 {
-	double d = 0;
+	double d;
 
 	memcpy(&d, s->pos, WKB_DOUBLE_SIZE);
 
 	/* Swap? Copy into a stack-allocated integer. */
 	if( s->swap_bytes )
 	{
-		int i = 0;
+		int i;
 		uint8_t tmp;
 
 		for( i = 0; i < WKB_DOUBLE_SIZE/2; i++ )
@@ -659,7 +659,7 @@ static LWCURVEPOLY* lwcurvepoly_from_wkb_state(wkb_parse_state *s)
 	if (s->error)
 		return NULL;
 	LWCURVEPOLY *cp = lwcurvepoly_construct_empty(s->srid, s->has_z, s->has_m);
-	LWGEOM *geom = NULL;
+	LWGEOM *geom;
 	uint32_t i;
 
 	/* Empty collection? */
@@ -704,7 +704,7 @@ static LWCOLLECTION* lwcollection_from_wkb_state(wkb_parse_state *s)
 	if (s->error)
 		return NULL;
 	LWCOLLECTION *col = lwcollection_construct_empty(s->lwtype, s->srid, s->has_z, s->has_m);
-	LWGEOM *geom = NULL;
+	LWGEOM *geom;
 	uint32_t i;
 
 	LWDEBUGF(4,"Collection has %d components", ngeoms);

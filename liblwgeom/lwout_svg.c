@@ -179,7 +179,7 @@ static void pointArray_svg_arc(stringbuffer_t* sb, const POINTARRAY *pa, int clo
 		const POINT2D *t1;
 		const POINT2D *t2;
 		const POINT2D *t3;
-		int p2_side = 0;
+		int p2_side;
 		t1 = getPoint2d_cp(pa, i - 2);
 		t2 = getPoint2d_cp(pa, i - 1);
 		t3 = getPoint2d_cp(pa, i);

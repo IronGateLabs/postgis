@@ -408,7 +408,7 @@ LWGEOM *
 lwgeom_as_multi(const LWGEOM *lwgeom)
 {
 	LWGEOM **ogeoms;
-	LWGEOM *ogeom = NULL;
+	LWGEOM *ogeom;
 	GBOX *box = NULL;
 	int type;
 
@@ -629,8 +629,8 @@ lwgeom_clone_deep(const LWGEOM *lwgeom)
 char*
 lwgeom_to_ewkt(const LWGEOM *lwgeom)
 {
-	char* wkt = NULL;
-	size_t wkt_size = 0;
+	char* wkt;
+	size_t wkt_size;
 
 	wkt = lwgeom_to_wkt(lwgeom, WKT_EXTENDED, 12, &wkt_size);
 

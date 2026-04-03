@@ -1457,7 +1457,7 @@ lwpoly_to_points(const LWPOLY* lwpoly, uint32_t npoints, int32_t seed)
 	{
 		for (j = 0; j < sample_height; j++)
 		{
-			int intersects = 0;
+			int intersects;
 			double xmin = bbox.xmin + i * sample_cell_size;
 			double ymin = bbox.ymin + j * sample_cell_size;
 			GEOSGeometry *gcell = lwpoly_to_points_make_cell(xmin, ymin, sample_cell_size);
@@ -1510,7 +1510,7 @@ lwpoly_to_points(const LWPOLY* lwpoly, uint32_t npoints, int32_t seed)
 		iterations++;
 		for (i = 0; i < num_cells; i++)
 		{
-			int contains = 0;
+			int contains;
 			double y = cells[i].y;
 			double x = cells[i].x;
 			x += lwrandom_uniform() * sample_cell_size;

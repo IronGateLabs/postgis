@@ -197,7 +197,7 @@ static uint8_t *
 integer_to_wkb_buf(const uint32_t ival, uint8_t *buf, uint8_t variant)
 {
 	uint8_t *iptr = (uint8_t *)(&ival);
-	int i = 0;
+	int i;
 
 	if ( sizeof(int) != WKB_INT_SIZE )
 	{
@@ -272,7 +272,7 @@ static uint8_t* double_nan_to_wkb_buf(uint8_t *buf, uint8_t variant)
 static uint8_t* double_to_wkb_buf(const double d, uint8_t *buf, uint8_t variant)
 {
 	uint8_t *dptr = (uint8_t *)(&d);
-	int i = 0;
+	int i;
 
 	if ( sizeof(double) != WKB_DOUBLE_SIZE )
 	{

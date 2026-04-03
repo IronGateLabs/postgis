@@ -285,7 +285,7 @@ bytebuffer_append_int(bytebuffer_t *buf, const int val, int swap)
 
 	LWDEBUGF(4,"buf_start = %p and write_cursor=%p", buf->buf_start,buf->writecursor);
 	char *iptr = (char*)(&val);
-	int i = 0;
+	int i;
 
 	if ( sizeof(int) != WKB_INT_SIZE )
 	{
@@ -330,7 +330,7 @@ bytebuffer_append_double(bytebuffer_t *buf, const double val, int swap)
 
 	LWDEBUGF(4,"buf_start = %p and write_cursor=%p", buf->buf_start,buf->writecursor);
 	char *dptr = (char*)(&val);
-	int i = 0;
+	int i;
 
 	if ( sizeof(double) != WKB_DOUBLE_SIZE )
 	{

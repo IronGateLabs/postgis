@@ -388,8 +388,8 @@ lwline_setPoint4d(LWLINE *line, uint32_t index, POINT4D *newpoint)
 LWLINE*
 lwline_measured_from_lwline(const LWLINE *lwline, double m_start, double m_end)
 {
-	int i = 0;
-	int hasm = 0, hasz = 0;
+	int i;
+	int hasm, hasz;
 	int npoints = 0;
 	double length = 0.0;
 	double length_so_far = 0.0;

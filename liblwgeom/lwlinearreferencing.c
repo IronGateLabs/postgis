@@ -325,7 +325,7 @@ point_interpolate(const POINT4D *p1,
 	double p1_value = lwpoint_get_ordinate(p1, ordinate);
 	double p2_value = lwpoint_get_ordinate(p2, ordinate);
 	double proportion;
-	int i = 0;
+	int i;
 
 	assert(ordinate == 'X' || ordinate == 'Y' ||
 	       ordinate == 'Z' || ordinate == 'M');
@@ -344,7 +344,7 @@ point_interpolate(const POINT4D *p1,
 			lwpoint_set_ordinate(p, dims[i], interpolation_value);
 		else
 		{
-			double newordinate = 0.0;
+			double newordinate;
 			p1_value = lwpoint_get_ordinate(p1, dims[i]);
 			p2_value = lwpoint_get_ordinate(p2, dims[i]);
 			newordinate = p1_value + proportion * (p2_value - p1_value);
@@ -527,12 +527,12 @@ ptarray_clamp_to_ordinate_range(const POINTARRAY *ipa, char ordinate, double fro
 static inline LWCOLLECTION *
 lwline_clip_to_ordinate_range(const LWLINE *line, char ordinate, double from, double to)
 {
-	POINTARRAY *pa_in = NULL;
-	LWCOLLECTION *lwgeom_out = NULL;
+	POINTARRAY *pa_in;
+	LWCOLLECTION *lwgeom_out;
 	POINTARRAY *dp = NULL;
 	uint32_t i;
 	int added_last_point = 0;
-	POINT4D *p = NULL, *q = NULL, *r = NULL;
+	POINT4D *p, *q, *r;
 	double ordinate_value_p = 0.0, ordinate_value_q = 0.0;
 	char hasz, hasm;
 	char dims;

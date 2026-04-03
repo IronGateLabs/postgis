@@ -33,8 +33,8 @@
 LWGEOM*
 lwgeom_from_encoded_polyline(const char *encodedpolyline, int precision)
 {
-  LWGEOM *geom = NULL;
-  POINTARRAY *pa = NULL;
+  LWGEOM *geom;
+  POINTARRAY *pa;
   int length = strlen(encodedpolyline);
   int idx = 0;
 	double scale = pow(10,precision);
@@ -46,7 +46,7 @@ lwgeom_from_encoded_polyline(const char *encodedpolyline, int precision)
 
   while (idx < length) {
     POINT4D pt;
-    char byte = 0;
+    char byte;
 
     int res = 0;
     char shift = 0;

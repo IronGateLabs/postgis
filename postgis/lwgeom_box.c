@@ -97,7 +97,7 @@ Datum BOX2D_out(PG_FUNCTION_ARGS)
 	char tmp[500] = {'B', 'O', 'X', '(', 0}; /* big enough */
 	static const int precision = 15;
 	char *result;
-	int size = 0;
+	int size;
 
 	GBOX *box = (GBOX *)PG_GETARG_POINTER(0);
 	/* Avoid unaligned access to the gbox struct */

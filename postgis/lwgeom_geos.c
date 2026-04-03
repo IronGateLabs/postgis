@@ -1648,7 +1648,7 @@ Datum isvaliddetail(PG_FUNCTION_ARGS)
 	TupleDesc tupdesc;
 	HeapTuple tuple;
 	AttInMetadata *attinmeta;
-	int flags = 0;
+	int flags;
 
 	/*
 	 * Build a tuple description for a
@@ -1959,7 +1959,7 @@ PG_FUNCTION_INFO_V1(polygonize_garray);
 Datum polygonize_garray(PG_FUNCTION_ARGS)
 {
 	ArrayType *array;
-	int is3d = 0;
+	int is3d;
 	uint32 nelems, i;
 	GSERIALIZED *result;
 	GEOSGeometry *geos_result;
@@ -2011,7 +2011,7 @@ Datum clusterintersecting_garray(PG_FUNCTION_ARGS)
 {
 	Datum* result_array_data;
 	ArrayType *array, *result;
-	int is3d = 0;
+	int is3d;
 	uint32 nelems, nclusters, i;
 	GEOSGeometry **geos_inputs;
 	GEOSGeometry **geos_results;
@@ -2078,7 +2078,7 @@ Datum cluster_within_distance_garray(PG_FUNCTION_ARGS)
 {
 	Datum* result_array_data;
 	ArrayType *array, *result;
-	int is3d = 0;
+	int is3d;
 	uint32 nelems, nclusters, i;
 	LWGEOM** lw_inputs;
 	LWGEOM** lw_results;
@@ -2219,8 +2219,8 @@ Datum ST_DelaunayTriangles(PG_FUNCTION_ARGS)
 	GSERIALIZED *result;
 	GSERIALIZED *geom;
 	LWGEOM *lwgeom_in, *lwgeom_out;
-	double	tolerance = 0.0;
-	int flags = 0;
+	double	tolerance;
+	int flags;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
 	tolerance = PG_GETARG_FLOAT8(1);
