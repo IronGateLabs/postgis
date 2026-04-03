@@ -25,29 +25,32 @@ These specs are prerequisites for all subsequent phases. They define the type sy
 
 These specs cover the most-used SQL API functions. They depend on Phase 1 for type definitions.
 
-- [ ] **Extract `spatial-predicates` spec**
+- [x] **Extract `spatial-predicates` spec** (completed 2026-04-03)
   - Read `postgis/postgis.sql.in` lines 4543-4831 (ST_Relate, ST_Disjoint, ST_Touches, ST_Intersects, ST_Crosses, ST_Contains, ST_ContainsProperly, ST_Within, ST_Covers, ST_CoveredBy, ST_Overlaps, ST_Equals, ST_OrderingEquals)
-  - Read `postgis/lwgeom_geos.c` (C implementations dispatching to GEOS: GEOSIntersects_r, GEOSContains_r, etc.)
+  - Read `postgis/lwgeom_geos_predicates.c` (C implementations dispatching to GEOS: GEOSIntersects, GEOSContains, etc.)
   - Read `postgis/lwgeom_geos_relatematch.c` (ST_RelateMatch DE-9IM pattern matching)
   - Read `postgis/lwgeom_itree.c` (ST_IntersectsIntervalTree optimized path)
   - Cross-reference with regression tests: `regress/core/regress_ogc.sql`, `regress_ogc_prep.sql`, `regress_ogc_cover.sql`, `relate.sql`, `relate_bnr.sql`, `relatematch.sql`
   - Write `openspec/specs/spatial-predicates/spec.md` with 12-15 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 14 requirements, 46 scenarios (30 tested, 16 untested)
 
-- [ ] **Extract `spatial-operations` spec**
+- [x] **Extract `spatial-operations` spec** (completed 2026-04-03)
   - Read `postgis/lwgeom_geos.c` (buffer, union, intersection, difference, symdifference, convexhull, concavehull, simplifypolygonhull, unaryunion, split, snap, node, sharedpaths, clipbybox2d, buildarea, polygonize, linemerge, delaunaytriangles, triangulatepoly, voronoi, reduceprecision, makevalid, orientedenvelope, generatepoints, offsetcurve, maximuminscribedcircle, largestemptycircle)
   - Read `postgis/lwgeom_functions_analytic.c` (simplify Douglas-Peucker, Visvalingam-Whyatt, Chaikin)
   - Cross-reference with regression tests: `regress/core/regress_buffer_params.sql`, `concave_hull.sql`, `concave_hull_hard.sql`, `fixedoverlay.sql`, `split.sql`, `snap.sql`, `node.sql`, `sharedpaths.sql`, `clipbybox2d.sql`, `polygonize.sql`, `delaunaytriangles.sql`, `voronoi.sql`, `simplify.sql`, `simplifyvw.sql`, `chaikin.sql`, `coverage.sql`, `clean.sql`, `subdivide.sql`, `offsetcurve.sql`, `oriented_envelope.sql`, `unaryunion.sql`, `union.sql`
   - Write `openspec/specs/spatial-operations/spec.md` with 20-25 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 22 requirements, 70 scenarios (42 tested, 28 untested)
 
-- [ ] **Extract `measurement-functions` spec**
+- [x] **Extract `measurement-functions` spec** (completed 2026-04-03)
   - Read `postgis/lwgeom_functions_basic.c` (ST_Area, ST_Length, ST_Length2D, ST_3DLength, ST_Perimeter, ST_Perimeter2D, ST_Distance, ST_3DDistance, ST_DWithin, ST_3DDWithin, ST_DFullyWithin, ST_3DDFullyWithin, closest/shortest/longest point/line 2D and 3D)
   - Read `postgis/lwgeom_geos.c` (ST_HausdorffDistance, ST_FrechetDistance, ST_MinimumClearance, ST_MinimumClearanceLine)
   - Read `liblwgeom/measures.c` (core 2D distance algorithms), `liblwgeom/measures3d.c` (3D distance algorithms)
   - Cross-reference with regression tests: `regress/core/measures.sql`, `hausdorff.sql`, `frechet.sql`, `minimum_clearance.sql`, `minimum_bounding_circle.sql`, `regress_lrs.sql`
   - Write `openspec/specs/measurement-functions/spec.md` with 12-16 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 16 requirements, 53 scenarios (33 tested, 20 untested)
 
 ### Phase 3: Infrastructure
 
