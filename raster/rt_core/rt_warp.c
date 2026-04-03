@@ -68,7 +68,7 @@ struct _rti_warp_arg_t {
 
 static _rti_warp_arg
 _rti_warp_arg_init() {
-	_rti_warp_arg arg = NULL;
+	_rti_warp_arg arg;
 
 	arg = rtalloc(sizeof(struct _rti_warp_arg_t));
 	if (arg == NULL) {
@@ -186,7 +186,7 @@ rt_raster rt_raster_gdal_warp(
 ) {
 	CPLErr cplerr;
 	char *dst_options[] = {"SUBCLASS=VRTWarpedDataset", NULL};
-	_rti_warp_arg arg = NULL;
+	_rti_warp_arg arg;
 
 	GDALRasterBandH band;
 	rt_band rtband = NULL;

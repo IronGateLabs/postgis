@@ -77,7 +77,7 @@ rt_band_reclass(
 	int numval = 0;
 	int memsize = 0;
 	void *mem = NULL;
-	uint32_t src_hasnodata = 0;
+	uint32_t src_hasnodata;
 	double src_nodataval = 0.0;
 	int isnodata = 0;
 
@@ -1456,7 +1456,7 @@ struct _rti_colormap_arg_t {
 
 static _rti_colormap_arg
 _rti_colormap_arg_init(rt_raster raster) {
-	_rti_colormap_arg arg = NULL;
+	_rti_colormap_arg arg;
 
 	arg = rtalloc(sizeof(struct _rti_colormap_arg_t));
 	if (arg == NULL) {

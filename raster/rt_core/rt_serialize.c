@@ -40,7 +40,7 @@
 
 char*
 d_binary_to_hex(const uint8_t * const raw, uint32_t size, uint32_t *hexsize) {
-    char* hex = NULL;
+    char* hex;
     uint32_t i = 0;
 
 
@@ -67,7 +67,7 @@ d_binary_to_hex(const uint8_t * const raw, uint32_t size, uint32_t *hexsize) {
 
 void
 d_print_binary_hex(const char* msg, const uint8_t * const raw, uint32_t size) {
-    char* hex = NULL;
+    char* hex;
     uint32_t hexsize = 0;
 
 
@@ -520,7 +520,7 @@ rt_raster_serialized_size(rt_raster raster) {
  */
 void*
 rt_raster_serialize(rt_raster raster) {
-	uint32_t size = 0;
+	uint32_t size;
 	uint8_t* ret = NULL;
 	uint8_t* ptr = NULL;
 	uint16_t i = 0;
@@ -730,7 +730,7 @@ rt_raster_serialize(rt_raster raster) {
  */
 rt_raster
 rt_raster_deserialize(void* serialized, int header_only) {
-	rt_raster rast = NULL;
+	rt_raster rast;
 	const uint8_t *ptr = NULL;
 	const uint8_t *beg = NULL;
 	uint16_t i = 0;
@@ -786,7 +786,7 @@ rt_raster_deserialize(void* serialized, int header_only) {
 
 	/* Deserialize bands now */
 	for (i = 0; i < rast->numBands; ++i) {
-		rt_band band = NULL;
+		rt_band band;
 		uint8_t type = 0;
 		int pixbytes = 0;
 
@@ -883,7 +883,7 @@ rt_raster_deserialize(void* serialized, int header_only) {
 		assert(!((ptr - beg) % pixbytes));
 
 		if (band->offline) {
-			int pathlen = 0;
+			int pathlen;
 
 			/* Read band number */
 			band->data.offline.bandNum = *ptr;

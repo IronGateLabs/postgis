@@ -51,7 +51,7 @@ rt_raster_same_alignment(
 	double yr;
 	double xw;
 	double yw;
-	int err = 0;
+	int err;
 
 	assert(NULL != rast1);
 	assert(NULL != rast2);

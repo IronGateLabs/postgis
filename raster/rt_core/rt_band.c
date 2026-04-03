@@ -67,7 +67,7 @@ rt_band_new_inline(
 	uint32_t hasnodata, double nodataval,
 	uint8_t* data
 ) {
-	rt_band band = NULL;
+	rt_band band;
 
 	assert(NULL != data);
 
@@ -286,7 +286,7 @@ rt_band_new_offline(
 	uint32_t hasnodata, double nodataval,
 	uint8_t bandNum, const char* path
 ) {
-	rt_band band = NULL;
+	rt_band band;
 	int pathlen = 0;
 
 	assert(NULL != path);
@@ -364,7 +364,7 @@ rt_band_new_offline_from_path(
 	const char* path,
 	int force
 ) {
-	GDALDatasetH hdsSrc = NULL;
+	GDALDatasetH hdsSrc;
 	int nband = 0;
 	GDALRasterBandH hbandSrc = NULL;
 
@@ -459,7 +459,7 @@ rt_band_duplicate(rt_band band) {
 	}
 	/* online */
 	else {
-		uint8_t *data = NULL;
+		uint8_t *data;
 		data = rtalloc((size_t)rt_pixtype_size(band->pixtype) * band->width * band->height);
 		if (data == NULL) {
 			rterror("rt_band_duplicate: Out of memory allocating online band data");

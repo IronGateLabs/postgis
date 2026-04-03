@@ -514,7 +514,7 @@ rtpg_summarystats_arg_destroy(rtpg_summarystats_arg arg) {
 
 static rtpg_summarystats_arg
 rtpg_summarystats_arg_init(void) {
-	rtpg_summarystats_arg arg = NULL;
+	rtpg_summarystats_arg arg;
 
 	arg = palloc(sizeof(struct rtpg_summarystats_arg_t));
 	if (arg == NULL) {

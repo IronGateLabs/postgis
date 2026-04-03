@@ -125,7 +125,7 @@ struct rtpg_nmapalgebra_arg_t {
 };
 
 static rtpg_nmapalgebra_arg rtpg_nmapalgebra_arg_init(void) {
-	rtpg_nmapalgebra_arg arg = NULL;
+	rtpg_nmapalgebra_arg arg;
 
 	arg = palloc(sizeof(struct rtpg_nmapalgebra_arg_t));
 	if (arg == NULL) {
@@ -1011,7 +1011,7 @@ struct rtpg_nmapalgebraexpr_arg_t {
 };
 
 static rtpg_nmapalgebraexpr_arg rtpg_nmapalgebraexpr_arg_init(int cnt, char **kw) {
-	rtpg_nmapalgebraexpr_arg arg = NULL;
+	rtpg_nmapalgebraexpr_arg arg;
 	int i = 0;
 
 	arg = palloc(sizeof(struct rtpg_nmapalgebraexpr_arg_t));
@@ -2941,7 +2941,7 @@ struct rtpg_clip_arg_t {
 };
 
 static rtpg_clip_arg rtpg_clip_arg_init(void) {
-	rtpg_clip_arg arg = NULL;
+	rtpg_clip_arg arg;
 
 	arg = palloc(sizeof(struct rtpg_clip_arg_t));
 	if (arg == NULL) {
@@ -4182,7 +4182,7 @@ struct rtpg_colormap_arg_t {
 
 static rtpg_colormap_arg
 rtpg_colormap_arg_init(void) {
-	rtpg_colormap_arg arg = NULL;
+	rtpg_colormap_arg arg;
 
 	arg = palloc(sizeof(struct rtpg_colormap_arg_t));
 	if (arg == NULL) {
@@ -4531,7 +4531,7 @@ Datum RASTER_colorMap(PG_FUNCTION_ARGS)
 				}
 				/* RGB values (0 - 255) */
 				else {
-					int value = 0;
+					int value;
 
 					errno = 0;
 					value = (int) strtod(_element, &junk);

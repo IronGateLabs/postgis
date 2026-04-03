@@ -50,7 +50,7 @@
  */
 rt_raster
 rt_raster_new(uint32_t width, uint32_t height) {
-	rt_raster ret = NULL;
+	rt_raster ret;
 
 	ret = (rt_raster) rtalloc(sizeof (struct rt_raster_t));
 	if (!ret) {
@@ -496,7 +496,7 @@ rt_raster_generate_new_band(
     int height = 0;
     int numval = 0;
     int datasize = 0;
-    int oldnumbands = 0;
+    int oldnumbands;
     int numbands = 0;
     void * mem = NULL;
 
@@ -1339,7 +1339,7 @@ rt_raster_copy_band(
  */
 rt_raster
 rt_raster_from_band(rt_raster raster, uint32_t *bandNums, int count) {
-	rt_raster rast = NULL;
+	rt_raster rast;
 	int i = 0;
 	int j = 0;
 	int idx;
@@ -1451,7 +1451,7 @@ rt_raster_clone(rt_raster raster, uint8_t deep) {
 
 	if (deep) {
 		int numband = rt_raster_get_num_bands(raster);
-		uint32_t *nband = NULL;
+		uint32_t *nband;
 		int i = 0;
 
 		nband = rtalloc(sizeof(uint32_t) * numband);
@@ -1505,7 +1505,7 @@ rt_raster_copy_to_geometry(
 	POINT4D p;
 	double igt[6] = {0};
 	rt_errorstate err;
-	rt_band band = NULL;
+	rt_band band;
 	double nodatavalue = 0.0;
 
 	/* Get the band reference and read the nodatavalue */
@@ -2040,8 +2040,8 @@ rt_raster_to_gdal_mem(
 			int iXMax, iYMax;
 
 			int x, y, z;
-			uint32_t valueslen = 0;
-			int16_t *values = NULL;
+			uint32_t valueslen;
+			int16_t *values;
 			double value = 0.;
 
 			/* this makes use of GDAL's "natural" blocks */
@@ -2137,7 +2137,7 @@ rt_raster_to_gdal_mem(
 
 #if POSTGIS_DEBUG_LEVEL > 3
 		{
-			GDALRasterBandH _grb = NULL;
+			GDALRasterBandH _grb;
 			double _min;
 			double _max;
 			double _mean;
@@ -2173,11 +2173,11 @@ rt_raster_to_gdal_mem(
  */
 rt_raster
 rt_raster_from_gdal_dataset(GDALDatasetH ds) {
-	rt_raster rast = NULL;
+	rt_raster rast;
 	double gt[6] = {0};
 	CPLErr cplerr;
-	uint32_t width = 0;
-	uint32_t height = 0;
+	uint32_t width;
+	uint32_t height;
 	uint32_t numBands = 0;
 	uint32_t i = 0;
 	char *authname = NULL;
@@ -2260,7 +2260,7 @@ rt_raster_from_gdal_dataset(GDALDatasetH ds) {
 
 #if POSTGIS_DEBUG_LEVEL > 3
 	for (i = 1; i <= numBands; i++) {
-		GDALRasterBandH _grb = NULL;
+		GDALRasterBandH _grb;
 		double _min;
 		double _max;
 		double _mean;
@@ -2424,7 +2424,7 @@ struct _rti_rasterize_arg_t {
 
 static _rti_rasterize_arg
 _rti_rasterize_arg_init() {
-	_rti_rasterize_arg arg = NULL;
+	_rti_rasterize_arg arg;
 
 	arg = rtalloc(sizeof(struct _rti_rasterize_arg_t));
 	if (arg == NULL) {
@@ -2516,7 +2516,7 @@ rt_raster_gdal_rasterize(
 	uint32_t i = 0;
 	int err = 0;
 
-	_rti_rasterize_arg arg = NULL;
+	_rti_rasterize_arg arg;
 
 	int _dim[2] = {0};
 	double _scale[2] = {0};
@@ -3225,7 +3225,7 @@ rt_raster_gdal_rasterize(
 	for (i = 0; i < arg->numbands; i++) {
 		uint8_t *data = NULL;
 		rt_band band = NULL;
-		rt_band oldband = NULL;
+		rt_band oldband;
 
 		double val = 0;
 		int nodata = 0;

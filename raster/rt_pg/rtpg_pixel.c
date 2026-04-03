@@ -80,7 +80,7 @@ Datum RASTER_getPixelValue(PG_FUNCTION_ARGS)
 	rt_raster raster = NULL;
 	rt_band band = NULL;
 	double pixvalue = 0;
-	int32_t bandindex = 0;
+	int32_t bandindex;
 	int32_t x = 0;
 	int32_t y = 0;
 	int result = 0;
@@ -350,7 +350,7 @@ struct rtpg_dumpvalues_arg_t {
 };
 
 static rtpg_dumpvalues_arg rtpg_dumpvalues_arg_init(void) {
-	rtpg_dumpvalues_arg arg = NULL;
+	rtpg_dumpvalues_arg arg;
 
 	arg = palloc(sizeof(struct rtpg_dumpvalues_arg_t));
 	if (arg == NULL) {

@@ -1024,7 +1024,7 @@ rt_band_get_quantiles_stream(
 	struct quantile_llist_element *qls = NULL;
 	const uint32_t MAX_VALUES = 750;
 
-	uint8_t *data = NULL;
+	uint8_t *data;
 	double value;
 	int isnodata = 0;
 
@@ -1613,7 +1613,7 @@ rt_band_get_value_count(
 ) {
 	rt_valuecount vcnts = NULL;
 	rt_pixtype pixtype = PT_END;
-	uint8_t *data = NULL;
+	uint8_t *data;
 	double nodata = 0;
 
 	int scale = 0;

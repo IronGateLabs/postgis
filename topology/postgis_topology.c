@@ -177,7 +177,7 @@ cb_loadTopologyByName(const LWT_BE_DATA* be, const char *name)
   MemoryContext oldcontext = CurrentMemoryContext;
   Datum values[1];
   Oid argtypes[1];
-  static SPIPlanPtr plan = NULL;
+  static SPIPlanPtr plan;
 
   argtypes[0] = CSTRINGOID;
   sql =

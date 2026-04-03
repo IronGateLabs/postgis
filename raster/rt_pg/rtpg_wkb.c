@@ -144,7 +144,7 @@ Datum RASTER_fromWKB(PG_FUNCTION_ARGS)
 {
 	bytea *bytea_data;
 	uint8_t *data;
-	int data_len = 0;
+	int data_len;
 
 	rt_raster raster;
 	void *result = NULL;

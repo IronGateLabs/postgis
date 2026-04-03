@@ -282,8 +282,8 @@ char *
 rtpg_getSR(int32_t srid)
 {
 	int i = 0;
-	int len = 0;
-	char *sql = NULL;
+	int len;
+	char *sql;
 	int spi_result;
 	TupleDesc tupdesc;
 	SPITupleTable *tuptable = NULL;

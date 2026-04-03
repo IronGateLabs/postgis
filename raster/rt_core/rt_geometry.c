@@ -38,8 +38,8 @@
 
 static rt_errorstate
 _rti_raster_get_band_perimeter(rt_band band, uint16_t *trim) {
-	uint16_t width = 0;
-	uint16_t height = 0;
+	uint16_t width;
+	uint16_t height;
 	int x = 0;
 	int y = 0;
 	int offset = 0;
@@ -996,7 +996,7 @@ rt_raster_gdal_polygonize(
 	int wkbsize = 0;
 	LWGEOM *lwgeom = NULL;
 	int nFeatureCount = 0;
-	rt_band band = NULL;
+	rt_band band;
 	int iPixVal = -1;
 	double dValue = 0.0;
 	int iBandHasNodataValue = FALSE;

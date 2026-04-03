@@ -76,7 +76,7 @@ Datum RASTER_gdal_version(PG_FUNCTION_ARGS)
 
 	/* add indicator if GDAL isn't configured right */
 	if (!rt_util_gdal_configured()) {
-		char *rtn = NULL;
+		char *rtn;
 		size_t sz = strlen(ver) + strlen(" GDAL_DATA not found") + 1;
 		rtn = palloc(sz);
 		if (!rtn)

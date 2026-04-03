@@ -41,7 +41,7 @@ rt_band_from_wkb(
 	const uint8_t** ptr, const uint8_t* end,
 	uint8_t littleEndian
 ) {
-	rt_band band = NULL;
+	rt_band band;
 	int pixbytes = 0;
 	uint8_t type = 0;
 	size_t sz = 0;
@@ -505,7 +505,7 @@ rt_raster_to_wkb(rt_raster raster, int outasin, uint32_t *wkbsize) {
 	const uint8_t *wkbend = NULL;
 #endif
 
-	uint8_t *wkb = NULL;
+	uint8_t *wkb;
 	uint8_t *ptr = NULL;
 	uint16_t i = 0;
 	uint8_t littleEndian = isMachineLittleEndian();
@@ -691,7 +691,7 @@ rt_raster_to_wkb(rt_raster raster, int outasin, uint32_t *wkbsize) {
 
 char *
 rt_raster_to_hexwkb(rt_raster raster, int outasin, uint32_t *hexwkbsize) {
-	uint8_t *wkb = NULL;
+	uint8_t *wkb;
 	char* hexwkb = NULL;
 	uint32_t wkbsize = 0;
 

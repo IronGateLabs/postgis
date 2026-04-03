@@ -316,7 +316,7 @@ Datum RASTER_dumpAsPolygons(PG_FUNCTION_ARGS) {
 		HeapTuple    tuple;
 		Datum        result;
 
-		GSERIALIZED *gser = NULL;
+		GSERIALIZED *gser;
 		size_t gser_size = 0;
 
 		POSTGIS_RT_DEBUGF(3, "call number %d", call_cntr);
@@ -620,7 +620,7 @@ Datum RASTER_getPixelPolygons(PG_FUNCTION_ARGS)
 		HeapTuple tuple;
 		Datum result;
 
-		GSERIALIZED *gser = NULL;
+		GSERIALIZED *gser;
 		size_t gser_size = 0;
 
 		POSTGIS_RT_DEBUGF(3, "call number %d", call_cntr);
@@ -938,7 +938,7 @@ Datum RASTER_getPixelCentroids(PG_FUNCTION_ARGS)
 		HeapTuple tuple;
 		Datum result;
 
-		GSERIALIZED *gser = NULL;
+		GSERIALIZED *gser;
 		size_t gser_size = 0;
 
 		POSTGIS_RT_DEBUGF(3, "call number %d", call_cntr);

@@ -378,7 +378,7 @@ rt_util_gdal_supported_sr(const char *srs) {
  */
 rt_errorstate
 rt_util_gdal_sr_auth_info(GDALDatasetH hds, char **authname, char **authcode) {
-	const char *srs = NULL;
+	const char *srs;
 
 	assert(authname != NULL);
 	assert(authcode != NULL);

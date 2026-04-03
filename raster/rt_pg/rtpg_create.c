@@ -1238,8 +1238,8 @@ Datum RASTER_tile(PG_FUNCTION_ARGS)
 		int height = 0;
 
 		int k = 0;
-		int tx = 0;
-		int ty = 0;
+		int tx;
+		int ty;
 		int rx = 0;
 		int ry = 0;
 		int ex = 0; /* edge tile on right */
