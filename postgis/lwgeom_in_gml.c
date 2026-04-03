@@ -573,7 +573,7 @@ static double parse_gml_double(char *d, bool space_before, bool space_after)
 			if (st == INIT || st == NEED_DIG) 		st = DIG;
 			else if (st == NEED_DIG_DEC) 			st = DIG_DEC;
 			else if (st == NEED_DIG_EXP || st == EXP) 	st = DIG_EXP;
-			else if (st == DIG || st == DIG_DEC || st == DIG_EXP);
+			else if (st == DIG || st == DIG_DEC || st == DIG_EXP) { /* no state change needed */ }
 			else gml_lwpgerror("invalid GML representation", 7);
 		}
 		else if (*p == '.')
@@ -597,7 +597,7 @@ static double parse_gml_double(char *d, bool space_before, bool space_after)
 			if (!space_after) gml_lwpgerror("invalid GML representation", 11);
 			if (st == DIG || st == DIG_DEC || st == DIG_EXP)st = END;
 			else if (st == NEED_DIG_DEC)			st = END;
-			else if (st == END);
+			else if (st == END) { /* no state change needed */ }
 			else    gml_lwpgerror("invalid GML representation", 12);
 		}
 		else  gml_lwpgerror("invalid GML representation", 13);

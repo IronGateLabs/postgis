@@ -252,7 +252,7 @@ lwpgnotice("State: %d, *p=%c", st, *p);
 			if (st == INIT || st == NEED_DIG) 	st = DIG;
 			else if (st == NEED_DIG_DEC) 			st = DIG_DEC;
 			else if (st == NEED_DIG_EXP || st == EXP) 	st = DIG_EXP;
-			else if (st == DIG || st == DIG_DEC || st == DIG_EXP);
+			else if (st == DIG || st == DIG_DEC || st == DIG_EXP) { /* no state change needed */ }
 			else lwpgerror("invalid KML representation");
 		}
 		else if (*p == '.')
@@ -276,7 +276,7 @@ lwpgnotice("State: %d, *p=%c", st, *p);
 			if (!space_after) lwpgerror("invalid KML representation");
 			if (st == DIG || st == DIG_DEC || st == DIG_EXP)st = END;
 			else if (st == NEED_DIG_DEC)			st = END;
-			else if (st == END);
+			else if (st == END) { /* no state change needed */ }
 			else    lwpgerror("invalid KML representation");
 		}
 		else  lwpgerror("invalid KML representation");

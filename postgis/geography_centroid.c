@@ -210,7 +210,7 @@ POINT3D* lonlat_to_cart(const double_t raw_lon, const double_t raw_lat)
     double_t lat, lon;
     double_t sin_lat;
 
-    POINT3D* point = lwalloc(sizeof(POINT3D));;
+    POINT3D* point = lwalloc(sizeof(POINT3D));
 
     // prepare coordinate for trigonometric functions from [-90, 90] -> [0, pi]
     lat = (raw_lat + 90) / 180 * M_PI;

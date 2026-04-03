@@ -123,7 +123,7 @@ Datum LWGEOM_dump(PG_FUNCTION_ARGS)
 		 * generate attribute metadata needed later to produce
 		 * tuples from raw C strings
 		 */
-		funcctx->attinmeta = TupleDescGetAttInMetadata(tupdesc);;
+		funcctx->attinmeta = TupleDescGetAttInMetadata(tupdesc);
 
 		MemoryContextSwitchTo(oldcontext);
 	}
@@ -263,7 +263,7 @@ Datum LWGEOM_dump_rings(PG_FUNCTION_ARGS)
 		 * generate attribute metadata needed later to produce
 		 * tuples from raw C strings
 		 */
-		funcctx->attinmeta = TupleDescGetAttInMetadata(tupdesc);;
+		funcctx->attinmeta = TupleDescGetAttInMetadata(tupdesc);
 
 		MemoryContextSwitchTo(oldcontext);
 	}
