@@ -12,7 +12,7 @@
 #include "lwgeom_log.h"
 
 /* Convenience macro: true when at least one GPU backend is compiled in */
-#if defined(HAVE_CUDA) || defined(HAVE_ROCM) || defined(HAVE_ONEAPI)
+#if defined(HAVE_CUDA) || defined(HAVE_ROCM) || defined(HAVE_ONEAPI) || defined(HAVE_METAL)
 #define HAVE_ANY_GPU 1
 #endif
 
@@ -63,6 +63,16 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 			}
 			break;
 #endif
+#ifdef HAVE_METAL
+		case LW_GPU_METAL:
+			if (lwgpu_metal_init())
+			{
+				active_backend = LW_GPU_METAL;
+				LWDEBUG(1, "GPU: Metal backend initialized");
+				return 1;
+			}
+			break;
+#endif
 		default:
 			break;
 		}
@@ -100,6 +110,15 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 	}
 #endif
 
+#ifdef HAVE_METAL
+	if (lwgpu_metal_init())
+	{
+		active_backend = LW_GPU_METAL;
+		LWDEBUG(1, "GPU: Metal backend auto-detected");
+		return 1;
+	}
+#endif
+
 	LWDEBUG(1, "GPU: no backend available");
 	return 0;
 }
@@ -131,6 +150,9 @@ lwgpu_backend_name(void)
 #ifdef HAVE_ONEAPI
 	case LW_GPU_ONEAPI:  return lwgpu_oneapi_device_name();
 #endif
+#ifdef HAVE_METAL
+	case LW_GPU_METAL:   return lwgpu_metal_device_name();
+#endif
 	default:            return "none";
 	}
 #else
@@ -156,6 +178,10 @@ lwgpu_rotate_z_batch(double *xy_pairs, size_t stride,
 #ifdef HAVE_ONEAPI
 	case LW_GPU_ONEAPI:
 		return lwgpu_oneapi_rotate_z(xy_pairs, stride, npoints, theta);
+#endif
+#ifdef HAVE_METAL
+	case LW_GPU_METAL:
+		return lwgpu_metal_rotate_z(xy_pairs, stride, npoints, theta);
 #endif
 	default:
 		return 0;
@@ -189,6 +215,11 @@ lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride,
 		return lwgpu_oneapi_rotate_z_m_epoch(xyzm, stride, npoints,
 						     m_offset, direction);
 #endif
+#ifdef HAVE_METAL
+	case LW_GPU_METAL:
+		return lwgpu_metal_rotate_z_m_epoch(xyzm, stride, npoints,
+						    m_offset, direction);
+#endif
 	default:
 		return 0;
 	}
@@ -217,6 +248,11 @@ lwgpu_shutdown(void)
 #ifdef HAVE_ONEAPI
 	case LW_GPU_ONEAPI:
 		lwgpu_oneapi_shutdown();
+		break;
+#endif
+#ifdef HAVE_METAL
+	case LW_GPU_METAL:
+		lwgpu_metal_shutdown();
 		break;
 #endif
 	default:
