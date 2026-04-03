@@ -209,7 +209,8 @@ ptarray_append_ptarray(POINTARRAY *pa1, POINTARRAY *pa2, double gap_tolerance)
 	/* Check for duplicate end point */
 	if ( pa1->npoints )
 	{
-		const POINT2D *tmp1, *tmp2;
+		const POINT2D *tmp1;
+		const POINT2D *tmp2;
 		tmp1 = getPoint2d_cp(pa1, pa1->npoints-1);
 		tmp2 = getPoint2d_cp(pa2, 0);
 
@@ -387,7 +388,9 @@ void
 ptarray_swap_ordinates(POINTARRAY *pa, LWORD o1, LWORD o2)
 {
 	uint32_t i;
-	double d, *dp1, *dp2;
+	double d;
+	double *dp1;
+	double *dp2;
 	POINT4D p;
 
 	dp1 = ((double*)&p)+(unsigned)o1;
@@ -413,10 +416,13 @@ POINTARRAY *
 ptarray_segmentize2d(const POINTARRAY *ipa, double dist)
 {
 	double segdist;
-	POINT4D	p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 	POINT4D pbuf;
 	POINTARRAY *opa;
-	uint32_t i, j, nseg;
+	uint32_t i;
+	uint32_t j;
+	uint32_t nseg;
 	int hasz = FLAGS_GET_Z(ipa->flags);
 	int hasm = FLAGS_GET_M(ipa->flags);
 
@@ -441,7 +447,8 @@ ptarray_segmentize2d(const POINTARRAY *ipa, double dist)
 		 * referred to as "type-punned pointer")
 		 * breaks those "strict" rules.
 		 */
-		POINT4D *p1ptr=&p1, *p2ptr=&p2;
+		POINT4D *p1ptr=&p1;
+		POINT4D *p2ptr=&p2;
 		double segments;
 
 		getPoint4d_p(ipa, i, &p2);
@@ -898,7 +905,8 @@ ptarrayarc_raycast_intersections(const POINTARRAY *pa, const POINT2D *p, int *on
 		const POINT2D* p1 = getPoint2d_cp(pa, i);
 		const POINT2D* p2 = getPoint2d_cp(pa, i+1);
 		POINT2D center = {0,0};
-		double radius, d;
+		double radius;
+		double d;
 		GBOX gbox;
 
 		// Skip zero-length arc
@@ -929,7 +937,8 @@ ptarrayarc_raycast_intersections(const POINTARRAY *pa, const POINT2D *p, int *on
 		if ((gbox.ymin <= py) && (py < gbox.ymax))
 		{
 			// Point of intersection on the circle that defines the arc
-			POINT2D i0, i1;
+			POINT2D i0;
+			POINT2D i1;
 
 			// How many points of intersection are there
 			int iCount = circle_raycast_intersections(&center, radius, py, &i0, &i1);
@@ -968,8 +977,10 @@ ptarray_contains_point_partial(const POINTARRAY *pa, const POINT2D *pt, int chec
 	int wn = 0;
 	uint32_t i;
 	double side;
-	const POINT2D *seg1, *seg2;
-	double ymin, ymax;
+	const POINT2D *seg1;
+	const POINT2D *seg2;
+	double ymin;
+	double ymax;
 
 	seg1 = getPoint2d_cp(pa, 0);
 	seg2 = getPoint2d_cp(pa, pa->npoints-1);
@@ -1081,7 +1092,10 @@ ptarray_signed_area(const POINTARRAY *pa)
 	const POINT2D *P2;
 	const POINT2D *P3;
 	double sum = 0.0;
-	double x0, x, y1, y2;
+	double x0;
+	double x;
+	double y1;
+	double y2;
 	uint32_t i;
 
 	if (! pa || pa->npoints < 3 )
@@ -1147,11 +1161,15 @@ ptarray_substring(POINTARRAY *ipa, double from, double to, double tolerance)
 {
 	POINTARRAY *dpa;
 	POINT4D pt;
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 	POINT4D *p1ptr=&p1; /* don't break strict-aliasing rule */
 	POINT4D *p2ptr=&p2;
-	int nsegs, i;
-	double length, slength, tlength;
+	int nsegs;
+	int i;
+	double length;
+	double slength;
+	double tlength;
 	int state = 0; /* 0=before, 1=inside */
 
 	/*
@@ -1387,7 +1405,8 @@ int
 ptarray_closest_segment_2d(const POINTARRAY *pa, const POINT2D *qp, double *dist)
 {
 	const POINT2D *start = getPoint2d_cp(pa, 0), *end = NULL;
-	uint32_t t, seg=0;
+	uint32_t t;
+	uint32_t seg=0;
 	double mindist=DBL_MAX;
 
 	/* Loop through pointarray looking for nearest segment */
@@ -1419,7 +1438,8 @@ ptarray_closest_segment_2d(const POINTARRAY *pa, const POINT2D *qp, double *dist
 int
 ptarray_closest_vertex_2d(const POINTARRAY *pa, const POINT2D *qp, double *dist)
 {
-	uint32_t t, pn=0;
+	uint32_t t;
+	uint32_t pn=0;
 	const POINT2D *p;
 	double mindist = DBL_MAX;
 
@@ -1453,11 +1473,17 @@ double
 ptarray_locate_point(const POINTARRAY *pa, const POINT4D *p4d, double *mindistout, POINT4D *proj4d)
 {
 	double mindist=DBL_MAX;
-	double tlen, plen;
-	uint32_t t, seg=0;
-	POINT4D	start4d, end4d, projtmp;
-	POINT2D proj, p;
-	const POINT2D *start = NULL, *end = NULL;
+	double tlen;
+	double plen;
+	uint32_t t;
+	uint32_t seg=0;
+	POINT4D start4d;
+	POINT4D end4d;
+	POINT4D projtmp;
+	POINT2D proj;
+	POINT2D p;
+	const POINT2D *start = NULL;
+	const POINT2D *end = NULL;
 
 	/* Initialize our 2D copy of the input parameter */
 	p.x = p4d->x;
@@ -2169,8 +2195,12 @@ void
 ptarray_grid_in_place(POINTARRAY *pa, gridspec *grid)
 {
 	uint32_t j = 0;
-	POINT4D *p, *p_out = NULL;
-	double x, y, z = 0, m = 0;
+	POINT4D *p;
+	POINT4D *p_out = NULL;
+	double x;
+	double y;
+	double z = 0;
+	double m = 0;
 	uint32_t ndims = FLAGS_NDIMS(pa->flags);
 	uint32_t has_z = FLAGS_GET_Z(pa->flags);
 	uint32_t has_m = FLAGS_GET_M(pa->flags);

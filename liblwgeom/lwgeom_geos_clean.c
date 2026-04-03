@@ -42,8 +42,10 @@ POINTARRAY* ring_make_geos_friendly(POINTARRAY* ring);
 static void
 ptarray_strip_nan_coords_in_place(POINTARRAY *pa)
 {
-	uint32_t i, j = 0;
-	POINT4D *p, *np;
+	uint32_t i;
+	uint32_t j = 0;
+	POINT4D *p;
+	POINT4D *np;
 	int ndims = FLAGS_NDIMS(pa->flags);
 	for ( i = 0; i < pa->npoints; i++ )
 	{
@@ -240,7 +242,8 @@ LWGEOM*
 lwcollection_make_geos_friendly(LWCOLLECTION* g)
 {
 	LWGEOM** new_geoms;
-	uint32_t i, new_ngeoms = 0;
+	uint32_t i;
+	uint32_t new_ngeoms = 0;
 	LWCOLLECTION* ret;
 
 	if ( ! g->ngeoms ) {

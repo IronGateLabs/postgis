@@ -107,7 +107,8 @@ static void write_bbox(TWKB_STATE *ts, int ndims)
 static int ptarray_to_twkb_buf(const POINTARRAY *pa, TWKB_GLOBALS *globals, TWKB_STATE *ts, int register_npoints, uint32_t minpoints)
 {
 	uint32_t ndims = FLAGS_NDIMS(pa->flags);
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	bytebuffer_t b;
 	bytebuffer_t *b_p;
 	int64_t nextdelta[MAX_N_DIMS];
@@ -428,9 +429,15 @@ static int lwgeom_to_twkb_buf(const LWGEOM *geom, TWKB_GLOBALS *globals, TWKB_ST
 
 static int lwgeom_write_to_buffer(const LWGEOM *geom, TWKB_GLOBALS *globals, TWKB_STATE *parent_state)
 {
-	int i, is_empty, has_z = 0, has_m = 0, ndims;
-	size_t bbox_size = 0, optional_precision_byte = 0;
-	uint8_t flag = 0, type_prec = 0;
+	int i;
+	int is_empty;
+	int has_z = 0;
+	int has_m = 0;
+	int ndims;
+	size_t bbox_size = 0;
+	size_t optional_precision_byte = 0;
+	uint8_t flag = 0;
+	uint8_t type_prec = 0;
 	bytebuffer_t header_bytebuffer, geom_bytebuffer;
 
 	TWKB_STATE child_state;

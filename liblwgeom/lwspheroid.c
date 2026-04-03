@@ -131,7 +131,8 @@ int spheroid_project(const GEOGRAPHIC_POINT *r, const SPHEROID *spheroid, double
 	geod_init(&gd, spheroid->a, spheroid->f);
 	double lat1 = r->lat * 180.0 / M_PI;
 	double lon1 = r->lon * 180.0 / M_PI;
-	double lat2, lon2; /* return projected position */
+	double lat2;
+	double lon2; /* return projected position */
 	geod_direct(&gd, lat1, lon1, azimuth * 180.0 / M_PI, distance, &lat2, &lon2, 0);
 	g->lat = lat2 * M_PI / 180.0;
 	g->lon = lon2 * M_PI / 180.0;
@@ -193,13 +194,28 @@ double spheroid_distance(const GEOGRAPHIC_POINT *a, const GEOGRAPHIC_POINT *b, c
 	double lambda = (b->lon - a->lon);
 	double f = spheroid->f;
 	double omf = 1 - spheroid->f;
-	double u1, u2;
-	double cos_u1, cos_u2;
-	double sin_u1, sin_u2;
-	double big_a, big_b, delta_sigma;
-	double alpha, sin_alpha, cos_alphasq, c;
-	double sigma, sin_sigma, cos_sigma, cos2_sigma_m, sqrsin_sigma, last_lambda, omega;
-	double cos_lambda, sin_lambda;
+	double u1;
+	double u2;
+	double cos_u1;
+	double cos_u2;
+	double sin_u1;
+	double sin_u2;
+	double big_a;
+	double big_b;
+	double delta_sigma;
+	double alpha;
+	double sin_alpha;
+	double cos_alphasq;
+	double c;
+	double sigma;
+	double sin_sigma;
+	double cos_sigma;
+	double cos2_sigma_m;
+	double sqrsin_sigma;
+	double last_lambda;
+	double omega;
+	double cos_lambda;
+	double sin_lambda;
 	double distance;
 	int i = 0;
 
@@ -297,8 +313,17 @@ double spheroid_direction(const GEOGRAPHIC_POINT *r, const GEOGRAPHIC_POINT *s, 
 	double sin_u2 = sin(u2);
 
 	double omega = lambda;
-	double alpha, sigma, sin_sigma, cos_sigma, cos2_sigma_m, sqr_sin_sigma, last_lambda;
-	double sin_alpha, cos_alphasq, C, alphaFD;
+	double alpha;
+	double sigma;
+	double sin_sigma;
+	double cos_sigma;
+	double cos2_sigma_m;
+	double sqr_sin_sigma;
+	double last_lambda;
+	double sin_alpha;
+	double cos_alphasq;
+	double C;
+	double alphaFD;
 	do
 	{
 		sqr_sin_sigma = POW2(cos_u2 * sin(lambda)) +
@@ -366,10 +391,22 @@ int spheroid_project(const GEOGRAPHIC_POINT *r, const SPHEROID *spheroid, double
 	double omf = 1 - spheroid->f;
 	double tan_u1 = omf * tan(r->lat);
 	double u1 = atan(tan_u1);
-	double sigma, last_sigma, delta_sigma, two_sigma_m;
-	double sigma1, sin_alpha, alpha, cos_alphasq;
-	double u2, A, B;
-	double lat2, lambda, lambda2, C, omega;
+	double sigma;
+	double last_sigma;
+	double delta_sigma;
+	double two_sigma_m;
+	double sigma1;
+	double sin_alpha;
+	double alpha;
+	double cos_alphasq;
+	double u2;
+	double A;
+	double B;
+	double lat2;
+	double lambda;
+	double lambda2;
+	double C;
+	double omega;
 	int i = 0;
 
 	if (azimuth < 0.0)
@@ -460,8 +497,13 @@ static double spheroid_boundingbox_area(const GEOGRAPHIC_POINT *southWestCorner,
 static double spheroid_striparea(const GEOGRAPHIC_POINT *a, const GEOGRAPHIC_POINT *b, double latitude_min, const SPHEROID *spheroid)
 {
 	GEOGRAPHIC_POINT A, B, mL, nR;
-	double deltaLng, baseArea, topArea;
-	double bE, tE, ratio, sign;
+	double deltaLng;
+	double baseArea;
+	double topArea;
+	double bE;
+	double tE;
+	double ratio;
+	double sign;
 
 	A = *a;
 	B = *b;

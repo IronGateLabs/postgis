@@ -30,11 +30,19 @@
 
 static POINTARRAY * ptarray_chaikin(POINTARRAY *inpts, int preserve_endpoint, int isclosed)
 {
-	uint32_t p, i, n_out_points=0, p1_set=0, p2_set=0;
-	POINT4D p1, p2;
+	uint32_t p;
+	uint32_t i;
+	uint32_t n_out_points=0;
+	uint32_t p1_set=0;
+	uint32_t p2_set=0;
+	POINT4D p1;
+	POINT4D p2;
 	POINTARRAY *opts;
 	double *dlist;
-	double deltaval, quarter_delta, val1, val2;
+	double deltaval;
+	double quarter_delta;
+	double val1;
+	double val2;
 	uint32_t ndims = 2 + ptarray_has_z(inpts) + ptarray_has_m(inpts);
 	int new_npoints = inpts->npoints * 2;
 	opts = ptarray_construct_empty(FLAGS_GET_Z(inpts->flags), FLAGS_GET_M(inpts->flags), new_npoints);

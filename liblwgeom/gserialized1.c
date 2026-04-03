@@ -177,7 +177,8 @@ static size_t gserialized1_is_empty_recurse(const uint8_t *p, int *isempty);
 static size_t gserialized1_is_empty_recurse(const uint8_t *p, int *isempty)
 {
 	int i;
-	int32_t type, num;
+	int32_t type;
+	int32_t num;
 
 	memcpy(&type, p, 4);
 	memcpy(&num, p+4, 4);
@@ -227,7 +228,8 @@ int32_t
 gserialized1_hash(const GSERIALIZED *g1)
 {
 	int32_t hval;
-	int32_t pb = 0, pc = 0;
+	int32_t pb = 0;
+	int32_t pc = 0;
 	/* Point to just the type/coordinate part of buffer */
 	size_t hsz1 = gserialized1_header_size(g1);
 	uint8_t *b1 = (uint8_t*)g1 + hsz1;

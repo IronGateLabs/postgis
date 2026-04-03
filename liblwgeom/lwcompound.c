@@ -141,7 +141,8 @@ int lwcompound_add_lwgeom(LWCOMPOUND *comp, LWGEOM *geom)
 
 	if( col->ngeoms > 0 )
 	{
-		POINT4D last, first;
+		POINT4D last;
+		POINT4D first;
 		/* First point of the component we are adding */
 		LWLINE *newline = (LWLINE*)geom;
 		/* Last point of the previous component */

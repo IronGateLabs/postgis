@@ -136,7 +136,8 @@ LWPROJ *
 lwproj_from_str(const char* str_in, const char* str_out)
 {
 	uint8_t source_is_latlong = LW_FALSE;
-	double semi_major_metre = DBL_MAX, semi_minor_metre = DBL_MAX;
+	double semi_major_metre = DBL_MAX;
+	double semi_minor_metre = DBL_MAX;
 	LW_CRS_FAMILY source_crs_family = LW_CRS_UNKNOWN;
 	LW_CRS_FAMILY target_crs_family = LW_CRS_UNKNOWN;
 

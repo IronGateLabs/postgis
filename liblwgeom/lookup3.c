@@ -191,7 +191,9 @@ const uint32_t *k,                   /* the key, an array of uint32_t values */
 size_t          length,               /* the length of the key, in uint32_ts */
 uint32_t        initval)         /* the previous hash, or an arbitrary value */
 {
-  uint32_t a,b,c;
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
 
   /* Set up the internal state */
   a = b = c = 0xdeadbeef + (((uint32_t)length)<<2) + initval;
@@ -237,7 +239,9 @@ size_t          length,               /* the length of the key, in uint32_ts */
 uint32_t       *pc,                      /* IN: seed OUT: primary hash value */
 uint32_t       *pb)               /* IN: more seed OUT: secondary hash value */
 {
-  uint32_t a,b,c;
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
 
   /* Set up the internal state */
   a = b = c = 0xdeadbeef + ((uint32_t)(length<<2)) + *pc;
@@ -298,7 +302,9 @@ acceptable.  Do NOT use for cryptographic purposes.
 #if 0
 static uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
 {
-  uint32_t a,b,c;                                          /* internal state */
+  uint32_t a;
+  uint32_t b;
+  uint32_t c; /* internal state */
   union { const void *ptr; size_t i; } u;     /* needed for Mac Powerbook G4 */
 
   /* Set up the internal state */
@@ -482,7 +488,9 @@ void hashlittle2(
   uint32_t   *pc,        /* IN: primary initval, OUT: primary hash */
   uint32_t   *pb)        /* IN: secondary initval, OUT: secondary hash */
 {
-  uint32_t a,b,c;                                          /* internal state */
+  uint32_t a;
+  uint32_t b;
+  uint32_t c; /* internal state */
   union { const void *ptr; size_t i; } u;     /* needed for Mac Powerbook G4 */
 
   /* Set up the internal state */
@@ -660,7 +668,9 @@ void hashlittle2(
  */
 static uint32_t hashbig( const void *key, size_t length, uint32_t initval)
 {
-  uint32_t a,b,c;
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
   union { const void *ptr; size_t i; } u; /* to cast key to (size_t) happily */
 
   /* Set up the internal state */

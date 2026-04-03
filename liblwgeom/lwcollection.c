@@ -42,7 +42,8 @@ LWCOLLECTION *
 lwcollection_construct(uint8_t type, int32_t srid, GBOX *bbox, uint32_t ngeoms, LWGEOM **geoms)
 {
 	LWCOLLECTION *ret;
-	int hasz, hasm;
+	int hasz;
+	int hasm;
 #ifdef CHECK_LWGEOM_ZM
 	char zm;
 	uint32_t i;
@@ -250,7 +251,8 @@ lwcollection_concat_in_place(LWCOLLECTION *col1, const LWCOLLECTION *col2)
 LWCOLLECTION*
 lwcollection_segmentize2d(const LWCOLLECTION* col, double dist)
 {
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	LWGEOM** newgeoms;
 
 	if (!col->ngeoms) return lwcollection_clone(col);

@@ -97,7 +97,8 @@ lwgeom_to_kml2_sb(const LWGEOM *geom, int precision, const char *prefix, stringb
 static int
 ptarray_to_kml2_sb(const POINTARRAY *pa, int precision, stringbuffer_t *sb)
 {
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	uint32_t dims = FLAGS_GET_Z(pa->flags) ? 3 : 2;
 	POINT4D pt;
 	double *d;

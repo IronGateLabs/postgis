@@ -1854,7 +1854,8 @@ lwgeom_remove_repeated_points_in_place(LWGEOM *geom, double tolerance)
 	case CURVEPOLYTYPE:
 	case MULTISURFACETYPE:
 	case COMPOUNDTYPE: {
-		uint32_t i, j = 0;
+		uint32_t i;
+		uint32_t j = 0;
 		LWCOLLECTION *col = (LWCOLLECTION *)(geom);
 		for (i = 0; i < col->ngeoms; i++)
 		{
@@ -1943,7 +1944,8 @@ lwgeom_simplify_in_place(LWGEOM *geom, double epsilon, int preserve_collapsed)
 		}
 		case POLYGONTYPE:
 		{
-			uint32_t i, j = 0;
+			uint32_t i;
+			uint32_t j = 0;
 			LWPOLY *g = (LWPOLY*)(geom);
 			for (i = 0; i < g->nrings; i++)
 			{
@@ -1989,7 +1991,8 @@ lwgeom_simplify_in_place(LWGEOM *geom, double epsilon, int preserve_collapsed)
 		case TINTYPE:
 		case COLLECTIONTYPE:
 		{
-			uint32_t i, j = 0;
+			uint32_t i;
+			uint32_t j = 0;
 			LWCOLLECTION *col = (LWCOLLECTION*)geom;
 			for (i = 0; i < col->ngeoms; i++)
 			{
@@ -2430,7 +2433,8 @@ lwgeom_grid_in_place(LWGEOM *geom, gridspec *grid)
 		case COMPOUNDTYPE:
 		{
 			LWCOLLECTION *col = (LWCOLLECTION*)(geom);
-			uint32_t i, j = 0;
+			uint32_t i;
+			uint32_t j = 0;
 			if (!col->geoms) return;
 			for (i = 0; i < col->ngeoms; i++)
 			{

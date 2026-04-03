@@ -159,7 +159,8 @@ lwgeom_rotate_z(LWGEOM *geom, double theta)
 int
 lwgeom_transform_eci_to_ecef(LWGEOM *geom, double epoch)
 {
-	double jd, era;
+	double jd;
+	double era;
 
 	if (epoch == LWPROJ_NO_EPOCH)
 	{
@@ -178,7 +179,8 @@ lwgeom_transform_eci_to_ecef(LWGEOM *geom, double epoch)
 int
 lwgeom_transform_ecef_to_eci(LWGEOM *geom, double epoch)
 {
-	double jd, era;
+	double jd;
+	double era;
 
 	if (epoch == LWPROJ_NO_EPOCH)
 	{
@@ -313,7 +315,8 @@ ptarray_rotate_x(POINTARRAY *pa, double theta)
 	for (i = 0; i < pa->npoints; i++)
 	{
 		getPoint4d_p(pa, i, &p);
-		double y = p.y, z = p.z;
+		double y = p.y;
+		double z = p.z;
 		p.y = y * cos_t - z * sin_t;
 		p.z = y * sin_t + z * cos_t;
 		ptarray_set_point4d(pa, i, &p);
@@ -336,7 +339,8 @@ ptarray_rotate_y(POINTARRAY *pa, double theta)
 	for (i = 0; i < pa->npoints; i++)
 	{
 		getPoint4d_p(pa, i, &p);
-		double x = p.x, z = p.z;
+		double x = p.x;
+		double z = p.z;
 		p.x = x * cos_t + z * sin_t;
 		p.z = -x * sin_t + z * cos_t;
 		ptarray_set_point4d(pa, i, &p);
@@ -407,8 +411,11 @@ int
 lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
                                   double dut1, double xp, double yp)
 {
-	double jd, jd_ut1, era;
-	double xp_rad, yp_rad;
+	double jd;
+	double jd_ut1;
+	double era;
+	double xp_rad;
+	double yp_rad;
 
 	if (epoch == LWPROJ_NO_EPOCH)
 	{
@@ -441,8 +448,11 @@ int
 lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch,
                                   double dut1, double xp, double yp)
 {
-	double jd, jd_ut1, era;
-	double xp_rad, yp_rad;
+	double jd;
+	double jd_ut1;
+	double era;
+	double xp_rad;
+	double yp_rad;
 
 	if (epoch == LWPROJ_NO_EPOCH)
 	{

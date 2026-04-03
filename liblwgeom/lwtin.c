@@ -82,9 +82,14 @@ void printLWTIN(LWTIN *tin)
 
 struct struct_tin_arcs
 {
-	double ax, ay, az;
-	double bx, by, bz;
-	uint32_t cnt, face;
+	double ax;
+	double ay;
+	double az;
+	double bx;
+	double by;
+	double bz;
+	uint32_t cnt;
+	uint32_t face;
 };
 typedef struct struct_tin_arcs *tin_arcs;
 
@@ -92,11 +97,15 @@ typedef struct struct_tin_arcs *tin_arcs;
    we could have wrong result if not */
 int lwtin_is_closed(const LWTIN *tin)
 {
-	uint32_t i, j, k;
-	uint32_t narcs, carc;
+	uint32_t i;
+	uint32_t j;
+	uint32_t k;
+	uint32_t narcs;
+	uint32_t carc;
 	int found;
 	tin_arcs arcs;
-	POINT4D pa, pb;
+	POINT4D pa;
+	POINT4D pb;
 	LWTRIANGLE *patch;
 
 	/* If surface is not 3D, it's can't be closed */

@@ -142,7 +142,8 @@ static POINTARRAY *
 ptarray_from_SFCGAL(const sfcgal_geometry_t *geom, int want3d)
 {
 	POINT4D point;
-	uint32_t i, npoints;
+	uint32_t i;
+	uint32_t npoints;
 	POINTARRAY *pa = NULL;
 	int is_3d;
 	int is_measured = 0;
@@ -265,7 +266,8 @@ static sfcgal_geometry_t *
 ptarray_to_SFCGAL(const POINTARRAY *pa, int type)
 {
 	POINT4D point;
-	int is_3d, is_measured;
+	int is_3d;
+	int is_measured;
 	uint32_t i;
 
 	assert(pa);
@@ -322,8 +324,12 @@ ptarray_to_SFCGAL(const POINTARRAY *pa, int type)
 LWGEOM *
 SFCGAL2LWGEOM(const sfcgal_geometry_t *geom, int force3D, int32_t srid)
 {
-	uint32_t ngeoms = 0, nshells = 0, nsolids = 0;
-	uint32_t i, j, k;
+	uint32_t ngeoms = 0;
+	uint32_t nshells = 0;
+	uint32_t nsolids = 0;
+	uint32_t i;
+	uint32_t j;
+	uint32_t k;
 	int want3d;
 
 	assert(geom);

@@ -162,7 +162,8 @@ query_accumulate(void* item, void* userdata)
 int
 union_intersecting_pairs(GEOSGeometry** geoms, uint32_t num_geoms, UNIONFIND* uf)
 {
-	uint32_t p, i;
+	uint32_t p;
+	uint32_t i;
 	struct STRTree tree;
 	struct QueryContext cxt =
 	{
@@ -259,7 +260,8 @@ union_related_pairs(
 {
 #if POSTGIS_GEOS_VERSION >= 31300
 	int success = LW_SUCCESS;
-	uint32_t p, i;
+	uint32_t p;
+	uint32_t i;
 	struct STRTree tree;
 	struct QueryContext cxt =
 	{
@@ -418,7 +420,8 @@ union_if_available(UNIONFIND *uf, uint32_t p, uint32_t q, uint8_t *is_in_core, u
 static int
 union_dbscan_minpoints_1(LWGEOM **geoms, uint32_t num_geoms, UNIONFIND *uf, double eps, uint8_t **in_a_cluster_ret)
 {
-	uint32_t p, i;
+	uint32_t p;
+	uint32_t i;
 	struct STRTree tree;
 	struct QueryContext cxt =
 	{
@@ -493,7 +496,8 @@ union_dbscan_general(LWGEOM **geoms,
 		     uint32_t min_points,
 		     uint8_t **in_a_cluster_ret)
 {
-	uint32_t p, i;
+	uint32_t p;
+	uint32_t i;
 	struct STRTree tree;
 	struct QueryContext cxt =
 	{
@@ -674,7 +678,9 @@ combine_geometries(UNIONFIND *uf,
 		   uint32_t *num_clusters,
 		   uint8_t is_lwgeom)
 {
-	size_t i, j, k;
+	size_t i;
+	size_t j;
+	size_t k;
 
 	/* Combine components of each cluster into their own GeometryCollection */
 	*num_clusters = uf->num_clusters;

@@ -224,7 +224,8 @@ void gserialized2_set_srid(GSERIALIZED *g, int32_t srid)
 static size_t gserialized2_is_empty_recurse(const uint8_t *p, int *isempty);
 static size_t gserialized2_is_empty_recurse(const uint8_t *p, int *isempty)
 {
-	uint32_t type = 0, num = 0;
+	uint32_t type = 0;
+	uint32_t num = 0;
 
 	/* Short circuit if we found any non-empty component */
 	if (!*isempty) return 0;
@@ -302,7 +303,8 @@ int32_t
 gserialized2_hash(const GSERIALIZED *g1)
 {
 	int32_t hval;
-	int32_t pb = 0, pc = 0;
+	int32_t pb = 0;
+	int32_t pc = 0;
 	/* Point to just the type/coordinate part of buffer */
 	size_t hsz1 = gserialized2_header_size(g1);
 	uint8_t *b1 = (uint8_t *)g1 + hsz1;
@@ -1619,7 +1621,9 @@ GSERIALIZED* gserialized2_set_gbox(GSERIALIZED *g, GBOX *gbox)
 	{
 		size_t varsize_in = LWSIZE_GET(g->size);
 		size_t varsize_out = varsize_in + box_size;
-		uint8_t *ptr_out, *ptr_in, *ptr;
+		uint8_t *ptr_out;
+		uint8_t *ptr_in;
+		uint8_t *ptr;
 		g_out = lwalloc(varsize_out);
 		ptr_out = (uint8_t*)g_out;
 		ptr = ptr_in = (uint8_t*)g;

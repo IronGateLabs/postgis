@@ -99,7 +99,8 @@ ptarray_rotate_z_m_epoch_scalar(POINTARRAY *pa, int direction)
 	POINT4D p;
 	for (i = 0; i < pa->npoints; i++)
 	{
-		double jd, era;
+		double jd;
+		double era;
 		getPoint4d_p(pa, i, &p);
 
 		if (p.m < 1000.0 || p.m > 3000.0)
@@ -236,7 +237,8 @@ lwaccel_calibrate_gpu(void)
 	{
 		uint32_t n = test_sizes[si];
 		POINTARRAY *base = calibrate_make_points(n);
-		double cpu_total = 0, gpu_total = 0;
+		double cpu_total = 0;
+		double gpu_total = 0;
 		int iter;
 
 		/* Warmup iterations (discard timing) */
@@ -256,7 +258,8 @@ lwaccel_calibrate_gpu(void)
 		for (iter = 0; iter < CALIBRATE_ITERS; iter++)
 		{
 			POINTARRAY *tmp;
-			double t0, t1;
+			double t0;
+			double t1;
 
 			tmp = calibrate_copy_pa(base);
 			t0 = accel_now_us();
@@ -359,7 +362,10 @@ static LW_ACCEL_BACKEND
 detect_simd_backend(void)
 {
 #ifdef HAVE_CPUID
-	unsigned int eax, ebx, ecx, edx;
+	unsigned int eax;
+	unsigned int ebx;
+	unsigned int ecx;
+	unsigned int edx;
 
 	/* Check for AVX2 + FMA: CPUID leaf 7, subleaf 0 */
 	if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx))

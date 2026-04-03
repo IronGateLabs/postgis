@@ -56,7 +56,12 @@ int encodeToBits(double value, double min, double max) {
 // ===============================================================================
 int encodeToBitsStraight(double xa, double ya, double xb, double yb, double xmin, double ymin, double xmax, double ymax, int straightPosition) {
 
-	double x, y, dx, dy, d, c;
+	double x;
+	double y;
+	double dx;
+	double dy;
+	double d;
+	double c;
 
 	if (straightPosition == 1 || straightPosition == 2) {
 
@@ -134,17 +139,40 @@ int encodeToBitsStraight(double xa, double ya, double xb, double yb, double xmin
 // ===============================================================================
 void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_hint) {
 
-	int npoints, minpoints;
-	double xmin, ymin, xmax, ymax;
+	int npoints;
+	int minpoints;
+	double xmin;
+	double ymin;
+	double xmax;
+	double ymax;
 
-	int i, j, next, w;
-	int vx, vy, vx0, vy0, vx1, vy1, vxall, vyall;
-	double xx, yy, xx0, yy0, xx1, yy1;
+	int i;
+	int j;
+	int next;
+	int w;
+	int vx;
+	int vy;
+	int vx0;
+	int vy0;
+	int vx1;
+	int vy1;
+	int vxall;
+	int vyall;
+	double xx;
+	double yy;
+	double xx0;
+	double yy0;
+	double xx1;
+	double yy1;
 	bool sameX, sameY, same, insideX, insideY, inside, insideAll, skip, clear;
-	int vvx, vvy;
+	int vvx;
+	int vvy;
 	POINT4D p, p0, p1;  // current, previous, next;
 
-	double xa, ya, xb, yb;
+	double xa;
+	double ya;
+	double xb;
+	double yb;
 	bool cutting;
 	int crossingN;
 
@@ -317,7 +345,10 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 
 void lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool cartesian_hint) {
 
-	unsigned int i, j, iw, jw;
+	unsigned int i;
+	unsigned int j;
+	unsigned int iw;
+	unsigned int jw;
 
 	if (geom->type == LINETYPE) {
 

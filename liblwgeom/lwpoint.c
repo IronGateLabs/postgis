@@ -276,7 +276,9 @@ lwpoint_same2d(const LWPOINT *p1, const LWPOINT *p2)
 LWPOINT *
 lwpoint_project_lwpoint(const LWPOINT* lwpoint1, const LWPOINT* lwpoint2, double distance)
 {
-	POINT4D p1, p2, p3;
+	POINT4D p1;
+	POINT4D p2;
+	POINT4D p3;
 	int srid = lwgeom_get_srid((const LWGEOM*)lwpoint1);
 	int hasz = lwgeom_has_z((const LWGEOM*)lwpoint1);
 	int hasm = lwgeom_has_m((const LWGEOM*)lwpoint1);
@@ -289,7 +291,8 @@ lwpoint_project_lwpoint(const LWPOINT* lwpoint1, const LWPOINT* lwpoint2, double
 LWPOINT *
 lwpoint_project(const LWPOINT* lwpoint1, double distance, double azimuth)
 {
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 	int srid = lwgeom_get_srid((const LWGEOM*)lwpoint1);
 	int hasz = lwgeom_has_z((const LWGEOM*)lwpoint1);
 	int hasm = lwgeom_has_m((const LWGEOM*)lwpoint1);

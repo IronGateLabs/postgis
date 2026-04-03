@@ -95,7 +95,10 @@ Function initializing shortestline and longestline calculations.
 LWGEOM *
 lw_dist2d_distanceline(const LWGEOM *lw1, const LWGEOM *lw2, int32_t srid, int mode)
 {
-	double x1, x2, y1, y2;
+	double x1;
+	double x2;
+	double y1;
+	double y2;
 
 	double initdistance = (mode == DIST_MIN ? FLT_MAX : -1.0);
 	DISTPTS thedl;
@@ -142,7 +145,8 @@ Function initializing closestpoint calculations.
 LWGEOM *
 lw_dist2d_distancepoint(const LWGEOM *lw1, const LWGEOM *lw2, int32_t srid, int mode)
 {
-	double x, y;
+	double x;
+	double y;
 	DISTPTS thedl;
 	double initdistance = FLT_MAX;
 	LWGEOM *result;
@@ -298,7 +302,8 @@ This is a recursive function delivering every possible combination of subgeometr
 int
 lw_dist2d_recursive(const LWGEOM *lwg1, const LWGEOM *lwg2, DISTPTS *dl)
 {
-	int i, j;
+	int i;
+	int j;
 	int n1 = 1;
 	int n2 = 1;
 	LWGEOM *g1;
@@ -1111,7 +1116,8 @@ lw_dist2d_curvepoly_curvepoly(LWCURVEPOLY *poly1, LWCURVEPOLY *poly2, DISTPTS *d
 int
 lw_dist2d_pt_ptarray(const POINT2D *p, POINTARRAY *pa, DISTPTS *dl)
 {
-	const POINT2D *start, *end;
+	const POINT2D *start;
+	const POINT2D *end;
 	int twist = dl->twisted;
 
 	start = getPoint2d_cp(pa, 0);
@@ -1196,9 +1202,12 @@ lw_dist2d_pt_ptarrayarc(const POINT2D *p, const POINTARRAY *pa, DISTPTS *dl)
 int
 lw_dist2d_ptarray_ptarray(POINTARRAY *l1, POINTARRAY *l2, DISTPTS *dl)
 {
-	uint32_t t, u;
-	const POINT2D *start, *end;
-	const POINT2D *start2, *end2;
+	uint32_t t;
+	uint32_t u;
+	const POINT2D *start;
+	const POINT2D *end;
+	const POINT2D *start2;
+	const POINT2D *end2;
 	int twist = dl->twisted;
 
 	LWDEBUGF(2, "lw_dist2d_ptarray_ptarray called (points: %d-%d)", l1->npoints, l2->npoints);
@@ -1245,7 +1254,8 @@ lw_dist2d_ptarray_ptarray(POINTARRAY *l1, POINTARRAY *l2, DISTPTS *dl)
 int
 lw_dist2d_ptarray_ptarrayarc(const POINTARRAY *pa, const POINTARRAY *pb, DISTPTS *dl)
 {
-	uint32_t t, u;
+	uint32_t t;
+	uint32_t u;
 	const POINT2D *A1;
 	const POINT2D *A2;
 	const POINT2D *B1;
@@ -1299,7 +1309,8 @@ lw_dist2d_ptarray_ptarrayarc(const POINTARRAY *pa, const POINTARRAY *pb, DISTPTS
 int
 lw_dist2d_ptarrayarc_ptarrayarc(const POINTARRAY *pa, const POINTARRAY *pb, DISTPTS *dl)
 {
-	uint32_t t, u;
+	uint32_t t;
+	uint32_t u;
 	const POINT2D *A1;
 	const POINT2D *A2;
 	const POINT2D *A3;
@@ -1359,7 +1370,8 @@ lw_dist2d_seg_arc(const POINT2D *A1,
 	double radius_C; /* radius of arc circle */
 	POINT2D D;       /* point on A closest to C */
 	double dist_C_D; /* distance from C to D */
-	int pt_in_arc, pt_in_seg;
+	int pt_in_arc;
+	int pt_in_seg;
 	DISTPTS dltmp;
 
 	/* Bail out on crazy modes */
@@ -1391,7 +1403,8 @@ lw_dist2d_seg_arc(const POINT2D *A1,
 	if (dist_C_D < radius_C)
 	{
 		double length_A;  /* length of the segment A */
-		POINT2D E, F;     /* points of intersection of edge A and circle(B) */
+		POINT2D E;
+		POINT2D F; /* points of intersection of edge A and circle(B) */
 		double dist_D_EF; /* distance from D to E or F (same distance both ways) */
 
 		dist_D_EF = sqrt(radius_C * radius_C - dist_C_D * dist_C_D);
@@ -1494,7 +1507,8 @@ lw_dist2d_seg_arc(const POINT2D *A1,
 int
 lw_dist2d_pt_arc(const POINT2D *P, const POINT2D *A1, const POINT2D *A2, const POINT2D *A3, DISTPTS *dl)
 {
-	double radius_A, d;
+	double radius_A;
+	double d;
 	POINT2D C; /* center of circle defined by arc A */
 	POINT2D X; /* point circle(A) where line from C to P crosses */
 
@@ -1681,10 +1695,17 @@ lw_dist2d_arc_arc(
 {
 	POINT2D pts_A[16];            /* Points on A that might be the nearest */
 	POINT2D pts_B[16];            /* Points on B that might be the nearest */
-	uint32_t ai = 0, bi = 0;      /* Number of points in pts_A and pts_B */
-	POINT2D center_A, center_B;   /* Center points of arcs A and B */
-	double radius_A, radius_B, d; /* Radii of arcs A and B */
-	int is_disjoint, is_overlapping, is_contained, is_same_center;
+	uint32_t ai = 0;
+	uint32_t bi = 0; /* Number of points in pts_A and pts_B */
+	POINT2D center_A;
+	POINT2D center_B; /* Center points of arcs A and B */
+	double radius_A;
+	double radius_B;
+	double d; /* Radii of arcs A and B */
+	int is_disjoint;
+	int is_overlapping;
+	int is_contained;
+	int is_same_center;
 	POINT2D intersectionPts[2];
 
 	if (dl->mode != DIST_MIN)
@@ -1829,8 +1850,12 @@ but just sending every possible combination further to lw_dist2d_pt_seg
 int
 lw_dist2d_seg_seg(const POINT2D *A, const POINT2D *B, const POINT2D *C, const POINT2D *D, DISTPTS *dl)
 {
-	double s_top, s_bot, s;
-	double r_top, r_bot, r;
+	double s_top;
+	double s_bot;
+	double s;
+	double r_top;
+	double r_bot;
+	double r;
 
 	/*A and B are the same point */
 	if ((A->x == B->x) && (A->y == B->y))
@@ -1948,11 +1973,23 @@ lw_dist2d_fast_ptarray_ptarray(POINTARRAY *l1, POINTARRAY *l2, DISTPTS *dl, GBOX
 {
 	/*here we define two lists to hold our calculated "z"-values and the order number in the geometry*/
 
-	double k, thevalue;
-	float deltaX, deltaY, c1m, c2m;
-	POINT2D c1, c2;
+	double k;
+	double thevalue;
+	float deltaX;
+	float deltaY;
+	float c1m;
+	float c2m;
+	POINT2D c1;
+	POINT2D c2;
 	const POINT2D *theP;
-	float min1X, max1X, max1Y, min1Y, min2X, max2X, max2Y, min2Y;
+	float min1X;
+	float max1X;
+	float max1Y;
+	float min1Y;
+	float min2X;
+	float max2X;
+	float max2Y;
+	float min2Y;
 	int t;
 	int n1 = l1->npoints;
 	int n2 = l2->npoints;
@@ -2068,8 +2105,22 @@ struct_cmp_by_measure(const void *a, const void *b)
 int
 lw_dist2d_pre_seg_seg(POINTARRAY *l1, POINTARRAY *l2, LISTSTRUCT *list1, LISTSTRUCT *list2, double k, DISTPTS *dl)
 {
-	const POINT2D *p1, *p2, *p3, *p4, *p01, *p02;
-	int pnr1, pnr2, pnr3, pnr4, n1, n2, i, u, r, twist;
+	const POINT2D *p1;
+	const POINT2D *p2;
+	const POINT2D *p3;
+	const POINT2D *p4;
+	const POINT2D *p01;
+	const POINT2D *p02;
+	int pnr1;
+	int pnr2;
+	int pnr3;
+	int pnr4;
+	int n1;
+	int n2;
+	int i;
+	int u;
+	int r;
+	int twist;
 	double maxmeasure;
 	n1 = l1->npoints;
 	n2 = l2->npoints;

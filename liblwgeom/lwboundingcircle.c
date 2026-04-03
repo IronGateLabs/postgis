@@ -128,7 +128,8 @@ calculate_mbc_1(const SUPPORTING_POINTS* support, LWBOUNDINGCIRCLE* mbc)
 static void
 calculate_mbc_2(const SUPPORTING_POINTS* support, LWBOUNDINGCIRCLE* mbc)
 {
-	double d1, d2;
+	double d1;
+	double d2;
 
 	mbc->center->x = 0.5*(support->p1->x + support->p2->x);
 	mbc->center->y = 0.5*(support->p1->y + support->p2->y);
@@ -142,7 +143,9 @@ calculate_mbc_2(const SUPPORTING_POINTS* support, LWBOUNDINGCIRCLE* mbc)
 static void
 calculate_mbc_3(const SUPPORTING_POINTS* support, LWBOUNDINGCIRCLE* mbc)
 {
-	double d1, d2, d3;
+	double d1;
+	double d2;
+	double d3;
 	circumcenter(support->p1, support->p2, support->p3, mbc->center);
 
 	d1 = distance2d_pt_pt(mbc->center, support->p1);

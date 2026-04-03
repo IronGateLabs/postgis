@@ -78,7 +78,9 @@ static POINTARRAY *
 ptarray_locate_along(const POINTARRAY *pa, double m, double offset)
 {
 	uint32_t i;
-	POINT4D p1, p2, pn;
+	POINT4D p1;
+	POINT4D p2;
+	POINT4D pn;
 	POINTARRAY *dpa = NULL;
 
 	/* Can't do anything with degenerate point arrays */
@@ -112,7 +114,9 @@ lwline_locate_along(const LWLINE *lwline, double m, double offset)
 	POINTARRAY *opa = NULL;
 	LWMPOINT *mp = NULL;
 	LWGEOM *lwg = lwline_as_lwgeom(lwline);
-	int hasz, hasm, srid;
+	int hasz;
+	int hasm;
+	int srid;
 
 	/* Return degenerates upwards */
 	if (!lwline)
@@ -150,7 +154,8 @@ lwmline_locate_along(const LWMLINE *lwmline, double m, double offset)
 {
 	LWMPOINT *lwmpoint = NULL;
 	LWGEOM *lwg = lwmline_as_lwgeom(lwmline);
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 
 	/* Return degenerates upwards */
 	if ((!lwmline) || (lwmline->ngeoms < 1))
@@ -362,7 +367,8 @@ static inline LWCOLLECTION *
 lwpoint_clip_to_ordinate_range(const LWPOINT *point, char ordinate, double from, double to)
 {
 	LWCOLLECTION *lwgeom_out = NULL;
-	char hasz, hasm;
+	char hasz;
+	char hasm;
 	POINT4D p4d;
 	double ordinate_value;
 
@@ -392,7 +398,8 @@ static inline LWCOLLECTION *
 lwmpoint_clip_to_ordinate_range(const LWMPOINT *mpoint, char ordinate, double from, double to)
 {
 	LWCOLLECTION *lwgeom_out = NULL;
-	char hasz, hasm;
+	char hasz;
+	char hasm;
 	uint32_t i;
 
 	/* Read Z/M info */
@@ -428,11 +435,14 @@ lwmpoint_clip_to_ordinate_range(const LWMPOINT *mpoint, char ordinate, double fr
 static inline POINTARRAY *
 ptarray_clamp_to_ordinate_range(const POINTARRAY *ipa, char ordinate, double from, double to, uint8_t is_closed)
 {
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 	POINTARRAY *opa;
-	double ovp1, ovp2;
+	double ovp1;
+	double ovp2;
 	POINT4D *t;
-	int8_t p1out, p2out; /* -1 - smaller than from, 0 - in range, 1 - larger than to */
+	int8_t p1out;
+	int8_t p2out; /* -1 - smaller than from, 0 - in range, 1 - larger than to */
 	uint32_t i;
 	uint8_t hasz = FLAGS_GET_Z(ipa->flags);
 	uint8_t hasm = FLAGS_GET_M(ipa->flags);
@@ -532,9 +542,13 @@ lwline_clip_to_ordinate_range(const LWLINE *line, char ordinate, double from, do
 	POINTARRAY *dp = NULL;
 	uint32_t i;
 	int added_last_point = 0;
-	POINT4D *p, *q, *r;
-	double ordinate_value_p = 0.0, ordinate_value_q = 0.0;
-	char hasz, hasm;
+	POINT4D *p;
+	POINT4D *q;
+	POINT4D *r;
+	double ordinate_value_p = 0.0;
+	double ordinate_value_q = 0.0;
+	char hasz;
+	char hasm;
 	char dims;
 
 	/* Null input, nothing we can do. */
@@ -715,7 +729,8 @@ static inline LWCOLLECTION *
 lwpoly_clip_to_ordinate_range(const LWPOLY *poly, char ordinate, double from, double to)
 {
 	assert(poly);
-	char hasz = FLAGS_GET_Z(poly->flags), hasm = FLAGS_GET_M(poly->flags);
+	char hasz = FLAGS_GET_Z(poly->flags);
+	char hasm = FLAGS_GET_M(poly->flags);
 	LWPOLY *poly_res = lwpoly_construct_empty(poly->srid, hasz, hasm);
 	LWCOLLECTION *lwgeom_out = lwcollection_construct_empty(MULTIPOLYGONTYPE, poly->srid, hasz, hasm);
 
@@ -751,7 +766,8 @@ static inline LWCOLLECTION *
 lwtriangle_clip_to_ordinate_range(const LWTRIANGLE *tri, char ordinate, double from, double to)
 {
 	assert(tri);
-	char hasz = FLAGS_GET_Z(tri->flags), hasm = FLAGS_GET_M(tri->flags);
+	char hasz = FLAGS_GET_Z(tri->flags);
+	char hasm = FLAGS_GET_M(tri->flags);
 	LWCOLLECTION *lwgeom_out = lwcollection_construct_empty(TINTYPE, tri->srid, hasz, hasm);
 	POINTARRAY *pa = ptarray_clamp_to_ordinate_range(tri->points, ordinate, from, to, LW_TRUE);
 
@@ -919,7 +935,8 @@ lwgeom_locate_between(const LWGEOM *lwin, double from, double to, double offset)
 double
 lwgeom_interpolate_point(const LWGEOM *lwin, const LWPOINT *lwpt)
 {
-	POINT4D p, p_proj;
+	POINT4D p;
+	POINT4D p_proj;
 	double ret = 0.0;
 
 	if (!lwin)
@@ -1059,7 +1076,8 @@ static int
 ptarray_collect_mvals(const POINTARRAY *pa, double tmin, double tmax, double *mvals)
 {
 	POINT4D pbuf;
-	uint32_t i, n = 0;
+	uint32_t i;
+	uint32_t n = 0;
 	for (i = 0; i < pa->npoints; ++i)
 	{
 		getPoint4d_p(pa, i, &pbuf); /* could be optimized */
@@ -1086,7 +1104,8 @@ compare_double(const void *pa, const void *pb)
 static int
 uniq(double *vals, int nvals)
 {
-	int i, last = 0;
+	int i;
+	int last = 0;
 	for (i = 1; i < nvals; ++i)
 	{
 		if (vals[i] != vals[last])
@@ -1115,7 +1134,8 @@ static int
 ptarray_locate_along_linear(const POINTARRAY *pa, double m, POINT4D *p, uint32_t from)
 {
 	uint32_t i = from;
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 
 	/* Walk through each segment in the point array */
 	getPoint4d_p(pa, i, &p1);
@@ -1138,7 +1158,8 @@ lwgeom_tcpa(const LWGEOM *g1, const LWGEOM *g2, double *mindist)
 	LWLINE *l1, *l2;
 	int i;
 	GBOX gbox1, gbox2;
-	double tmin, tmax;
+	double tmin;
+	double tmax;
 	double *mvals;
 	int nmvals = 0;
 	double mintime;
@@ -1206,7 +1227,8 @@ lwgeom_tcpa(const LWGEOM *g1, const LWGEOM *g2, double *mindist)
 		{
 			/* there's a single time, must be that one... */
 			double t0 = mvals[0];
-			POINT4D p0, p1;
+			POINT4D p0;
+			POINT4D p1;
 			LWDEBUGF(1, "Inputs only exist both at a single time (%g)", t0);
 			if (mindist)
 			{
@@ -1239,7 +1261,10 @@ lwgeom_tcpa(const LWGEOM *g1, const LWGEOM *g2, double *mindist)
 		double t0 = mvals[i - 1];
 		double t1 = mvals[i];
 		double t;
-		POINT4D p0, p1, q0, q1;
+		POINT4D p0;
+		POINT4D p1;
+		POINT4D q0;
+		POINT4D q1;
 		int seg;
 		double dist2;
 
@@ -1285,7 +1310,8 @@ lwgeom_cpa_within(const LWGEOM *g1, const LWGEOM *g2, double maxdist)
 	LWLINE *l1, *l2;
 	int i;
 	GBOX gbox1, gbox2;
-	double tmin, tmax;
+	double tmin;
+	double tmax;
 	double *mvals;
 	int nmvals = 0;
 	double maxdist2 = maxdist * maxdist;
@@ -1353,7 +1379,8 @@ lwgeom_cpa_within(const LWGEOM *g1, const LWGEOM *g2, double maxdist)
 	{
 		/* there's a single time, must be that one... */
 		double t0 = mvals[0];
-		POINT4D p0, p1;
+		POINT4D p0;
+		POINT4D p1;
 		LWDEBUGF(1, "Inputs only exist both at a single time (%g)", t0);
 		if (-1 == ptarray_locate_along_linear(l1->points, t0, &p0, 0))
 		{
@@ -1382,7 +1409,10 @@ lwgeom_cpa_within(const LWGEOM *g1, const LWGEOM *g2, double maxdist)
 #if POSTGIS_DEBUG_LEVEL >= 1
 		double t;
 #endif
-		POINT4D p0, p1, q0, q1;
+		POINT4D p0;
+		POINT4D p1;
+		POINT4D q0;
+		POINT4D q1;
 		int seg;
 		double dist2;
 

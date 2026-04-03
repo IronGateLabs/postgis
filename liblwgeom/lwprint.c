@@ -115,7 +115,8 @@ static char * lwdouble_to_dms(double val, const char *pos_dir_symbol, const char
 
 	char * result;
 
-	int index, following_byte_index;
+	int index;
+	int following_byte_index;
 	int multibyte_char_width = 1;
 
 	/* Initialize the working strs to blank.  We may not populate all of them, and

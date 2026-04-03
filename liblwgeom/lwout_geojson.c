@@ -235,7 +235,8 @@ asgeojson_poly(stringbuffer_t *sb, const LWPOLY *poly, const geojson_opts *opts)
 static void
 asgeojson_multipoint(stringbuffer_t *sb, const LWMPOINT *mpoint, const geojson_opts *opts)
 {
-	uint32_t i, ngeoms = mpoint->ngeoms;
+	uint32_t i;
+	uint32_t ngeoms = mpoint->ngeoms;
 	stringbuffer_append_len(sb, "{\"type\":\"MultiPoint\",", 21);
 	asgeojson_srs(sb, opts);
 	asgeojson_bbox(sb, opts);
@@ -260,7 +261,8 @@ asgeojson_multipoint(stringbuffer_t *sb, const LWMPOINT *mpoint, const geojson_o
 static void
 asgeojson_multiline(stringbuffer_t *sb, const LWMLINE *mline, const geojson_opts *opts)
 {
-	uint32_t i, ngeoms = mline->ngeoms;
+	uint32_t i;
+	uint32_t ngeoms = mline->ngeoms;
 	stringbuffer_append_len(sb, "{\"type\":\"MultiLineString\",", 26);
 	asgeojson_srs(sb, opts);
 	asgeojson_bbox(sb, opts);
@@ -282,7 +284,8 @@ asgeojson_multiline(stringbuffer_t *sb, const LWMLINE *mline, const geojson_opts
 static void
 asgeojson_multipolygon(stringbuffer_t *sb, const LWMPOLY *mpoly, const geojson_opts *opts)
 {
-	uint32_t i, ngeoms = mpoly->ngeoms;
+	uint32_t i;
+	uint32_t ngeoms = mpoly->ngeoms;
 
 	stringbuffer_append_len(sb, "{\"type\":\"MultiPolygon\",", 23);
 	asgeojson_srs(sb, opts);
@@ -307,7 +310,8 @@ asgeojson_multipolygon(stringbuffer_t *sb, const LWMPOLY *mpoly, const geojson_o
 static void
 asgeojson_collection(stringbuffer_t *sb, const LWCOLLECTION *col, const geojson_opts *opts)
 {
-	uint32_t i, ngeoms = col->ngeoms;
+	uint32_t i;
+	uint32_t ngeoms = col->ngeoms;
 
 	/* subgeometries don't get boxes or srs */
 	geojson_opts subopts = *opts;

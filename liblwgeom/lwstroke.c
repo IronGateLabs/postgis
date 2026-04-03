@@ -154,7 +154,9 @@ static double angle_increment_using_segments_per_quad(double tol)
  * amount. */
 static double angle_increment_using_max_deviation(double max_deviation, double radius)
 {
-	double increment, halfAngle, maxErr;
+	double increment;
+	double halfAngle;
+	double maxErr;
 	if ( max_deviation <= 0 )
 	{
 		lwerror("lwarc_linearize: max deviation must be bigger than 0, got %.15g", max_deviation);
@@ -263,7 +265,9 @@ lwarc_linearize(POINTARRAY *to,
 	double radius; /* Arc radius */
 	double increment; /* Angle per segment */
 	double angle_shift = 0;
-	double a1, a2, a3;
+	double a1;
+	double a2;
+	double a3;
 	POINTARRAY *pa;
 	int is_circle = LW_FALSE;
 	int points_added = 0;
@@ -527,8 +531,12 @@ lwcircstring_linearize(const LWCIRCSTRING *icurve, double tol,
 {
 	LWLINE *oline;
 	POINTARRAY *ptarray;
-	uint32_t i, j;
-	POINT4D p1, p2, p3, p4;
+	uint32_t i;
+	uint32_t j;
+	POINT4D p1;
+	POINT4D p2;
+	POINT4D p3;
+	POINT4D p4;
 	int ret;
 
 	LWDEBUGF(2, "lwcircstring_linearize called., dim = %d", icurve->points->flags);
@@ -588,7 +596,8 @@ lwcompound_linearize(const LWCOMPOUND *icompound, double tol,
 	LWGEOM *geom;
 	POINTARRAY *ptarray = NULL;
 	LWLINE *tmp = NULL;
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	POINT4D p;
 
 	LWDEBUG(2, "lwcompound_stroke called.");
@@ -756,7 +765,8 @@ lwmsurface_linearize(const LWMSURFACE *msurface, double tol,
 	LWPOLY *poly;
 	LWGEOM **polys;
 	POINTARRAY **ptarray;
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 
 	LWDEBUG(2, "lwmsurface_linearize called.");
 
@@ -880,7 +890,8 @@ lwgeom_stroke(const LWGEOM *geom, uint32_t perQuad)
 static double
 lw_arc_angle(const POINT2D *a, const POINT2D *b, const POINT2D *c)
 {
-  POINT2D ab, cb;
+  POINT2D ab;
+  POINT2D cb;
 
   ab.x = b->x - a->x;
   ab.y = b->y - a->y;
@@ -908,7 +919,8 @@ static int pt_continues_arc(const POINT4D *a1, const POINT4D *a2, const POINT4D 
 	POINT2D *t3 = (POINT2D*)a3;
 	POINT2D *tb = (POINT2D*)b;
 	double radius = lw_arc_center(t1, t2, t3, &center);
-	double b_distance, diff;
+	double b_distance;
+	double diff;
 
 	/* Co-linear a1/a2/a3 */
 	if ( radius < 0.0 )
@@ -945,7 +957,8 @@ static int pt_continues_arc(const POINT4D *a1, const POINT4D *a2, const POINT4D 
 static LWGEOM *
 linestring_from_pa(const POINTARRAY *pa, int32_t srid, int start, int end)
 {
-	int i = 0, j = 0;
+	int i = 0;
+	int j = 0;
 	POINT4D p;
 	POINTARRAY *pao = ptarray_construct(ptarray_has_z(pa), ptarray_has_m(pa), end-start+2);
 	LWDEBUGF(4, "srid=%d, start=%d, end=%d", srid, start, end);
@@ -961,7 +974,9 @@ static LWGEOM *
 circstring_from_pa(const POINTARRAY *pa, int32_t srid, int start, int end)
 {
 
-	POINT4D p0, p1, p2;
+	POINT4D p0;
+	POINT4D p1;
+	POINT4D p2;
 	POINTARRAY *pao = ptarray_construct(ptarray_has_z(pa), ptarray_has_m(pa), 3);
 	LWDEBUGF(4, "srid=%d, start=%d, end=%d", srid, start, end);
 	getPoint4d_p(pa, start, &p0);
@@ -986,15 +1001,22 @@ geom_from_pa(const POINTARRAY *pa, int32_t srid, int is_arc, int start, int end)
 LWGEOM *
 pta_unstroke(const POINTARRAY *points, int32_t srid)
 {
-	int i = 0, j, k;
-	POINT4D a1, a2, a3, b;
-	POINT4D first, center;
+	int i = 0;
+	int j;
+	int k;
+	POINT4D a1;
+	POINT4D a2;
+	POINT4D a3;
+	POINT4D b;
+	POINT4D first;
+	POINT4D center;
 	char *edges_in_arcs;
 	int found_arc = LW_FALSE;
 	int current_arc = 1;
 	int num_edges;
 	int edge_type; /* non-zero if edge is part of an arc */
-	int start, end;
+	int start;
+	int end;
 	LWCOLLECTION *outcol;
 	/* Minimum number of edges, per quadrant, required to define an arc */
 	const unsigned int min_quad_edges = 2;
@@ -1158,7 +1180,8 @@ LWGEOM *
 lwpolygon_unstroke(const LWPOLY *poly)
 {
 	LWGEOM **geoms;
-	uint32_t i, hascurve = 0;
+	uint32_t i;
+	uint32_t hascurve = 0;
 
 	LWDEBUG(2, "lwpolygon_unstroke called.");
 
@@ -1187,7 +1210,8 @@ LWGEOM *
 lwmline_unstroke(const LWMLINE *mline)
 {
 	LWGEOM **geoms;
-	uint32_t i, hascurve = 0;
+	uint32_t i;
+	uint32_t hascurve = 0;
 
 	LWDEBUG(2, "lwmline_unstroke called.");
 
@@ -1215,7 +1239,8 @@ LWGEOM *
 lwmpolygon_unstroke(const LWMPOLY *mpoly)
 {
 	LWGEOM **geoms;
-	uint32_t i, hascurve = 0;
+	uint32_t i;
+	uint32_t hascurve = 0;
 
 	LWDEBUG(2, "lwmpoly_unstroke called.");
 

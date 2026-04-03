@@ -43,11 +43,17 @@ assvg_geom(stringbuffer_t* sb, const LWGEOM *geom, int relative, int precision);
 static void
 pointArray_svg_rel(stringbuffer_t* sb, const POINTARRAY *pa, int close_ring, int precision, int start_at_index)
 {
-	int i, end;
+	int i;
+	int end;
 	const POINT2D *pt;
 
 	double f = 1.0;
-	double dx, dy, x, y, accum_x, accum_y;
+	double dx;
+	double dy;
+	double x;
+	double y;
+	double accum_x;
+	double accum_y;
 
 	char sx[OUT_DOUBLE_BUFFER_SIZE];
 	char sy[OUT_DOUBLE_BUFFER_SIZE];
@@ -101,7 +107,8 @@ pointArray_svg_rel(stringbuffer_t* sb, const POINTARRAY *pa, int close_ring, int
 static void
 pointArray_svg_abs(stringbuffer_t* sb, const POINTARRAY *pa, int close_ring, int precision, int start_at_index)
 {
-	int i, end;
+	int i;
+	int end;
 	const POINT2D* pt;
 	char sx[OUT_DOUBLE_BUFFER_SIZE];
 	char sy[OUT_DOUBLE_BUFFER_SIZE];
@@ -170,9 +177,12 @@ static void pointArray_svg_arc(stringbuffer_t* sb, const POINTARRAY *pa, int clo
 	for (i = 2; i < pa->npoints; i+=2)
 	{
 		LWDEBUGF(3, "assvg_circstring: arc ending at point %d", i);
-		int largeArcFlag, sweepFlag, clockwise;
+		int largeArcFlag;
+		int sweepFlag;
+		int clockwise;
 		int is_circle = LW_FALSE;
-		double a1, a3;/**angles**/
+		double a1;
+		double a3; /**angles**/
 		double radius; /* Arc radius */
 		double total_angle;
 		POINT2D center;

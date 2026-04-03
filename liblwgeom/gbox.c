@@ -464,7 +464,10 @@ size_t gbox_serialized_size(lwflags_t flags)
 
 int lw_arc_calculate_gbox_cartesian_2d(const POINT2D *A1, const POINT2D *A2, const POINT2D *A3, GBOX *gbox)
 {
-	POINT2D xmin, ymin, xmax, ymax;
+	POINT2D xmin;
+	POINT2D ymin;
+	POINT2D xmax;
+	POINT2D ymax;
 	POINT2D C;
 	int A2_side;
 	double radius_A;
@@ -660,7 +663,9 @@ ptarray_calculate_gbox_cartesian(const POINTARRAY *pa, GBOX *gbox)
 static int lwcircstring_calculate_gbox_cartesian(LWCIRCSTRING *curve, GBOX *gbox)
 {
 	GBOX tmp = {0};
-	POINT4D p1, p2, p3;
+	POINT4D p1;
+	POINT4D p2;
+	POINT4D p3;
 	uint32_t i;
 
 	if (!curve) return LW_FAILURE;

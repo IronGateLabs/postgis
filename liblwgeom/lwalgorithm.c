@@ -134,9 +134,12 @@ double
 lw_arc_length(const POINT2D *A1, const POINT2D *A2, const POINT2D *A3)
 {
 	POINT2D C;
-	double radius_A, circumference_A;
-	int a2_side, clockwise;
-	double a1, a3;
+	double radius_A;
+	double circumference_A;
+	int a2_side;
+	int clockwise;
+	double a1;
+	double a3;
 	double angle;
 
 	if ( lw_arc_is_pt(A1, A2, A3) )
@@ -195,7 +198,8 @@ int lw_arc_side(const POINT2D *A1, const POINT2D *A2, const POINT2D *A3, const P
 {
 	POINT2D C;
 	double radius_A;
-	double side_Q, side_A2;
+	double side_Q;
+	double side_A2;
 	double d;
 
 	side_Q = lw_segment_side(A1, A3, Q);
@@ -244,8 +248,16 @@ double
 lw_arc_center(const POINT2D *p1, const POINT2D *p2, const POINT2D *p3, POINT2D *result)
 {
 	POINT2D c;
-	double cx, cy, cr;
-	double dx21, dy21, dx31, dy31, h21, h31, d;
+	double cx;
+	double cy;
+	double cr;
+	double dx21;
+	double dy21;
+	double dx31;
+	double dy31;
+	double h21;
+	double h31;
+	double d;
 
 	c.x = c.y = 0.0;
 
@@ -298,8 +310,10 @@ pt_in_ring_2d(const POINT2D *p, const POINTARRAY *ring)
 {
 	int cn = 0;    /* the crossing number counter */
 	uint32_t i;
-	const POINT2D *v1, *v2;
-	const POINT2D *first, *last;
+	const POINT2D *v1;
+	const POINT2D *v2;
+	const POINT2D *first;
+	const POINT2D *last;
 
 	first = getPoint2d_cp(ring, 0);
 	last = getPoint2d_cp(ring, ring->npoints-1);
@@ -388,7 +402,10 @@ lw_seg_interact(const POINT2D *p1, const POINT2D *p2, const POINT2D *q1, const P
 int lw_segment_intersects(const POINT2D *p1, const POINT2D *p2, const POINT2D *q1, const POINT2D *q2)
 {
 
-	int pq1, pq2, qp1, qp2;
+	int pq1;
+	int pq2;
+	int qp1;
+	int qp2;
 
 	/* No envelope interaction => we are done. */
 	if (!lw_seg_interact(p1, p2, q1, p2))
@@ -476,8 +493,12 @@ int lw_segment_intersects(const POINT2D *p1, const POINT2D *p2, const POINT2D *q
 */
 int lwline_crossing_direction(const LWLINE *l1, const LWLINE *l2)
 {
-	uint32_t i = 0, j = 0;
-	const POINT2D *p1, *p2, *q1, *q2;
+	uint32_t i = 0;
+	uint32_t j = 0;
+	const POINT2D *p1;
+	const POINT2D *p2;
+	const POINT2D *q1;
+	const POINT2D *q2;
 	POINTARRAY *pa1 = NULL, *pa2 = NULL;
 	int cross_left = 0;
 	int cross_right = 0;
@@ -612,10 +633,12 @@ static char *base32 = "0123456789bcdefghjkmnpqrstuvwxyz";
 lwvarlena_t *
 geohash_point(double longitude, double latitude, int precision)
 {
-	int is_even=1, i=0;
+	int is_even=1;
+	int i=0;
 	double lat[2], lon[2], mid;
 	char bits[] = {16,8,4,2,1};
-	int bit=0, ch=0;
+	int bit=0;
+	int ch=0;
 	lwvarlena_t *v = lwalloc(precision + LWVARHDRSZ);
 	LWSIZE_SET(v->size, precision + LWVARHDRSZ);
 	char *geohash = v->data;
@@ -780,10 +803,20 @@ void decode_geohash_bbox(char *geohash, double *lat, double *lon, int precision)
 
 int lwgeom_geohash_precision(GBOX bbox, GBOX *bounds)
 {
-	double minx, miny, maxx, maxy;
-	double latmax, latmin, lonmax, lonmin;
-	double lonwidth, latwidth;
-	double latmaxadjust, lonmaxadjust, latminadjust, lonminadjust;
+	double minx;
+	double miny;
+	double maxx;
+	double maxy;
+	double latmax;
+	double latmin;
+	double lonmax;
+	double lonmin;
+	double lonwidth;
+	double latwidth;
+	double latmaxadjust;
+	double lonmaxadjust;
+	double latminadjust;
+	double lonminadjust;
 	int precision = 0;
 
 	/* Get the bounding box, return error if things don't work out. */
@@ -879,7 +912,8 @@ lwgeom_geohash(const LWGEOM *lwgeom, int precision)
 {
 	GBOX gbox = {0};
 	GBOX gbox_bounds = {0};
-	double lat, lon;
+	double lat;
+	double lon;
 	int result;
 
 	gbox_init(&gbox);

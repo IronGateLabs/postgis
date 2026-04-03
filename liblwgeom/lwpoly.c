@@ -43,7 +43,8 @@ LWPOLY *
 lwpoly_construct(int32_t srid, GBOX *bbox, uint32_t nrings, POINTARRAY **points)
 {
 	LWPOLY *result;
-	int hasz, hasm;
+	int hasz;
+	int hasm;
 #ifdef CHECK_POLY_RINGS_ZM
 	char zm;
 	uint32_t i;
@@ -97,7 +98,10 @@ lwpoly_construct_rectangle(char hasz, char hasm, POINT4D *p1, POINT4D *p2,
 LWPOLY *
 lwpoly_construct_envelope(int32_t srid, double x1, double y1, double x2, double y2)
 {
-	POINT4D p1, p2, p3, p4;
+	POINT4D p1;
+	POINT4D p2;
+	POINT4D p3;
+	POINT4D p4;
 	LWPOLY *poly;
 
 	p1.x = x1;

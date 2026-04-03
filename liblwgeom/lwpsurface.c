@@ -56,7 +56,8 @@ void lwpsurface_free(LWPSURFACE *psurf)
 
 void printLWPSURFACE(LWPSURFACE *psurf)
 {
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	LWPOLY *patch;
 
 	if (psurf->type != POLYHEDRALSURFACETYPE)
@@ -88,9 +89,14 @@ void printLWPSURFACE(LWPSURFACE *psurf)
 
 struct struct_psurface_arcs
 {
-	double ax, ay, az;
-	double bx, by, bz;
-	uint32_t cnt, face;
+	double ax;
+	double ay;
+	double az;
+	double bx;
+	double by;
+	double bz;
+	uint32_t cnt;
+	uint32_t face;
 };
 typedef struct struct_psurface_arcs *psurface_arcs;
 
@@ -98,11 +104,15 @@ typedef struct struct_psurface_arcs *psurface_arcs;
    we could have wrong result if not */
 int lwpsurface_is_closed(const LWPSURFACE *psurface)
 {
-	uint32_t i, j, k;
-	uint32_t narcs, carc;
+	uint32_t i;
+	uint32_t j;
+	uint32_t k;
+	uint32_t narcs;
+	uint32_t carc;
 	int found;
 	psurface_arcs arcs;
-	POINT4D pa, pb;
+	POINT4D pa;
+	POINT4D pb;
 	LWPOLY *patch;
 
 	/* If surface is not 3D, it's can't be closed */

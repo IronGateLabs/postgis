@@ -56,8 +56,10 @@ LWMLINE*
 lwmline_measured_from_lwmline(const LWMLINE *lwmline, double m_start, double m_end)
 {
 	uint32_t i = 0;
-	int hasm = 0, hasz = 0;
-	double length = 0.0, length_so_far = 0.0;
+	int hasm = 0;
+	int hasz = 0;
+	double length = 0.0;
+	double length_so_far = 0.0;
 	double m_range = m_end - m_start;
 	LWGEOM **geoms = NULL;
 
@@ -89,7 +91,8 @@ lwmline_measured_from_lwmline(const LWMLINE *lwmline, double m_start, double m_e
 
 	for ( i = 0; i < lwmline->ngeoms; i++ )
 	{
-		double sub_m_start, sub_m_end;
+		double sub_m_start;
+		double sub_m_end;
 		double sub_length = 0.0;
 		LWLINE *lwline = (LWLINE*)lwmline->geoms[i];
 

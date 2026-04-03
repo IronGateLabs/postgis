@@ -43,7 +43,8 @@ rect_node_cmp(const void *pn1, const void *pn2)
 	GBOX b1, b2;
 	RECT_NODE *n1 = *((RECT_NODE**)pn1);
 	RECT_NODE *n2 = *((RECT_NODE**)pn2);
-	uint64_t h1, h2;
+	uint64_t h1;
+	uint64_t h2;
 	b1.flags = 0;
 	b1.xmin = n1->xmin;
 	b1.xmax = n1->xmax;
@@ -84,7 +85,12 @@ rect_tree_free(RECT_NODE *node)
 static int
 rect_leaf_node_intersects(RECT_NODE_LEAF *n1, RECT_NODE_LEAF *n2)
 {
-	const POINT2D *p1, *p2, *p3, *q1, *q2, *q3;
+	const POINT2D *p1;
+	const POINT2D *p2;
+	const POINT2D *p3;
+	const POINT2D *q1;
+	const POINT2D *q2;
+	const POINT2D *q3;
 	DISTPTS dl;
 	lw_dist2d_distpts_init(&dl, 1);
 	switch (n1->seg_type)
@@ -198,7 +204,9 @@ rect_leaf_node_intersects(RECT_NODE_LEAF *n1, RECT_NODE_LEAF *n2)
 static inline int
 rect_leaf_node_segment_side(RECT_NODE_LEAF *node, const POINT2D *q, int *on_boundary)
 {
-	const POINT2D *p1, *p2, *p3;
+	const POINT2D *p1;
+	const POINT2D *p2;
+	const POINT2D *p3;
 	switch (node->seg_type)
 	{
 		case RECT_NODE_SEG_LINEAR:
@@ -238,7 +246,8 @@ rect_leaf_node_segment_side(RECT_NODE_LEAF *node, const POINT2D *q, int *on_boun
 		}
 		case RECT_NODE_SEG_CIRCULAR:
 		{
-			int arc_side, seg_side;
+			int arc_side;
+			int seg_side;
 
 			p1 = getPoint2d_cp(node->pa, node->seg_num*2);
 			p2 = getPoint2d_cp(node->pa, node->seg_num*2+1);
@@ -323,7 +332,8 @@ rect_tree_ring_contains_point(RECT_NODE *node, const POINT2D *pt, int *on_bounda
 		}
 		else
 		{
-			int i, r = 0;
+			int i;
+			int r = 0;
 			for (i = 0; i < node->i.num_nodes; i++)
 			{
 				r += rect_tree_ring_contains_point(node->i.nodes[i], pt, on_boundary);
@@ -350,7 +360,8 @@ rect_tree_area_contains_point(RECT_NODE *node, const POINT2D *pt)
 	/* Iterate into area until we find ring heads */
 	if (node->i.ring_type == RECT_NODE_RING_NONE)
 	{
-		int i, sum = 0;
+		int i;
+		int sum = 0;
 		for (i = 0; i < node->i.num_nodes; i++)
 			sum += rect_tree_area_contains_point(node->i.nodes[i], pt);
 		return sum;
@@ -397,7 +408,8 @@ rect_node_bounds_point(RECT_NODE *node, const POINT2D *pt)
 int
 rect_tree_contains_point(RECT_NODE *node, const POINT2D *pt)
 {
-	int i, c;
+	int i;
+	int c;
 
 	/* Object cannot contain point if bounds don't */
 	if (!rect_node_bounds_point(node, pt))
@@ -489,7 +501,9 @@ static RECT_NODE_SEG_TYPE lwgeomTypeArc[] =
 static RECT_NODE *
 rect_node_leaf_new(const POINTARRAY *pa, int seg_num, int geom_type)
 {
-	const POINT2D *p1, *p2, *p3;
+	const POINT2D *p1;
+	const POINT2D *p2;
+	const POINT2D *p3;
 	RECT_NODE *node;
 	GBOX gbox;
 	RECT_NODE_SEG_TYPE seg_type = lwgeomTypeArc[geom_type];
@@ -602,7 +616,8 @@ rect_nodes_merge(RECT_NODE ** nodes, uint32_t num_nodes)
 
 	while (num_nodes > 1)
 	{
-		uint32_t i, k = 0;
+		uint32_t i;
+		uint32_t k = 0;
 		RECT_NODE *node = NULL;
 		for (i = 0; i < num_nodes; i++)
 		{
@@ -631,7 +646,9 @@ rect_nodes_merge(RECT_NODE ** nodes, uint32_t num_nodes)
 RECT_NODE *
 rect_tree_from_ptarray(const POINTARRAY *pa, int geom_type)
 {
-	int num_edges = 0, i = 0, j = 0;
+	int num_edges = 0;
+	int i = 0;
+	int j = 0;
 	RECT_NODE_SEG_TYPE seg_type = lwgeomTypeArc[geom_type];
 	RECT_NODE **nodes = NULL;
 	RECT_NODE *tree = NULL;
@@ -746,7 +763,8 @@ rect_tree_from_lwpoly(const LWGEOM *lwgeom)
 {
 	RECT_NODE **nodes;
 	RECT_NODE *tree;
-	uint32_t i, j = 0;
+	uint32_t i;
+	uint32_t j = 0;
 	const LWPOLY *lwpoly = (const LWPOLY*)lwgeom;
 
 	if (lwpoly->nrings < 1)
@@ -773,7 +791,8 @@ rect_tree_from_lwcurvepoly(const LWGEOM *lwgeom)
 {
 	RECT_NODE **nodes;
 	RECT_NODE *tree;
-	uint32_t i, j = 0;
+	uint32_t i;
+	uint32_t j = 0;
 	const LWCURVEPOLY *lwcol = (const LWCURVEPOLY*)lwgeom;
 
 	if (lwcol->nrings < 1)
@@ -819,7 +838,8 @@ rect_tree_from_lwcollection(const LWGEOM *lwgeom)
 {
 	RECT_NODE **nodes;
 	RECT_NODE *tree;
-	uint32_t i, j = 0;
+	uint32_t i;
+	uint32_t j = 0;
 	const LWCOLLECTION *lwcol = (const LWCOLLECTION*)lwgeom;
 
 	if (lwcol->ngeoms < 1)
@@ -935,7 +955,8 @@ rect_node_to_str(const RECT_NODE *n)
 static int
 rect_tree_intersects_tree_recursive(RECT_NODE *n1, RECT_NODE *n2)
 {
-	int i, j;
+	int i;
+	int j;
 #if POSTGIS_DEBUG_LEVEL >= 4
 	char *n1_str = rect_node_to_str(n1);
 	char *n2_str = rect_node_to_str(n2);
@@ -1096,7 +1117,12 @@ rect_node_max_distance(const RECT_NODE *n1, const RECT_NODE *n2)
 static double
 rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT_TREE_DISTANCE_STATE *state)
 {
-	const POINT2D *p1, *p2, *p3, *q1, *q2, *q3;
+	const POINT2D *p1;
+	const POINT2D *p2;
+	const POINT2D *p3;
+	const POINT2D *q1;
+	const POINT2D *q2;
+	const POINT2D *q3;
 	DISTPTS dl;
 
 	lw_dist2d_distpts_init(&dl, DIST_MIN);
@@ -1237,7 +1263,9 @@ rect_tree_node_sort(RECT_NODE *n1, RECT_NODE *n2)
 {
 	int i;
 	RECT_NODE *n;
-	POINT2D c1, c2, c;
+	POINT2D c1;
+	POINT2D c2;
+	POINT2D c;
 	if (!rect_node_is_leaf(n1) && ! n1->i.sorted)
 	{
 		rect_node_to_p2d(n2, &c2);
@@ -1277,7 +1305,8 @@ rect_tree_node_sort(RECT_NODE *n1, RECT_NODE *n2)
 static double
 rect_tree_distance_tree_recursive(RECT_NODE *n1, RECT_NODE *n2, RECT_TREE_DISTANCE_STATE *state)
 {
-	double min, max;
+	double min;
+	double max;
 
 	/* Short circuit if we've already hit the minimum */
 	if (state->min_dist < state->threshold || state->min_dist == 0.0)
@@ -1304,7 +1333,8 @@ rect_tree_distance_tree_recursive(RECT_NODE *n1, RECT_NODE *n2, RECT_TREE_DISTAN
 	/* Recurse into nodes */
 	else
 	{
-		int i, j;
+		int i;
+		int j;
 		double d_min = FLT_MAX;
 		rect_tree_node_sort(n1, n2);
 		if (rect_node_is_leaf(n1) && !rect_node_is_leaf(n2))

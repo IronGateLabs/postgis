@@ -56,7 +56,8 @@ static POINTARRAY* ptarray_filterm(POINTARRAY *pa,double min, double max, int re
 	//M-value will always be the last dimension
 	int m_pos = ndims-1;
 
-	uint32_t i, counter=0;
+	uint32_t i;
+	uint32_t counter=0;
 	for(i=0;i<pa->npoints;i++)
 	{
 		m_val = *((double*)pa->serialized_pointlist + i*ndims + m_pos);
@@ -115,7 +116,8 @@ static LWLINE* lwline_filterm(LWLINE  *line,double min,double max, int returnm)
 static LWPOLY* lwpoly_filterm(LWPOLY  *poly,double min,double max, int returnm)
 {
 	LWDEBUGF(2, "Entered %s", __func__);
-	int i, nrings;
+	int i;
+	int nrings;
 	LWPOLY *poly_res = lwpoly_construct_empty(poly->srid, FLAGS_GET_Z(poly->flags),returnm * FLAGS_GET_M(poly->flags));
 
 	nrings = poly->nrings;

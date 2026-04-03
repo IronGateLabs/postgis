@@ -389,7 +389,8 @@ LWLINE*
 lwline_measured_from_lwline(const LWLINE *lwline, double m_start, double m_end)
 {
 	int i;
-	int hasm, hasz;
+	int hasm;
+	int hasz;
 	int npoints = 0;
 	double length = 0.0;
 	double length_so_far = 0.0;
@@ -420,7 +421,8 @@ lwline_measured_from_lwline(const LWLINE *lwline, double m_start, double m_end)
 	for ( i = 0; i < npoints; i++ )
 	{
 		POINT4D q;
-		POINT2D a, b;
+		POINT2D a;
+		POINT2D b;
 		getPoint3dz_p(lwline->points, i, &p2);
 		a.x = p1.x;
 		a.y = p1.y;
@@ -614,10 +616,13 @@ POINTARRAY* lwline_interpolate_points(const LWLINE *line, double length_fraction
 extern LWPOINT *
 lwline_interpolate_point_3d(const LWLINE *line, double distance)
 {
-	double length, slength, tlength;
+	double length;
+	double slength;
+	double tlength;
 	POINTARRAY *ipa;
 	POINT4D pt;
-	int nsegs, i;
+	int nsegs;
+	int i;
 	LWGEOM *geom = lwline_as_lwgeom(line);
 	int has_z = lwgeom_has_z(geom);
 	int has_m = lwgeom_has_m(geom);
@@ -648,8 +653,10 @@ lwline_interpolate_point_3d(const LWLINE *line, double distance)
 	tlength = 0;
 	for (i = 0; i < nsegs; i++)
 	{
-		POINT4D p1, p2;
-		POINT4D *p1ptr = &p1, *p2ptr = &p2; /* don't break
+		POINT4D p1;
+		POINT4D p2;
+		POINT4D *p1ptr = &p1;
+		POINT4D *p2ptr = &p2; /* don't break
 						     * strict-aliasing rules
 						     */
 
@@ -682,8 +689,12 @@ extern LWLINE *
 lwline_extend(const LWLINE *line, double distance_forward, double distance_backward)
 {
 	POINTARRAY *pa, *opa;
-	POINT4D p00, p01, p10, p11;
-	POINT4D p_start, p_end;
+	POINT4D p00;
+	POINT4D p01;
+	POINT4D p10;
+	POINT4D p11;
+	POINT4D p_start;
+	POINT4D p_end;
 	uint32_t i;
 	bool forward = false, backward = false;
 

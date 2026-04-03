@@ -175,7 +175,8 @@ static void
 kmeans_init(POINT4D *objs, uint32_t n, POINT4D *centers, uint32_t k)
 {
 	double *distances;
-	uint32_t p1 = 0, p2 = 0;
+	uint32_t p1 = 0;
+	uint32_t p2 = 0;
 	uint32_t duplicate_count = 1; /* a point is a duplicate of itself */
 	double max_dst = -1;
 

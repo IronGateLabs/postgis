@@ -141,7 +141,8 @@ lwcircstring_from_lwpointarray(int32_t srid, uint32_t npoints, const LWPOINT **p
 {
 	uint32_t i;
 	POINTARRAY *pa;
-	int has_z = 0, has_m = 0;
+	int has_z = 0;
+	int has_m = 0;
 	POINT4D pt;
 
 	/*
@@ -188,8 +189,10 @@ lwcircstring_from_lwmpoint(int32_t srid, LWMPOINT *mpoint)
 	uint32_t i;
 	POINTARRAY *pa;
 	char zmflag = FLAGS_GET_ZM(mpoint->flags);
-	size_t ptsize, size;
-	uint8_t *newpoints, *ptr;
+	size_t ptsize;
+	size_t size;
+	uint8_t *newpoints;
+	uint8_t *ptr;
 
 	if (zmflag == 0) ptsize = 2 * sizeof(double);
 	else if (zmflag == 3) ptsize = 4 * sizeof(double);

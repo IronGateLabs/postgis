@@ -172,7 +172,8 @@ static LWGEOM*
 lwline_split_by_mpoint(const LWLINE* lwline_in, const LWMPOINT* mp)
 {
   LWMLINE* out;
-  uint32_t i, j;
+  uint32_t i;
+  uint32_t j;
 
   out = lwmline_construct_empty(lwline_in->srid,
           FLAGS_GET_Z(lwline_in->flags),
@@ -210,12 +211,16 @@ lwline_split_by_point_to(const LWLINE* lwline_in, const LWPOINT* blade_in,
                          LWMLINE* v)
 {
 	double mindist_sqr = -1;
-	POINT4D pt, pt_projected;
-	POINT4D p1, p2;
+	POINT4D pt;
+	POINT4D pt_projected;
+	POINT4D p1;
+	POINT4D p2;
 	POINTARRAY *ipa = lwline_in->points;
 	POINTARRAY* pa1;
 	POINTARRAY* pa2;
-	uint32_t i, nsegs, seg = UINT32_MAX;
+	uint32_t i;
+	uint32_t nsegs;
+	uint32_t seg = UINT32_MAX;
 
 	/* Possible outcomes:
 	 *
@@ -356,7 +361,8 @@ lwpoly_split_by_line(const LWPOLY* lwpoly_in, const LWGEOM* blade_in)
 	GEOSGeometry* g1_bounds;
 	GEOSGeometry* polygons;
 	const GEOSGeometry *vgeoms[1];
-	int i,n;
+	int i;
+	int n;
 	int hasZ = FLAGS_GET_Z(lwpoly_in->flags);
 
 
@@ -497,7 +503,8 @@ lwcollection_split(const LWCOLLECTION* lwcoll_in, const LWGEOM* blade_in)
 	LWCOLLECTION* out;
 	size_t split_vector_capacity;
 	size_t split_vector_size=0;
-	size_t i,j;
+	size_t i;
+	size_t j;
 
 	split_vector_capacity=8;
 	split_vector = lwalloc(split_vector_capacity * sizeof(LWGEOM*));

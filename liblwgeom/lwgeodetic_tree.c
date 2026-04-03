@@ -67,8 +67,11 @@ circ_tree_free(CIRC_NODE* node)
 static CIRC_NODE*
 circ_node_leaf_new(const POINTARRAY* pa, int i)
 {
-	POINT2D *p1, *p2;
-	POINT3D q1, q2, c;
+	POINT2D *p1;
+	POINT2D *p2;
+	POINT3D q1;
+	POINT3D q2;
+	POINT3D c;
 	GEOGRAPHIC_POINT g1, g2, gc;
 	CIRC_NODE *node;
 	double diameter;
@@ -141,8 +144,10 @@ circ_node_leaf_point_new(const POINTARRAY* pa)
 static int
 circ_node_compare(const void* v1, const void* v2)
 {
-	POINT2D p1, p2;
-	unsigned int u1, u2;
+	POINT2D p1;
+	POINT2D p2;
+	unsigned int u1;
+	unsigned int u2;
 	CIRC_NODE *c1 = *((CIRC_NODE**)v1);
 	CIRC_NODE *c2 = *((CIRC_NODE**)v2);
 	p1.x = rad2deg((c1->center).lon);
@@ -190,8 +195,10 @@ circ_center_spherical(const GEOGRAPHIC_POINT* c1, const GEOGRAPHIC_POINT* c2, do
 static int
 circ_center_cartesian(const GEOGRAPHIC_POINT* c1, const GEOGRAPHIC_POINT* c2, double distance, double offset, GEOGRAPHIC_POINT* center)
 {
-	POINT3D p1, p2;
-	POINT3D p1p2, pc;
+	POINT3D p1;
+	POINT3D p2;
+	POINT3D p1p2;
+	POINT3D pc;
 	double proportion = offset/distance;
 
 	LWDEBUG(4,"calculating cartesian center");
@@ -232,8 +239,13 @@ circ_node_internal_new(CIRC_NODE** c, uint32_t num_nodes)
 	CIRC_NODE *node = NULL;
 	GEOGRAPHIC_POINT new_center, c1;
 	double new_radius;
-	double offset1, dist, D, r1, ri;
-	uint32_t i, new_geom_type;
+	double offset1;
+	double dist;
+	double D;
+	double r1;
+	double ri;
+	uint32_t i;
+	uint32_t new_geom_type;
 
 	LWDEBUGF(3, "called with %d nodes --", num_nodes);
 
@@ -354,7 +366,8 @@ CIRC_NODE*
 circ_tree_new(const POINTARRAY* pa)
 {
 	int num_edges;
-	int i, j;
+	int i;
+	int j;
 	CIRC_NODE **nodes;
 	CIRC_NODE *node;
 	CIRC_NODE *tree;
@@ -494,9 +507,13 @@ int circ_tree_contains_point(const CIRC_NODE* node, const POINT2D* pt, const POI
 {
 	GEOGRAPHIC_POINT closest;
 	GEOGRAPHIC_EDGE stab_edge, edge;
-	POINT3D S1, S2, E1, E2;
+	POINT3D S1;
+	POINT3D S2;
+	POINT3D E1;
+	POINT3D E2;
 	double d;
-	uint32_t i, c;
+	uint32_t i;
+	uint32_t c;
 
 	/* Construct a stabline edge from our "inside" to our known outside point */
 	geographic_point_init(pt->x, pt->y, &(stab_edge.start));
@@ -676,7 +693,8 @@ double
 circ_tree_distance_tree_internal(const CIRC_NODE* n1, const CIRC_NODE* n2, double threshold, double* min_dist, double* max_dist, GEOGRAPHIC_POINT* closest1, GEOGRAPHIC_POINT* closest2)
 {
 	double max;
-	double d, d_min;
+	double d;
+	double d_min;
 	uint32_t i;
 
 	LWDEBUGF(4, "entered, min_dist=%.8g max_dist=%.8g, type1=%d, type2=%d", *min_dist, *max_dist, n1->geom_type, n2->geom_type);
@@ -776,7 +794,10 @@ circ_tree_distance_tree_internal(const CIRC_NODE* n1, const CIRC_NODE* n2, doubl
 		{
 			GEOGRAPHIC_EDGE e1, e2;
 			GEOGRAPHIC_POINT g;
-			POINT3D A1, A2, B1, B2;
+			POINT3D A1;
+			POINT3D A2;
+			POINT3D B1;
+			POINT3D B2;
 			geographic_point_init(n1->p1->x, n1->p1->y, &(e1.start));
 			geographic_point_init(n1->p2->x, n1->p2->y, &(e1.end));
 			geographic_point_init(n2->p1->x, n2->p1->y, &(e2.start));
@@ -930,7 +951,8 @@ lwline_calculate_circ_tree(const LWLINE* lwline)
 static CIRC_NODE*
 lwpoly_calculate_circ_tree(const LWPOLY* lwpoly)
 {
-	uint32_t i = 0, j = 0;
+	uint32_t i = 0;
+	uint32_t j = 0;
 	CIRC_NODE** nodes;
 	CIRC_NODE* node;
 
@@ -968,7 +990,8 @@ lwpoly_calculate_circ_tree(const LWPOLY* lwpoly)
 static CIRC_NODE*
 lwcollection_calculate_circ_tree(const LWCOLLECTION* lwcol)
 {
-	uint32_t i = 0, j = 0;
+	uint32_t i = 0;
+	uint32_t j = 0;
 	CIRC_NODE** nodes;
 	CIRC_NODE* node;
 
@@ -1068,7 +1091,8 @@ geography_tree_shortestline(const LWGEOM* lwgeom1, const LWGEOM* lwgeom2, double
   GEOGRAPHIC_POINT closest1, closest2;
   LWGEOM *geoms[2];
   LWGEOM *result;
-  POINT4D p1, p2;
+  POINT4D p1;
+  POINT4D p2;
   uint32_t srid = lwgeom1->srid;
 
   circ_tree1 = lwgeom_calculate_circ_tree(lwgeom1);

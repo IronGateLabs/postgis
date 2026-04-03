@@ -53,7 +53,8 @@ lwgeom_subgeom(const LWGEOM* g, int n)
 static void
 lwgeom_collect_endpoints(const LWGEOM* lwg, LWMPOINT* col)
 {
-	int i, n;
+	int i;
+	int n;
 	LWLINE* l;
 
 	switch (lwg->type)
@@ -136,7 +137,10 @@ lwgeom_node(const LWGEOM* lwgeom_in)
 	GEOSGeometry *g1, *gn, *gm;
 	LWGEOM *ep, *lines;
 	LWCOLLECTION *col, *tc;
-	int pn, ln, np, nl;
+	int pn;
+	int ln;
+	int np;
+	int nl;
 
 	if ( lwgeom_dimension(lwgeom_in) != 1 ) {
 		lwerror("Noding geometries of dimension != 1 is unsupported");

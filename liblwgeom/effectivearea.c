@@ -81,7 +81,16 @@ Calculate the area of a triangle in 3d space
 static double triarea3d(const double *P1, const double *P2, const double *P3)
 {
 	LWDEBUG(2, "Entered  triarea3d");
-	double ax,bx,ay,by,az,bz,cx,cy,cz, area;
+	double ax;
+	double bx;
+	double ay;
+	double by;
+	double az;
+	double bz;
+	double cx;
+	double cy;
+	double cz;
+	double area;
 
 	ax=P1[0]-P2[0];
 	bx=P3[0]-P2[0];
@@ -243,7 +252,9 @@ static void tune_areas(EFFECTIVE_AREAS *ea, int avoid_collaps, int set_area, dou
 
 	int npoints=ea->inpts->npoints;
 	int i;
-	int current, before_current, after_current;
+	int current;
+	int before_current;
+	int after_current;
 
 	MINHEAP tree = initiate_minheap(npoints);
 

@@ -1091,7 +1091,8 @@ extern int yylex (void);
 YY_DECL
 {
 	yy_state_type yy_current_state;
-	char *yy_cp, *yy_bp;
+	char *yy_cp;
+	char *yy_bp;
 	int yy_act;
     
 	if ( !(yy_init) )
@@ -1483,7 +1484,8 @@ static int yy_get_next_buffer (void)
 {
     	char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
 	char *source = (yytext_ptr);
-	int number_to_move, i;
+	int number_to_move;
+	int i;
 	int ret_val;
 
 	if ( (yy_c_buf_p) > &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[(yy_n_chars) + 1] )

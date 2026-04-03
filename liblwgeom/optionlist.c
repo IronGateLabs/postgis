@@ -76,9 +76,11 @@ option_list_parse(char* input, char** olist)
 {
 	const char *toksep = " ";
 	const char kvsep = '=';
-	char *key, *val;
+	char *key;
+	char *val;
 	if (!input) return;
-	size_t i = 0, sz;
+	size_t i = 0;
+	size_t sz;
 
 	/* strtok nulls out the space between each token */
 	for (key = strtok(input, toksep); key; key = strtok(NULL, toksep)) {
@@ -115,9 +117,12 @@ option_list_gdal_parse(char* input, char** olist)
 	const char q1 = '\'';
 	const char notspace = 0x1F;
 
-	char *key, *val;
+	char *key;
+	char *val;
 	int in_str = 0;
-	size_t i = 0, sz, input_sz;
+	size_t i = 0;
+	size_t sz;
+	size_t input_sz;
 	char *ptr = input;
 
 	if (!input)

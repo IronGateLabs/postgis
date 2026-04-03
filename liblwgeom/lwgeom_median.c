@@ -47,9 +47,11 @@ calc_weighted_distances_3d(const POINT3D* curr, const POINT4D* points, uint32_t 
 static uint32_t
 iterate_4d(POINT3D* curr, const POINT4D* points, const uint32_t npoints, const uint32_t max_iter, const double tol)
 {
-	uint32_t i, iter;
+	uint32_t i;
+	uint32_t iter;
 	double delta;
-	double sum_curr = 0, sum_next = 0;
+	double sum_curr = 0;
+	double sum_next = 0;
 	int hit = LW_FALSE;
 	double *distances = lwalloc(npoints * sizeof(double));
 
@@ -104,7 +106,9 @@ iterate_4d(POINT3D* curr, const POINT4D* points, const uint32_t npoints, const u
 	 	*/
 		if (hit)
 		{
-			double dx = 0, dy = 0, dz = 0;
+			double dx = 0;
+			double dy = 0;
+			double dz = 0;
 			double d_sqr;
 			hit = LW_FALSE;
 

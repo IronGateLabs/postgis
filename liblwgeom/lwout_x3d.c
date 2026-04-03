@@ -132,7 +132,10 @@ static int
 asx3d3_mline_coordindex_sb(const LWMLINE *mgeom, stringbuffer_t *sb)
 {
 	LWLINE *geom;
-	uint32_t i, j, k, si;
+	uint32_t i;
+	uint32_t j;
+	uint32_t k;
+	uint32_t si;
 	POINTARRAY *pa;
 	uint32_t np;
 
@@ -177,7 +180,10 @@ static int
 asx3d3_mpoly_coordindex_sb(const LWMPOLY *psur, stringbuffer_t *sb)
 {
 	LWPOLY *patch;
-	uint32_t i, j, k, l;
+	uint32_t i;
+	uint32_t j;
+	uint32_t k;
+	uint32_t l;
 	uint32_t np;
 	j = 0;
 	for (i=0; i<psur->ngeoms; i++)

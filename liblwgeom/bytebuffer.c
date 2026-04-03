@@ -394,7 +394,9 @@ bytebuffer_read_uvarint(bytebuffer_t *b)
 bytebuffer_t*
 bytebuffer_merge(bytebuffer_t **buff_array, int nbuffers)
 {
-	size_t total_size = 0, current_size, acc_size = 0;
+	size_t total_size = 0;
+	size_t current_size;
+	size_t acc_size = 0;
 	int i;
 	for ( i = 0; i < nbuffers; i++ )
 	{

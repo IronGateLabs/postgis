@@ -66,7 +66,8 @@ interpolate_point4d_spheroid(
 	geographic_point_init(p1->x, p1->y, &g1);
 	geographic_point_init(p2->x, p2->y, &g2);
 	int success;
-	double dist, dir;
+	double dist;
+	double dir;
 
 	/* Special sphere case */
 	if ( s == NULL || s->a == s->b )
@@ -111,10 +112,14 @@ geography_substring(
 	POINTARRAY *ipa = lwline->points;
 	LWGEOM *lwresult;
 	POINT4D pt;
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 	GEOGRAPHIC_POINT g1, g2;
-	int nsegs, i;
-	double length, slength, tlength;
+	int nsegs;
+	int i;
+	double length;
+	double slength;
+	double tlength;
 	int state = 0; /* 0 = before, 1 = inside */
 	uint32_t srid = lwline->srid;
 
@@ -269,8 +274,10 @@ geography_interpolate_points(
 	char has_m = (char) lwgeom_has_m(lwline_as_lwgeom(line));
 	const POINTARRAY* ipa = line->points;
 	POINTARRAY *opa;
-	POINT4D p1, p2;
-	POINT3D q1, q2;
+	POINT4D p1;
+	POINT4D p2;
+	POINT3D q1;
+	POINT3D q2;
 	LWGEOM *lwresult;
 	GEOGRAPHIC_POINT g1, g2;
 	uint32_t srid = line->srid;
@@ -369,13 +376,16 @@ ptarray_locate_point_spheroid(
 {
 	GEOGRAPHIC_EDGE e;
 	GEOGRAPHIC_POINT a, b, nearest = {0}; /* make compiler quiet */
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 	const POINT2D *p;
 	POINT2D proj;
-	uint32_t i, seg = 0;
+	uint32_t i;
+	uint32_t seg = 0;
 	int use_sphere = (s->a == s->b ? 1 : 0);
 	int hasz;
-	double za = 0.0, zb = 0.0;
+	double za = 0.0;
+	double zb = 0.0;
 	double distance,
 		length,   /* Used for computing lengths */
 		seglength = 0.0,  /* length of the segment where the closest point is located */

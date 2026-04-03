@@ -131,7 +131,14 @@ LWGEOM *
 lw_dist3d_distanceline(const LWGEOM *lw1, const LWGEOM *lw2, int32_t srid, int mode)
 {
 	LWDEBUG(2, "lw_dist3d_distanceline is called");
-	double x1, x2, y1, y2, z1, z2, x, y;
+	double x1;
+	double x2;
+	double y1;
+	double y2;
+	double z1;
+	double z2;
+	double x;
+	double y;
 	double initdistance = (mode == DIST_MIN ? DBL_MAX : -1.0);
 	DISTPTS3D thedl;
 	LWPOINT *lwpoints[2];
@@ -235,7 +242,9 @@ LWGEOM *
 lw_dist3d_distancepoint(const LWGEOM *lw1, const LWGEOM *lw2, int32_t srid, int mode)
 {
 
-	double x, y, z;
+	double x;
+	double y;
+	double z;
 	DISTPTS3D thedl;
 	double initdistance = DBL_MAX;
 	LWGEOM *result;
@@ -518,7 +527,8 @@ This is a recursive function delivering every possible combination of subgeometr
 int
 lw_dist3d_recursive(const LWGEOM *lwg1, const LWGEOM *lwg2, DISTPTS3D *dl)
 {
-	int i, j;
+	int i;
+	int j;
 	int n1 = 1;
 	int n2 = 1;
 	LWGEOM *g1;
@@ -870,7 +880,8 @@ int
 lw_dist3d_poly_poly(const LWPOLY *poly1, const LWPOLY *poly2, DISTPTS3D *dl)
 {
 	PLANE3D plane1, plane2;
-	int planedef1, planedef2;
+	int planedef1;
+	int planedef2;
 	LWDEBUG(2, "lw_dist3d_poly_poly is called");
 	if (dl->mode == DIST_MAX)
 		return lw_dist3d_ptarray_ptarray(poly1->rings[0], poly2->rings[0], dl);
@@ -911,7 +922,8 @@ int
 lw_dist3d_poly_tri(const LWPOLY *poly, const LWTRIANGLE *tri, DISTPTS3D *dl)
 {
 	PLANE3D plane1, plane2;
-	int planedef1, planedef2;
+	int planedef1;
+	int planedef2;
 
 	if (dl->mode == DIST_MAX)
 		return lw_dist3d_ptarray_ptarray(poly->rings[0], tri->points, dl);
@@ -952,7 +964,8 @@ int
 lw_dist3d_tri_tri(const LWTRIANGLE *tri1, const LWTRIANGLE *tri2, DISTPTS3D *dl)
 {
 	PLANE3D plane1, plane2;
-	int planedef1, planedef2;
+	int planedef1;
+	int planedef2;
 
 	if (dl->mode == DIST_MAX)
 		return lw_dist3d_ptarray_ptarray(tri1->points, tri2->points, dl);
@@ -1121,7 +1134,8 @@ Finds all combinations of segments between two pointarrays
 int
 lw_dist3d_ptarray_ptarray(const POINTARRAY *l1, const POINTARRAY *l2, DISTPTS3D *dl)
 {
-	uint32_t t, u;
+	uint32_t t;
+	uint32_t u;
 	POINT3DZ start, end;
 	POINT3DZ start2, end2;
 	int twist = dl->twisted;
@@ -1173,10 +1187,16 @@ int
 lw_dist3d_seg_seg(const POINT3DZ *s1p1, const POINT3DZ *s1p2, const POINT3DZ *s2p1, const POINT3DZ *s2p2, DISTPTS3D *dl)
 {
 	VECTOR3D v1, v2, vl;
-	double s1k, s2k; /*two variables representing where on Line 1 (s1k) and where on Line 2 (s2k) a connecting line
+	double s1k;
+	double s2k; /*two variables representing where on Line 1 (s1k) and where on Line 2 (s2k) a connecting line
 			    between the two lines is perpendicular to both lines*/
 	POINT3DZ p1, p2;
-	double a, b, c, d, e, D;
+	double a;
+	double b;
+	double c;
+	double d;
+	double e;
+	double D;
 
 	/*s1p1 and s1p2 are the same point */
 	if (p3dz_same(s1p1, s1p2))
@@ -1332,8 +1352,12 @@ lw_dist3d_pt_tri(const POINT3DZ *p, const LWTRIANGLE *tri, PLANE3D *plane, POINT
 int
 lw_dist3d_ptarray_poly(const POINTARRAY *pa, const LWPOLY *poly, PLANE3D *plane, DISTPTS3D *dl)
 {
-	uint32_t i, j, k;
-	double f, s1, s2;
+	uint32_t i;
+	uint32_t j;
+	uint32_t k;
+	double f;
+	double s1;
+	double s2;
 	VECTOR3D projp1_projp2;
 	POINT3DZ p1, p2, projp1, projp2, intersectionp;
 
@@ -1413,7 +1437,9 @@ int
 lw_dist3d_ptarray_tri(const POINTARRAY *pa, const LWTRIANGLE *tri, PLANE3D *plane, DISTPTS3D *dl)
 {
 	uint32_t i;
-	double f, s1, s2;
+	double f;
+	double s1;
+	double s2;
 	VECTOR3D projp1_projp2;
 	POINT3DZ p1, p2, projp1, projp2, intersectionp;
 
@@ -1527,7 +1553,8 @@ define_plane(const POINTARRAY *pa, PLANE3D *pl)
 	{
 		POINT3DZ point1, point2;
 		VECTOR3D v1, v2, vp;
-		uint32_t n1, n2;
+		uint32_t n1;
+		uint32_t n2;
 		n1 = i * unique_points / POL_BREAKS;
 		n2 = n1 + unique_points / POL_BREAKS; /* May overflow back to the first / last point */
 

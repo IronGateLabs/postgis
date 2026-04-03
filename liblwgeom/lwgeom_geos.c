@@ -192,7 +192,8 @@ GEOS2LWGEOM(const GEOSGeometry* geom, uint8_t want3d)
 		POINTARRAY *pa, **ppaa;
 		const GEOSGeometry* g;
 		LWGEOM** geoms;
-		uint32_t i, ngeoms;
+		uint32_t i;
+		uint32_t ngeoms;
 
 	case GEOS_POINT:
 		LWDEBUG(4, "lwgeom_from_geometry: it's a Point");
@@ -382,7 +383,9 @@ LWGEOM2GEOS(const LWGEOM* lwgeom, uint8_t autofix)
 	GEOSCoordSeq sq;
 	GEOSGeom g, shell;
 	GEOSGeom* geoms = NULL;
-	uint32_t ngeoms, i, j;
+	uint32_t ngeoms;
+	uint32_t i;
+	uint32_t j;
 	int is_empty = LW_FALSE;
 #if LWDEBUG_LEVEL >= 4
 	char* wkt;
@@ -1367,12 +1370,21 @@ lwpoly_to_points(const LWPOLY* lwpoly, uint32_t npoints, int32_t seed)
 	CellCorner* cells;
 	uint32_t num_cells = 0;
 
-	double area, bbox_area, bbox_width, bbox_height, area_ratio;
+	double area;
+	double bbox_area;
+	double bbox_width;
+	double bbox_height;
+	double area_ratio;
 	GBOX bbox;
 	const LWGEOM* lwgeom = (LWGEOM*)lwpoly;
-	uint32_t sample_npoints, sample_sqrt, sample_width, sample_height;
+	uint32_t sample_npoints;
+	uint32_t sample_sqrt;
+	uint32_t sample_width;
+	uint32_t sample_height;
 	double sample_cell_size;
-	uint32_t i, j, n;
+	uint32_t i;
+	uint32_t j;
+	uint32_t n;
 	uint32_t iterations = 0;
 	uint32_t npoints_generated = 0;
 	uint32_t npoints_tested = 0;
@@ -1640,7 +1652,8 @@ lwtin_from_geos(const GEOSGeometry* geom, uint8_t want3d)
 	switch (type)
 	{
 		LWTRIANGLE** geoms;
-		uint32_t i, ngeoms;
+		uint32_t i;
+		uint32_t ngeoms;
 	case GEOS_GEOMETRYCOLLECTION:
 		LWDEBUG(4, "lwgeom_from_geometry: it's a Collection or Multi");
 

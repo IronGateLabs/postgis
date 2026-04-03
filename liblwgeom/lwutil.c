@@ -495,7 +495,8 @@ lwflags_t lwflags(int hasz, int hasm, int geodetic)
 int geometry_type_from_string(const char *str, uint8_t *type, int *z, int *m)
 {
 	char *tmpstr;
-	size_t tmpstartpos, tmpendpos;
+	size_t tmpstartpos;
+	size_t tmpendpos;
 	size_t i;
 
 	assert(str);

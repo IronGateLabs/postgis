@@ -399,7 +399,8 @@ static uint8_t* ptarray_to_wkb_buf(const POINTARRAY *pa, uint8_t *buf, uint8_t v
 {
 	uint32_t dims = 2;
 	uint32_t pa_dims = FLAGS_NDIMS(pa->flags);
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	double *dbl_ptr;
 
 	/* SFSQL is always 2-d. Extended and ISO use all available dimensions */

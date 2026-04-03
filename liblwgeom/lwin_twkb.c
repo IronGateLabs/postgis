@@ -334,7 +334,8 @@ static LWPOLY* lwpoly_from_twkb_state(twkb_parse_state *s)
 */
 static LWCOLLECTION* lwmultipoint_from_twkb_state(twkb_parse_state *s)
 {
-	int ngeoms, i;
+	int ngeoms;
+	int i;
 	LWGEOM *geom = NULL;
 	LWCOLLECTION *col = lwcollection_construct_empty(s->lwtype, SRID_UNKNOWN, s->has_z, s->has_m);
 
@@ -372,7 +373,8 @@ static LWCOLLECTION* lwmultipoint_from_twkb_state(twkb_parse_state *s)
 */
 static LWCOLLECTION* lwmultiline_from_twkb_state(twkb_parse_state *s)
 {
-	int ngeoms, i;
+	int ngeoms;
+	int i;
 	LWGEOM *geom = NULL;
 	LWCOLLECTION *col = lwcollection_construct_empty(s->lwtype, SRID_UNKNOWN, s->has_z, s->has_m);
 
@@ -411,7 +413,8 @@ static LWCOLLECTION* lwmultiline_from_twkb_state(twkb_parse_state *s)
 */
 static LWCOLLECTION* lwmultipoly_from_twkb_state(twkb_parse_state *s)
 {
-	int ngeoms, i;
+	int ngeoms;
+	int i;
 	LWGEOM *geom = NULL;
 	LWCOLLECTION *col = lwcollection_construct_empty(s->lwtype, SRID_UNKNOWN, s->has_z, s->has_m);
 
@@ -450,7 +453,8 @@ static LWCOLLECTION* lwmultipoly_from_twkb_state(twkb_parse_state *s)
 **/
 static LWCOLLECTION* lwcollection_from_twkb_state(twkb_parse_state *s)
 {
-	int ngeoms, i;
+	int ngeoms;
+	int i;
 	LWGEOM *geom = NULL;
 	LWCOLLECTION *col = lwcollection_construct_empty(s->lwtype, SRID_UNKNOWN, s->has_z, s->has_m);
 
@@ -516,7 +520,8 @@ static void header_from_twkb_state(twkb_parse_state *s)
 	/* Flag for higher dims means read a third byte */
 	if ( extended_dims )
 	{
-		int8_t precision_z, precision_m;
+		int8_t precision_z;
+		int8_t precision_m;
 
 		extended_dims = byte_from_twkb_state(s);
 
