@@ -181,6 +181,12 @@ ACCEL_OBJS += accel/gpu_oneapi.o
 CPPFLAGS += @ONEAPI_CFLAGS@
 LDFLAGS += @ONEAPI_LDFLAGS@
 endif
+ifeq (@HAVE_METAL@,yes)
+METAL_COMPILER = @METAL_COMPILER@
+METALLIB_TOOL = @METALLIB_TOOL@
+ACCEL_OBJS += accel/gpu_metal.o
+LDFLAGS += @METAL_LDFLAGS@
+endif
 
 LDFLAGS += -no-undefined
 
@@ -254,6 +260,7 @@ clean:
 	rm -rf .libs
 	rm -rf topo/.libs
 	rm -rf accel/.libs accel/*.o accel/*.lo
+	rm -f accel/*.air accel/*.metallib accel/gpu_metal_kernels_metallib.h
 
 distclean: clean
 	$(MAKE) -C cunit distclean
@@ -324,3 +331,24 @@ accel/gpu_rocm.lo: accel/gpu_rocm.hip
 accel/gpu_oneapi.lo: accel/gpu_oneapi.cpp
 	@mkdir -p accel
 	$(ICPX) -fsycl -c $(CPPFLAGS) $(CFLAGS) -o accel/gpu_oneapi.o $<
+
+# Metal GPU compilation rules (macOS only)
+ifeq (@HAVE_METAL@,yes)
+accel/gpu_metal_kernels.air: accel/gpu_metal_kernels.metal
+	@mkdir -p accel
+	$(METAL_COMPILER) -c $< -o $@
+
+accel/gpu_metal_kernels.metallib: accel/gpu_metal_kernels.air
+	$(METALLIB_TOOL) $< -o $@
+
+accel/gpu_metal_kernels_metallib.h: accel/gpu_metal_kernels.metallib
+	xxd -i $< > $@
+
+accel/gpu_metal.o: accel/gpu_metal.m accel/gpu_metal_kernels_metallib.h
+	@mkdir -p accel
+	$(CC) -ObjC $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+accel/gpu_metal.lo: accel/gpu_metal.m accel/gpu_metal_kernels_metallib.h
+	@mkdir -p accel
+	$(LIBTOOL) --mode=compile $(CC) -ObjC $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+endif
