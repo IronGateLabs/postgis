@@ -385,11 +385,6 @@ itree_point_in_ring_recursive(
 		const POINT2D *seg2 = getPoint2d_cp(pa, node->edgeIndex + 1);
 		double side = itree_segment_side(seg1, seg2, pt);
 
-		/* Zero length segments are ignored. */
-		// xxxx need a unit test, what about really really short segments?
-		// if (distance2d_sqr_pt_pt(seg1, seg2) < FP_EPS*FP_EPS)
-		// 	return ITREE_OK;
-
 		/* A point on the boundary of a ring is not contained. */
 		/* WAS: if (fabs(side) < 1e-12), see ticket #852 */
 		if (side == 0.0 && itree_point_on_segment(seg1, seg2, pt) == 1)

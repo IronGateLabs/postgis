@@ -233,7 +233,6 @@ lwcompound_construct_from_lwline(const LWLINE *lwline)
 {
   LWCOMPOUND* ogeom = lwcompound_construct_empty(lwline->srid, FLAGS_GET_Z(lwline->flags), FLAGS_GET_M(lwline->flags));
   lwcompound_add_lwgeom(ogeom, lwgeom_clone((LWGEOM*)lwline));
-	/* ogeom->bbox = lwline->bbox; */
   return ogeom;
 }
 

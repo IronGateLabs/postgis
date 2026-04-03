@@ -676,7 +676,6 @@ lwgeom_same(const LWGEOM *lwgeom1, const LWGEOM *lwgeom2)
 	/* Check boxes if both already computed  */
 	if ( lwgeom1->bbox && lwgeom2->bbox )
 	{
-		/*lwnotice("bbox1:%p, bbox2:%p", lwgeom1->bbox, lwgeom2->bbox);*/
 		if ( ! gbox_same(lwgeom1->bbox, lwgeom2->bbox) )
 		{
 			LWDEBUG(3, " bounding boxes differ");

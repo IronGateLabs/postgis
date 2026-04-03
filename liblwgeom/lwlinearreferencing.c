@@ -1089,11 +1089,9 @@ uniq(double *vals, int nvals)
 	int i, last = 0;
 	for (i = 1; i < nvals; ++i)
 	{
-		// lwnotice("(I%d):%g", i, vals[i]);
 		if (vals[i] != vals[last])
 		{
 			vals[++last] = vals[i];
-			// lwnotice("(O%d):%g", last, vals[last]);
 		}
 	}
 	return last + 1;
@@ -1187,8 +1185,6 @@ lwgeom_tcpa(const LWGEOM *g1, const LWGEOM *g2, double *mindist)
 		return -2;
 	}
 
-	// lwnotice("Min:%g, Max:%g", tmin, tmax);
-
 	/*
 	 * Collect M values in common time range from inputs
 	 */
@@ -1247,48 +1243,31 @@ lwgeom_tcpa(const LWGEOM *g1, const LWGEOM *g2, double *mindist)
 		int seg;
 		double dist2;
 
-		// lwnotice("T %g-%g", t0, t1);
-
 		seg = ptarray_locate_along_linear(l1->points, t0, &p0, 0);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 1: %g, %g, %g", t0, seg, p0.x, p0.y, p0.z);
 
 		seg = ptarray_locate_along_linear(l1->points, t1, &p1, seg);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 1: %g, %g, %g", t1, seg, p1.x, p1.y, p1.z);
 
 		seg = ptarray_locate_along_linear(l2->points, t0, &q0, 0);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 2: %g, %g, %g", t0, seg, q0.x, q0.y, q0.z);
 
 		seg = ptarray_locate_along_linear(l2->points, t1, &q1, seg);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 2: %g, %g, %g", t1, seg, q1.x, q1.y, q1.z);
 
 		t = segments_tcpa(&p0, &p1, &q0, &q1, t0, t1);
-
-		/*
-		lwnotice("Closest points: %g,%g,%g and %g,%g,%g at time %g",
-		p0.x, p0.y, p0.z,
-		q0.x, q0.y, q0.z, t);
-		*/
 
 		dist2 = (q0.x - p0.x) * (q0.x - p0.x) + (q0.y - p0.y) * (q0.y - p0.y) + (q0.z - p0.z) * (q0.z - p0.z);
 		if (dist2 < mindist2)
 		{
 			mindist2 = dist2;
 			mintime = t;
-			// lwnotice("MINTIME: %g", mintime);
 		}
 	}
-
-	/*
-	 * Release memory
-	 */
 
 	lwfree(mvals);
 
@@ -1296,7 +1275,6 @@ lwgeom_tcpa(const LWGEOM *g1, const LWGEOM *g2, double *mindist)
 	{
 		*mindist = sqrt(mindist2);
 	}
-	/*lwnotice("MINDIST: %g", sqrt(mindist2));*/
 
 	return mintime;
 }
@@ -1408,38 +1386,26 @@ lwgeom_cpa_within(const LWGEOM *g1, const LWGEOM *g2, double maxdist)
 		int seg;
 		double dist2;
 
-		// lwnotice("T %g-%g", t0, t1);
-
 		seg = ptarray_locate_along_linear(l1->points, t0, &p0, 0);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 1: %g, %g, %g", t0, seg, p0.x, p0.y, p0.z);
 
 		seg = ptarray_locate_along_linear(l1->points, t1, &p1, seg);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 1: %g, %g, %g", t1, seg, p1.x, p1.y, p1.z);
 
 		seg = ptarray_locate_along_linear(l2->points, t0, &q0, 0);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-		// lwnotice("Measure %g on segment %d of line 2: %g, %g, %g", t0, seg, q0.x, q0.y, q0.z);
 
 		seg = ptarray_locate_along_linear(l2->points, t1, &q1, seg);
 		if (-1 == seg)
 			continue; /* possible, if GBOX is approximated */
-			// lwnotice("Measure %g on segment %d of line 2: %g, %g, %g", t1, seg, q1.x, q1.y, q1.z);
 
 #if POSTGIS_DEBUG_LEVEL >= 1
 		t =
 #endif
 		    segments_tcpa(&p0, &p1, &q0, &q1, t0, t1);
-
-		/*
-		lwnotice("Closest points: %g,%g,%g and %g,%g,%g at time %g",
-		p0.x, p0.y, p0.z,
-		q0.x, q0.y, q0.z, t);
-		*/
 
 		dist2 = (q0.x - p0.x) * (q0.x - p0.x) + (q0.y - p0.y) * (q0.y - p0.y) + (q0.z - p0.z) * (q0.z - p0.z);
 		if (dist2 <= maxdist2)

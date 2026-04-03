@@ -1579,7 +1579,6 @@ int gbox_pt_outside(const GBOX *gbox, POINT2D *pt_outside)
 	}
 
 	/* This should never happen! */
-	// lwerror("BOOM! Could not generate outside point!");
 	return LW_FAILURE;
 }
 
@@ -2054,7 +2053,6 @@ double lwgeom_azumith_spheroid(const LWPOINT *r, const LWPOINT *s, const SPHEROI
 	az = spheroid_direction(&g1, &g2, spheroid);
 	/* Ensure result is positive */
 	return az < -0 ? 2*M_PI + az : az;
-	// return az;
 }
 
 /**

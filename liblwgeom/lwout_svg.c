@@ -161,7 +161,7 @@ assvg_line(stringbuffer_t* sb, const LWLINE *line, int relative, int precision)
 
 static void pointArray_svg_arc(stringbuffer_t* sb, const POINTARRAY *pa, int close_ring, int relative,  int precision)
 {
-	uint32_t i; //, end;
+	uint32_t i;
 	char sx[OUT_DOUBLE_BUFFER_SIZE];
 	char sy[OUT_DOUBLE_BUFFER_SIZE];
 
@@ -194,7 +194,6 @@ static void pointArray_svg_arc(stringbuffer_t* sb, const POINTARRAY *pa, int clo
 			clockwise = LW_FALSE;
 		/* Angles of each point that defines the arc section */
 		a1 = atan2(t1->y - center.y, t1->x - center.x)*180/M_PI;
-		//a2 = atan2(t2->y - center.y, t2->x - center.x)*180/M_PI;
 		a3 = atan2(t3->y - center.y, t3->x - center.x)*180/M_PI;
 
 		LWDEBUGF(2, " center is POINT(%.15g %.15g) - radius:%g", center.x, center.y, radius);
@@ -203,8 +202,6 @@ static void pointArray_svg_arc(stringbuffer_t* sb, const POINTARRAY *pa, int clo
 		if (total_angle < 0 ){
 			total_angle += 360;
 		}
-
-		//stringbuffer_aprintf(sb, "angles (a1 a2 a3): %g %g %g is_circle: %d, total_angle: %g, t1.x: %f, t3.x: %f, t1.y: %f, t3.y: %f ", a1, a2, a3, is_circle, total_angle, t1->x, t3->x, t1->y, t3->y);
 
 		/** endAngle - startAngle <= 180 ? "0" : "1" **/
 		largeArcFlag = (total_angle <= 180)? 0 : 1;

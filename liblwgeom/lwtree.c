@@ -1046,8 +1046,6 @@ rect_node_min_distance(const RECT_NODE *n1, const RECT_NODE *n2)
 	int bottom = n1->ymin > n2->ymax;
 	int    top = n1->ymax < n2->ymin;
 
-	//lwnotice("rect_node_min_distance");
-
 	if (top && left)
 		return distance(n1->xmin, n1->ymax, n2->xmax, n2->ymin);
 	else if (top && right)
@@ -1083,7 +1081,6 @@ rect_node_max_distance(const RECT_NODE *n1, const RECT_NODE *n2)
 	double ymax = FP_MAX(n1->ymax, n2->ymax);
 	double dx = xmax - xmin;
 	double dy = ymax - ymin;
-	//lwnotice("rect_node_max_distance");
 	return sqrt(dx*dx + dy*dy);
 }
 
@@ -1101,8 +1098,6 @@ rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT
 {
 	const POINT2D *p1, *p2, *p3, *q1, *q2, *q3;
 	DISTPTS dl;
-
-	//lwnotice("rect_leaf_node_distance, %d<->%d", n1->seg_num, n2->seg_num);
 
 	lw_dist2d_distpts_init(&dl, DIST_MIN);
 
@@ -1154,13 +1149,6 @@ rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT
 					q1 = getPoint2d_cp(n2->pa, n2->seg_num);
 					q2 = getPoint2d_cp(n2->pa, n2->seg_num+1);
 					lw_dist2d_seg_seg(q1, q2, p1, p2, &dl);
-					// lwnotice(
-					// 	"%d\tLINESTRING(%g %g,%g %g)\t%d\tLINESTRING(%g %g,%g %g)\t%g\t%g\t%g",
-					// 	n1->seg_num,
-					// 	p1->x, p1->y, p2->x, p2->y,
-					// 	n2->seg_num,
-					// 	q1->x, q1->y, q2->x, q2->y,
-					// 	dl.distance, state->min_dist, state->max_dist);
 					break;
 
 				case RECT_NODE_SEG_CIRCULAR:
@@ -1299,7 +1287,6 @@ rect_tree_distance_tree_recursive(RECT_NODE *n1, RECT_NODE *n2, RECT_TREE_DISTAN
 	min = rect_node_min_distance(n1, n2);
 	if (min > state->max_dist)
 	{
-		//lwnotice("pruning pair %p, %p", n1, n2);
 		LWDEBUGF(4, "pruning pair %p, %p", n1, n2);
 		return FLT_MAX;
 	}
@@ -1378,7 +1365,5 @@ double rect_tree_distance_tree(RECT_NODE *n1, RECT_NODE *n2, double threshold)
 	state.min_dist = FLT_MAX;
 	state.max_dist = FLT_MAX;
 	distance = rect_tree_distance_tree_recursive(n1, n2, &state);
-	// *p1 = state.p1;
-	// *p2 = state.p2;
 	return distance;
 }

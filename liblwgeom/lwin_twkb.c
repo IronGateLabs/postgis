@@ -84,7 +84,6 @@ static inline void twkb_parse_state_advance(twkb_parse_state *s, size_t next)
 	if( (s->pos + next) > s->twkb_end)
 	{
 		lwerror("%s: TWKB structure does not match expected size!", __func__);
-		// lwnotice("TWKB structure does not match expected size!");
 	}
 
 	s->pos += next;

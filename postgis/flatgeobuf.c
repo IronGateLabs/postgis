@@ -167,8 +167,6 @@ static void encode_properties(flatgeobuf_agg_ctx *ctx)
 	double double_value;
 	char *string_value;
 
-	//Jsonb *jb;
-
 	for (i = 0; i < (uint32_t) ctx->tupdesc->natts; i++) {
 		if (ctx->geom_index == i)
 			continue;

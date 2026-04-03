@@ -269,7 +269,6 @@ static void tune_areas(EFFECTIVE_AREAS *ea, int avoid_collaps, int set_area, dou
 	}
 	/*Ok, now we have a minHeap, just need to keep it*/
 
-	/*for (i=0;i<npoints-1;i++)*/
 	i=0;
 	while (go_on)
 	{

@@ -475,7 +475,6 @@ int circ_tree_get_point_outside(const CIRC_NODE* node, POINT2D* pt)
 {
 	POINT3D center3d;
 	GEOGRAPHIC_POINT g;
-	// if (node->radius >= M_PI) return LW_FAILURE;
 	geog2cart(&(node->center), &center3d);
 	vector_scale(&center3d, -1.0);
 	cart2geog(&center3d, &g);
@@ -681,11 +680,6 @@ circ_tree_distance_tree_internal(const CIRC_NODE* n1, const CIRC_NODE* n2, doubl
 	uint32_t i;
 
 	LWDEBUGF(4, "entered, min_dist=%.8g max_dist=%.8g, type1=%d, type2=%d", *min_dist, *max_dist, n1->geom_type, n2->geom_type);
-
-	// printf("-==-\n");
-	// circ_tree_print(n1, 0);
-	// printf("--\n");
-	// circ_tree_print(n2, 0);
 
 	/* Short circuit if we've already hit the minimum */
 	if( *min_dist < threshold || *min_dist == 0.0 )
@@ -1048,7 +1042,6 @@ geography_tree_closestpoint(const LWGEOM* lwgeom1, const LWGEOM* lwgeom2, double
 	/* Quietly decrease the threshold just a little to avoid cases where */
 	/* the actual spheroid distance is larger than the sphere distance */
 	/* causing the return value to be larger than the threshold value */
-	// double threshold_radians = 0.95 * threshold / spheroid->radius;
 	double threshold_radians = threshold / WGS84_RADIUS;
 
 	circ_tree_distance_tree_internal(
@@ -1084,7 +1077,6 @@ geography_tree_shortestline(const LWGEOM* lwgeom1, const LWGEOM* lwgeom2, double
   /* Quietly decrease the threshold just a little to avoid cases where */
   /* the actual spheroid distance is larger than the sphere distance */
   /* causing the return value to be larger than the threshold value */
-  // double threshold_radians = 0.95 * threshold / spheroid->radius;
   double threshold_radians = threshold / spheroid->radius;
 
   circ_tree_distance_tree_internal(circ_tree1, circ_tree2, threshold_radians,
