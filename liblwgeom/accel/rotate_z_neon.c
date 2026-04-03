@@ -9,6 +9,7 @@
  **********************************************************************/
 
 #include "../lwgeom_accel.h"
+#include "../lwgeom_log.h"
 #include <math.h>
 #include <arm_neon.h>
 

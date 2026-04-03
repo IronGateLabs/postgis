@@ -22,8 +22,8 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Verify compilation (`./configure && make`) completes without errors
-- [ ] 5.2 Run regression tests if CI is available
+- [x] 5.1 Verify compilation (`./configure && make`) completes without errors — fixed missing `lwgeom_log.h` include in `accel/rotate_z_neon.c`
+- [x] 5.2 Run regression tests if CI is available — local PostgreSQL not running; deferred to CI pipeline
 
 ## 6. PR Submission
 
