@@ -27,7 +27,7 @@
  *
  */
 
-// For stat64()
+/* For stat64() */
 #define _LARGEFILE64_SOURCE 1
 
 #include <postgres.h>

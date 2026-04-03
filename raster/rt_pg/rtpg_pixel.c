@@ -461,17 +461,6 @@ Datum RASTER_dumpValues(PG_FUNCTION_ARGS)
 			SRF_RETURN_DONE(funcctx);
 		}
 
-		/* check that raster is not empty */
-		/*
-		if (rt_raster_is_empty(raster)) {
-			elog(NOTICE, "Raster provided is empty");
-			rt_raster_destroy(raster);
-			PG_FREE_IF_COPY(pgraster, 0);
-			MemoryContextSwitchTo(oldcontext);
-			SRF_RETURN_DONE(funcctx);
-		}
-		*/
-
 		/* raster has bands */
 		numbands = rt_raster_get_num_bands(raster);
 		if (!numbands) {

@@ -735,37 +735,6 @@ Datum RASTER_InterpolateRaster(PG_FUNCTION_ARGS)
 	in_band_gdaltype = rt_util_pixtype_to_gdal_datatype(in_band_pixtype);
 	in_band_gdaltype_size = GDALGetDataTypeSizeBytes(in_band_gdaltype);
 
-	/* Quickly copy options struct into local memory context, so we */
-	/* don't have malloc'ed memory lying around */
-	// if (err == CE_None && options_struct) {
-	// 	void *tmp = options_struct;
-	// 	switch (algorithm) {
-	// 		case GGA_InverseDistanceToAPower:
-	// 			options_struct = palloc(sizeof(GDALGridInverseDistanceToAPowerOptions));
-	// 			memcpy(options_struct, tmp, sizeof(GDALGridInverseDistanceToAPowerOptions));
-	// 			break;
-	// 		case GGA_InverseDistanceToAPowerNearestNeighbor:
-	// 			options_struct = palloc(sizeof(GDALGridInverseDistanceToAPowerNearestNeighborOptions));
-	// 			memcpy(options_struct, tmp, sizeof(GDALGridInverseDistanceToAPowerNearestNeighborOptions));
-	// 			break;
-	// 		case GGA_MovingAverage:
-	// 			options_struct = palloc(sizeof(GDALGridMovingAverageOptions));
-	// 			memcpy(options_struct, tmp, sizeof(GDALGridMovingAverageOptions));
-	// 			break;
-	// 		case GGA_NearestNeighbor:
-	// 			options_struct = palloc(sizeof(GDALGridNearestNeighborOptions));
-	// 			memcpy(options_struct, tmp, sizeof(GDALGridNearestNeighborOptions));
-	// 			break;
-	// 		case GGA_Linear:
-	// 			options_struct = palloc(sizeof(GDALGridLinearOptions));
-	// 			memcpy(options_struct, tmp, sizeof(GDALGridLinearOptions));
-	// 			break;
-	// 		default:
-	// 			elog(ERROR, "%s: Unsupported gridding algorithm %d", __func__, algorithm);
-	// 	}
-	// 	free(tmp);
-	// }
-
 	/* Prepare destination grid buffer for output */
 	out_data = palloc(in_band_gdaltype_size * in_band_width * in_band_height);
 

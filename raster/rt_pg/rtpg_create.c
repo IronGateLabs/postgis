@@ -1034,16 +1034,6 @@ Datum RASTER_tile(PG_FUNCTION_ARGS)
 
 		/* raster has bands */
 		numbands = rt_raster_get_num_bands(arg1->raster.raster);
-		/*
-		if (!numbands) {
-			elog(NOTICE, "Raster provided has no bands");
-			rt_raster_destroy(arg1->raster.raster);
-			pfree(arg1);
-			PG_FREE_IF_COPY(pgraster, 0);
-			MemoryContextSwitchTo(oldcontext);
-			SRF_RETURN_DONE(funcctx);
-		}
-		*/
 
 		/* width (1) */
 		if (PG_ARGISNULL(1)) {

@@ -201,30 +201,12 @@ read_uint8(const uint8_t** from) {
     return *(*from)++;
 }
 
-/* unused up to now
-void
-write_uint8(uint8_t** from, uint8_t v) {
-    assert(NULL != from);
-
- *(*from)++ = v;
-}
-*/
-
 int8_t
 read_int8(const uint8_t** from) {
     assert(NULL != from);
 
     return (int8_t) read_uint8(from);
 }
-
-/* unused up to now
-void
-write_int8(uint8_t** from, int8_t v) {
-    assert(NULL != from);
-
- *(*from)++ = v;
-}
-*/
 
 uint16_t
 read_uint16(const uint8_t** from, uint8_t littleEndian) {
@@ -265,25 +247,6 @@ read_int16(const uint8_t** from, uint8_t littleEndian) {
     return (int16_t)read_uint16(from, littleEndian);
 }
 
-/* unused up to now
-void
-write_int16(uint8_t** to, uint8_t littleEndian, int16_t v) {
-    assert(NULL != to);
-
-    if ( littleEndian )
-    {
-        (*to)[0] = v & 0x00FF;
-        (*to)[1] = v >> 8;
-    }
-    else
-    {
-        (*to)[1] = v & 0x00FF;
-        (*to)[0] = v >> 8;
-    }
- *to += 2;
-}
-*/
-
 uint32_t
 read_uint32(const uint8_t** from, uint8_t littleEndian) {
     uint32_t ret = 0;
@@ -307,58 +270,12 @@ read_uint32(const uint8_t** from, uint8_t littleEndian) {
     return ret;
 }
 
-/* unused up to now
-void
-write_uint32(uint8_t** to, uint8_t littleEndian, uint32_t v) {
-    assert(NULL != to);
-
-    if ( littleEndian )
-    {
-        (*to)[0] = v & 0x000000FF;
-        (*to)[1] = ( v & 0x0000FF00 ) >> 8;
-        (*to)[2] = ( v & 0x00FF0000 ) >> 16;
-        (*to)[3] = ( v & 0xFF000000 ) >> 24;
-    }
-    else
-    {
-        (*to)[3] = v & 0x000000FF;
-        (*to)[2] = ( v & 0x0000FF00 ) >> 8;
-        (*to)[1] = ( v & 0x00FF0000 ) >> 16;
-        (*to)[0] = ( v & 0xFF000000 ) >> 24;
-    }
- *to += 4;
-}
-*/
-
 int32_t
 read_int32(const uint8_t** from, uint8_t littleEndian) {
     assert(NULL != from);
 
     return (int32_t)read_uint32(from, littleEndian);
 }
-
-/* unused up to now
-void
-write_int32(uint8_t** to, uint8_t littleEndian, int32_t v) {
-    assert(NULL != to);
-
-    if ( littleEndian )
-    {
-        (*to)[0] = v & 0x000000FF;
-        (*to)[1] = ( v & 0x0000FF00 ) >> 8;
-        (*to)[2] = ( v & 0x00FF0000 ) >> 16;
-        (*to)[3] = ( v & 0xFF000000 ) >> 24;
-    }
-    else
-    {
-        (*to)[3] = v & 0x000000FF;
-        (*to)[2] = ( v & 0x0000FF00 ) >> 8;
-        (*to)[1] = ( v & 0x00FF0000 ) >> 16;
-        (*to)[0] = ( v & 0xFF000000 ) >> 24;
-    }
- *to += 4;
-}
-*/
 
 float
 read_float32(const uint8_t** from, uint8_t littleEndian) {
@@ -372,19 +289,6 @@ read_float32(const uint8_t** from, uint8_t littleEndian) {
 
     return ret.f;
 }
-
-/* unused up to now
-void
-write_float32(uint8_t** from, uint8_t littleEndian, float f) {
-    union {
-        float f;
-        uint32_t i;
-    } u;
-
-    u.f = f;
-    write_uint32(from, littleEndian, u.i);
-}
-*/
 
 double
 read_float64(const uint8_t** from, uint8_t littleEndian) {
@@ -420,44 +324,6 @@ read_float64(const uint8_t** from, uint8_t littleEndian) {
     *from += 8;
     return ret.d;
 }
-
-/* unused up to now
-void
-write_float64(uint8_t** to, uint8_t littleEndian, double v) {
-    union {
-        double d;
-        uint64_t i;
-    } u;
-
-    assert(NULL != to);
-
-    u.d = v;
-
-    if ( littleEndian )
-    {
-        (*to)[0] =   u.i & 0x00000000000000FFULL;
-        (*to)[1] = ( u.i & 0x000000000000FF00ULL ) >> 8;
-        (*to)[2] = ( u.i & 0x0000000000FF0000ULL ) >> 16;
-        (*to)[3] = ( u.i & 0x00000000FF000000ULL ) >> 24;
-        (*to)[4] = ( u.i & 0x000000FF00000000ULL ) >> 32;
-        (*to)[5] = ( u.i & 0x0000FF0000000000ULL ) >> 40;
-        (*to)[6] = ( u.i & 0x00FF000000000000ULL ) >> 48;
-        (*to)[7] = ( u.i & 0xFF00000000000000ULL ) >> 56;
-    }
-    else
-    {
-        (*to)[7] =   u.i & 0x00000000000000FFULL;
-        (*to)[6] = ( u.i & 0x000000000000FF00ULL ) >> 8;
-        (*to)[5] = ( u.i & 0x0000000000FF0000ULL ) >> 16;
-        (*to)[4] = ( u.i & 0x00000000FF000000ULL ) >> 24;
-        (*to)[3] = ( u.i & 0x000000FF00000000ULL ) >> 32;
-        (*to)[2] = ( u.i & 0x0000FF0000000000ULL ) >> 40;
-        (*to)[1] = ( u.i & 0x00FF000000000000ULL ) >> 48;
-        (*to)[0] = ( u.i & 0xFF00000000000000ULL ) >> 56;
-    }
- *to += 8;
-}
-*/
 
 static uint32_t
 rt_raster_serialized_size(rt_raster raster) {

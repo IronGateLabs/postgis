@@ -900,11 +900,10 @@ Datum RASTER_summaryStats_finalfn(PG_FUNCTION_ARGS)
 	result = HeapTupleGetDatum(tuple);
 
 	/* clean up */
-	/* For Windowing functions, it is important to leave */
-	/* the state intact, knowing that the aggcontext will be */
-	/* freed by PgSQL when the statement is complete. */
-	/* https://trac.osgeo.org/postgis/ticket/4770 */
-	// rtpg_summarystats_arg_destroy(state);
+	/*
+	 * Leave state intact: aggcontext is freed by PgSQL
+	 * when the statement completes (ticket #4770).
+	 */
 
 	PG_RETURN_DATUM(result);
 }

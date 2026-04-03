@@ -2898,12 +2898,10 @@ Datum RASTER_union_finalfn(PG_FUNCTION_ARGS)
 	}
 
 	/* cleanup */
-	/* For Windowing functions, it is important to leave */
-	/* the state intact, knowing that the aggcontext will be */
-	/* freed by PgSQL when the statement is complete. */
-	/* https://trac.osgeo.org/postgis/ticket/4770 */
-	// pfree(itrset);
-	// rtpg_union_arg_destroy(iwr);
+	/*
+	 * Leave state intact: aggcontext is freed by PgSQL
+	 * when the statement completes (ticket #4770).
+	 */
 
 	if (!_rtn) PG_RETURN_NULL();
 
@@ -6474,20 +6472,6 @@ Datum RASTER_mapAlgebra2(PG_FUNCTION_ARGS)
 		_dim[1][0] = rt_raster_get_width(_rast[1]);
 		_dim[1][1] = rt_raster_get_height(_rast[1]);
 	}
-
-	/* SRID must match */
-	/*
-	if (rt_raster_get_srid(_rast[0]) != rt_raster_get_srid(_rast[1])) {
-		elog(NOTICE, "The two rasters provided have different SRIDs.  Returning NULL");
-		for (k = 0; k < set_count; k++) {
-			if (_rast[k] != NULL)
-				rt_raster_destroy(_rast[k]);
-			if (pgrastpos[k] != -1)
-				PG_FREE_IF_COPY(pgrast[k], pgrastpos[k]);
-		}
-		PG_RETURN_NULL();
-	}
-	*/
 
 	/* same alignment */
 	if (rt_raster_same_alignment(_rast[0], _rast[1], &aligned, NULL) != ES_NONE) {
