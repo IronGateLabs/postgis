@@ -62,12 +62,15 @@ gpu_earth_rotation_angle(double jd)
 /**
  * Uniform-angle Z-rotation kernel.
  * Each thread rotates one point by the same angle (cos_t, sin_t).
+ *
+ * Applies the 2x2 rotation matrix:
+ *   x' = x * cos(theta) - y * sin(theta)
+ *   y' = x * sin(theta) + y * cos(theta)
  */
 kernel void rotate_z_uniform(device double       *data    [[buffer(0)]],
                              constant RotateZParams &params [[buffer(1)]],
                              uint id [[thread_position_in_grid]])
 {
-	/* TODO: implement uniform Z-rotation */
 	if (id >= params.npoints)
 		return;
 
@@ -82,13 +85,16 @@ kernel void rotate_z_uniform(device double       *data    [[buffer(0)]],
 /**
  * Per-point M-epoch Z-rotation kernel.
  * Each thread reads its epoch from the M coordinate, computes the
- * Earth Rotation Angle, and applies Z-rotation.
+ * Earth Rotation Angle via Julian Date, and applies Z-rotation.
+ *
+ * The direction parameter controls the rotation sense:
+ *   direction = -1 for ECI -> ECEF
+ *   direction = +1 for ECEF -> ECI
  */
 kernel void rotate_z_m_epoch(device double              *data   [[buffer(0)]],
                              constant RotateZMEpochParams &params [[buffer(1)]],
                              uint id [[thread_position_in_grid]])
 {
-	/* TODO: implement per-epoch Z-rotation */
 	if (id >= params.npoints)
 		return;
 
@@ -110,13 +116,14 @@ kernel void rotate_z_m_epoch(device double              *data   [[buffer(0)]],
 
 /**
  * Bulk radian/degree conversion kernel.
- * Each thread multiplies x and y by the scale factor.
+ * Each thread multiplies x and y coordinates by the scale factor.
+ *
+ * Scale = M_PI/180.0 for degrees->radians, 180.0/M_PI for radians->degrees.
  */
 kernel void rad_convert(device double          *data   [[buffer(0)]],
                         constant RadConvertParams &params [[buffer(1)]],
                         uint id [[thread_position_in_grid]])
 {
-	/* TODO: implement radian conversion */
 	if (id >= params.npoints)
 		return;
 
