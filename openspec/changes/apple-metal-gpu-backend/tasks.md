@@ -25,23 +25,23 @@
 - [x] 3.1 Create `liblwgeom/accel/gpu_metal.m` with `#ifdef HAVE_METAL` and `#if defined(__APPLE__)` guards
 - [x] 3.2 Implement file-scope statics: `metal_initialized` flag, `metal_device_name[256]` buffer, `MTLDevice`, `MTLCommandQueue`, `MTLLibrary`, three `MTLComputePipelineState` objects (one per kernel)
 - [x] 3.3 Implement `lwgpu_metal_init()`: call `MTLCreateSystemDefaultDevice()`, create command queue, load embedded metallib via `[device newLibraryWithData:error:]`, create pipeline states for `rotate_z_uniform`, `rotate_z_m_epoch`, and `rad_convert` functions, cache device name string
-- [ ] 3.4 Implement `lwgpu_metal_rotate_z()`: compute `cos_t`/`sin_t` on CPU, create `MTLBuffer` from caller's `double*` (zero-copy if page-aligned, copy otherwise), create params struct buffer, encode compute command with `rotate_z_uniform` pipeline, dispatch threads (threadgroup size 256), commit and `waitUntilCompleted`, copy back if needed, return 1 on success / 0 on error
-- [ ] 3.5 Implement `lwgpu_metal_rotate_z_m_epoch()`: create `MTLBuffer` from caller's `double*`, create params struct buffer with stride/m_offset/direction, encode compute command with `rotate_z_m_epoch` pipeline, dispatch, wait, return status
+- [x] 3.4 Implement `lwgpu_metal_rotate_z()`: compute `cos_t`/`sin_t` on CPU, create `MTLBuffer` from caller's `double*` (zero-copy if page-aligned, copy otherwise), create params struct buffer, encode compute command with `rotate_z_uniform` pipeline, dispatch threads (threadgroup size 256), commit and `waitUntilCompleted`, copy back if needed, return 1 on success / 0 on error
+- [x] 3.5 Implement `lwgpu_metal_rotate_z_m_epoch()`: create `MTLBuffer` from caller's `double*`, create params struct buffer with stride/m_offset/direction, encode compute command with `rotate_z_m_epoch` pipeline, dispatch, wait, return status
 - [x] 3.6 Implement `lwgpu_metal_shutdown()`: release all Metal objects (set to nil), reset `metal_initialized` to 0
 - [x] 3.7 Implement `lwgpu_metal_device_name()`: return cached `metal_device_name` string
-- [ ] 3.8 Implement page-alignment check helper: verify pointer alignment and length are VM page size multiples for `newBufferWithBytesNoCopy` eligibility
-- [ ] 3.9 Add error handling: check all Metal API return values, log `NOTICE` on failure via `lwerror`/`lwnotice`, set disable flag on first command buffer error
+- [x] 3.8 Implement page-alignment check helper: verify pointer alignment and length are VM page size multiples for `newBufferWithBytesNoCopy` eligibility
+- [x] 3.9 Add error handling: check all Metal API return values, log `NOTICE` on failure via `lwerror`/`lwnotice`, set disable flag on first command buffer error
 
 ## 4. Metal Compute Kernels -- gpu_metal_kernels.metal
 
 - [x] 4.1 Create `liblwgeom/accel/gpu_metal_kernels.metal` with Metal Shading Language header and `#include <metal_stdlib>`
 - [x] 4.2 Define `RotateZParams` constant struct: `uint stride_doubles`, `uint npoints`, `double cos_t`, `double sin_t`
-- [ ] 4.3 Implement `rotate_z_uniform` kernel: read params from `[[buffer(1)]]`, compute point index from `thread_position_in_grid`, bounds check, read x/y at stride offset, apply 2x2 rotation with `cos_t`/`sin_t`, write back in-place
+- [x] 4.3 Implement `rotate_z_uniform` kernel: read params from `[[buffer(1)]]`, compute point index from `thread_position_in_grid`, bounds check, read x/y at stride offset, apply 2x2 rotation with `cos_t`/`sin_t`, write back in-place
 - [x] 4.4 Define `RotateZMEpochParams` constant struct: `uint stride_doubles`, `uint npoints`, `uint m_offset`, `int direction`
 - [x] 4.5 Implement inline `gpu_epoch_to_jd()` and `gpu_earth_rotation_angle()` functions using identical formulas to `gpu_cuda.cu` (JD: `2451545.0 + (epoch - 2000.0) * 365.25`, ERA: `2.0 * M_PI * (0.7790572732640 + 1.00273781191135448 * Du)`)
-- [ ] 4.6 Implement `rotate_z_m_epoch` kernel: read epoch from M offset, compute JD/ERA, apply Z-rotation per-thread
+- [x] 4.6 Implement `rotate_z_m_epoch` kernel: read epoch from M offset, compute JD/ERA, apply Z-rotation per-thread
 - [x] 4.7 Define `RadConvertParams` constant struct: `uint stride_doubles`, `uint npoints`, `double scale`
-- [ ] 4.8 Implement `rad_convert` kernel: multiply x and y by scale factor, write back in-place
+- [x] 4.8 Implement `rad_convert` kernel: multiply x and y by scale factor, write back in-place
 
 ## 5. Testing and Benchmarking
 
