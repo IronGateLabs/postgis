@@ -4,20 +4,22 @@
 
 These specs are prerequisites for all subsequent phases. They define the type system and on-disk format that every other spec references.
 
-- [ ] **Extract `geometry-types` spec**
+- [x] **Extract `geometry-types` spec** (completed 2026-04-03)
   - Read `liblwgeom/liblwgeom.h.in` (type constants POINTTYPE through TINTYPE, LWGEOM/LWPOINT/LWLINE/LWPOLY/LWCOLLECTION structs, POINTARRAY, flags byte, POINT2D/3DZ/3DM/4D)
   - Read `liblwgeom/lwgeom.c` (generic operations: clone, free, add_bbox, drop_bbox, force_2d/3dz, has_z, has_m, ndims, is_empty)
   - Read all serialization codecs: `liblwgeom/lwin_wkb.c`, `lwout_wkb.c`, `lwin_wkt.c`, `lwout_wkt.c`, `lwin_geojson.c`, `lwout_geojson.c`, `lwout_gml.c`, `lwout_kml.c`, `lwout_svg.c`, `lwin_twkb.c`, `lwout_twkb.c`, `lwin_encoded_polyline.c`, `lwout_encoded_polyline.c`, `lwout_x3d.c`
   - Cross-reference with regression tests: `regress/core/wkb.sql`, `wkt.sql`, `binary.sql`, `empty.sql`, `in_geojson.sql`, `out_geojson.sql`, `in_gml.sql`, `out_gml.sql`, `in_kml.sql`, `twkb.sql`, `in_encodedpolyline.sql`, `sql-mm-serialize.sql`, `in_flatgeobuf.sql`, `out_flatgeobuf.sql`
   - Write `openspec/specs/geometry-types/spec.md` with 15-20 requirements covering type hierarchy, each codec round-trip, dimension preservation, SRID handling, empty geometry encoding, collection nesting
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 17 requirements, 39 scenarios (30 tested, 9 untested)
 
-- [ ] **Extract `gserialized-format` spec**
+- [x] **Extract `gserialized-format` spec** (completed 2026-04-03)
   - Read `liblwgeom/gserialized.h`, `gserialized.c` (version dispatch layer), `gserialized1.c`/`gserialized1.h` (v1), `gserialized2.c`/`gserialized2.h` (v2)
   - Read `liblwgeom/gserialized.txt` (prose format specification)
   - Cross-reference with regression tests: `regress/core/binary.sql`, `typmod.sql`, `size.sql`
   - Write `openspec/specs/gserialized-format/spec.md` with 8-12 requirements covering struct layout, SRID 3-byte packing, gflags encoding, bbox storage, v1 vs v2 detection, round-trip fidelity, geodetic flag, alignment
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 10 requirements, 30 scenarios (22 tested, 8 untested)
 
 ### Phase 2: Core Operations
 
