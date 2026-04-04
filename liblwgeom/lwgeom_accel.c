@@ -327,11 +327,51 @@ ensure_gpu_calibrated(void)
 	}
 }
 
+/*
+ * Compute the effective GPU dispatch threshold for the active backend.
+ *
+ * Metal has higher dispatch overhead than PCIe GPU backends due to
+ * command buffer encoding latency (~150us) and double<->float
+ * conversion costs.  Benchmarks on Apple A18 Pro show Metal only
+ * wins for compute-heavy operations (rotate_z_m_epoch) at 50K+
+ * points.  Apply a 5x multiplier so the default 10K threshold
+ * becomes 50K for Metal.
+ */
+static uint32_t
+effective_gpu_threshold(void)
+{
+	uint32_t threshold = gpu_dispatch_threshold;
+
+#ifdef HAVE_METAL
+	if (lwgpu_backend() == LW_GPU_METAL)
+		threshold *= 5;
+#endif
+
+	return threshold;
+}
+
 static int
 gpu_aware_rotate_z(POINTARRAY *pa, double theta)
 {
 	ensure_gpu_calibrated();
-	if (gpu_dispatch_threshold > 0 && pa->npoints >= gpu_dispatch_threshold && lwgpu_available())
+
+	/*
+	 * Skip Metal for uniform Z-rotation.  Benchmarks on Apple A18 Pro
+	 * show NEON beats Metal at ALL point counts for this operation
+	 * because the single sin/cos is computed on the CPU and the
+	 * per-point work (one 2x2 multiply) is too light to overcome
+	 * Metal dispatch overhead (~150us) and memory round-trip costs.
+	 *
+	 * Other GPU backends (CUDA, ROCm, oneAPI) benefit from PCIe
+	 * batching at high point counts, so they still dispatch normally.
+	 */
+#ifdef HAVE_METAL
+	if (lwgpu_backend() == LW_GPU_METAL)
+		return cpu_rotate_z(pa, theta);
+#endif
+
+	if (gpu_dispatch_threshold > 0 &&
+	    pa->npoints >= effective_gpu_threshold() && lwgpu_available())
 	{
 		size_t stride = ptarray_point_size(pa);
 		if (lwgpu_rotate_z_batch((double *)pa->serialized_pointlist, stride, pa->npoints, theta))
@@ -344,8 +384,21 @@ gpu_aware_rotate_z(POINTARRAY *pa, double theta)
 static int
 gpu_aware_rotate_z_m_epoch(POINTARRAY *pa, int direction)
 {
+	uint32_t threshold;
+
 	ensure_gpu_calibrated();
-	if (gpu_dispatch_threshold > 0 && pa->npoints >= gpu_dispatch_threshold && lwgpu_available())
+
+	/*
+	 * Per-point M-epoch rotation is compute-heavy (per-thread JD + ERA
+	 * + sin/cos), so Metal wins here at large point counts.  Benchmarks
+	 * on Apple A18 Pro: 3.1x faster than NEON at 500K points
+	 * (239 Mpts/sec Metal vs 77 Mpts/sec NEON).  The backend-specific
+	 * threshold multiplier (5x for Metal) ensures we only dispatch when
+	 * the GPU advantage is clear.
+	 */
+	threshold = effective_gpu_threshold();
+	if (threshold > 0 &&
+	    pa->npoints >= threshold && lwgpu_available())
 	{
 		int has_z = FLAGS_GET_Z(pa->flags);
 		size_t m_offset = has_z ? 3 : 2;
