@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
-CLANG_FULL_VER=`clang --version`
+CLANG_FULL_VER=$(clang --version)
 echo $CLANG_FULL_VER
-echo `cat /etc/os-release`
-export CLANG_VER=`clang --version | perl -lne 'print $1 if /version (\d+)/'`
+echo "$(cat /etc/os-release)"
+export CLANG_VER=$(clang --version | perl -lne 'print $1 if /version (\d+)/')
 echo "Clang major version is: $CLANG_VER"
 
 # Enable address sanitizer for memory safety checks

@@ -416,7 +416,7 @@ SELECT query_name,
 FROM bench_timing
 WHERE run_num > 1
 GROUP BY query_name
-ORDER BY query_name;
+ORDER BY query_name ASC;
 
 ----------------------------------------------------------------------
 -- 10. Cleanup

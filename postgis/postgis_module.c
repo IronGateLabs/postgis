@@ -37,17 +37,18 @@
 #include "geos_c.h"
 #include "liblwgeom.h"
 #include "../liblwgeom/lwgeom_accel.h"
+#ifdef HAVE_VALKEY
+#include "postmaster/bgworker.h"
+#endif
+#ifdef HAVE_LIBPROTOBUF
+#include "lwgeom_wagyu.h"
+#endif
 
 /* Valkey batch worker GUC registration */
 extern void postgis_valkey_register_gucs(void);
 
 #ifdef HAVE_VALKEY
-#include "postmaster/bgworker.h"
 extern void postgis_valkey_batch_main(Datum main_arg);
-#endif
-
-#ifdef HAVE_LIBPROTOBUF
-#include "lwgeom_wagyu.h"
 #endif
 
 /*
@@ -123,6 +124,7 @@ static int postgis_gpu_dispatch_threshold = 0;
 static void
 postgis_gpu_threshold_assign(int newval, void *extra)
 {
+	(void)extra;
 	lwaccel_set_gpu_threshold((uint32_t)newval);
 }
 
