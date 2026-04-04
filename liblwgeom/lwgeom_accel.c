@@ -25,7 +25,7 @@
 #include <string.h>
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <Windows.h> /* NOSONAR - canonical Windows SDK header casing */
 #endif
 #include <math.h>
 #include <time.h>
