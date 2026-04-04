@@ -1308,11 +1308,11 @@ Datum gserialized_gist_penalty_2d(PG_FUNCTION_ARGS)
 	GISTENTRY *origentry = (GISTENTRY*) PG_GETARG_POINTER(0);
 	GISTENTRY *newentry = (GISTENTRY*) PG_GETARG_POINTER(1);
 	float *result = (float*) PG_GETARG_POINTER(2);
-	BOX2DF *b1;
-	BOX2DF *b2;
+	const BOX2DF *b1;
+	const BOX2DF *b2;
 
-	b1 = (BOX2DF *)DatumGetPointer(origentry->key);
-	b2 = (BOX2DF *)DatumGetPointer(newentry->key);
+	b1 = (const BOX2DF *)DatumGetPointer(origentry->key);
+	b2 = (const BOX2DF *)DatumGetPointer(newentry->key);
 
 	/* Penalty value of 0 has special code path in Postgres's gistchoose.
 	 * It is used as an early exit condition in subtree loop, allowing faster tree descend.

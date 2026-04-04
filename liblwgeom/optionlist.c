@@ -118,7 +118,7 @@ option_list_gdal_parse(char* input, char** olist)
 	const char notspace = 0x1F;
 
 	char *key;
-	char *val;
+	const char *val;
 	int in_str = 0;
 	size_t i = 0;
 	size_t sz;

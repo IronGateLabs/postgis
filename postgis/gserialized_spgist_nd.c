@@ -295,7 +295,7 @@ PGDLLEXPORT Datum gserialized_spgist_choose_nd(PG_FUNCTION_ARGS)
 {
 	spgChooseIn *in = (spgChooseIn *)PG_GETARG_POINTER(0);
 	spgChooseOut *out = (spgChooseOut *)PG_GETARG_POINTER(1);
-	GIDX *centroid = (GIDX *)DatumGetPointer(in->prefixDatum);
+	const GIDX *centroid = (const GIDX *)DatumGetPointer(in->prefixDatum);
 	GIDX *box = (GIDX *)DatumGetPointer(in->leafDatum);
 
 	out->resultType = spgMatchNode;
