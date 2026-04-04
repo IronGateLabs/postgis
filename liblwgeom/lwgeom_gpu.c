@@ -31,40 +31,45 @@ lwgpu_init(LW_GPU_BACKEND preferred)
 	if (preferred != LW_GPU_NONE)
 	{
 #ifdef HAVE_ANY_GPU
-		switch (preferred)
-		{
 #ifdef HAVE_CUDA
-		case LW_GPU_CUDA:
+		if (preferred == LW_GPU_CUDA)
+		{
 			if (lwgpu_cuda_init())
 			{
 				active_backend = LW_GPU_CUDA;
 				LWDEBUG(1, "GPU: CUDA backend initialized");
 				return 1;
 			}
-			break;
+		}
+		else
 #endif
 #ifdef HAVE_ROCM
-		case LW_GPU_ROCM:
+		    if (preferred == LW_GPU_ROCM)
+		{
 			if (lwgpu_rocm_init())
 			{
 				active_backend = LW_GPU_ROCM;
 				LWDEBUG(1, "GPU: ROCm backend initialized");
 				return 1;
 			}
-			break;
+		}
+		else
 #endif
 #ifdef HAVE_ONEAPI
-		case LW_GPU_ONEAPI:
+		    if (preferred == LW_GPU_ONEAPI)
+		{
 			if (lwgpu_oneapi_init())
 			{
 				active_backend = LW_GPU_ONEAPI;
 				LWDEBUG(1, "GPU: oneAPI backend initialized");
 				return 1;
 			}
-			break;
+		}
+		else
 #endif
-		default:
-			break;
+		{
+			/* Unknown or unsupported backend */
+			(void)0;
 		}
 #else
 		(void)preferred;
@@ -120,107 +125,95 @@ const char *
 lwgpu_backend_name(void)
 {
 #ifdef HAVE_ANY_GPU
-	switch (active_backend)
-	{
 #ifdef HAVE_CUDA
-	case LW_GPU_CUDA:   return lwgpu_cuda_device_name();
+	if (active_backend == LW_GPU_CUDA)
+		return lwgpu_cuda_device_name();
 #endif
 #ifdef HAVE_ROCM
-	case LW_GPU_ROCM:   return lwgpu_rocm_device_name();
+	if (active_backend == LW_GPU_ROCM)
+		return lwgpu_rocm_device_name();
 #endif
 #ifdef HAVE_ONEAPI
-	case LW_GPU_ONEAPI:  return lwgpu_oneapi_device_name();
+	if (active_backend == LW_GPU_ONEAPI)
+		return lwgpu_oneapi_device_name();
 #endif
-	default:            return "none";
-	}
-#else
+#endif
 	return "none";
-#endif
 }
 
 int
-lwgpu_rotate_z_batch(double *xy_pairs, size_t stride,
-		     uint32_t npoints, double theta)
+lwgpu_rotate_z_batch(double *xy_pairs, size_t stride, uint32_t npoints, double theta)
 {
 #ifdef HAVE_ANY_GPU
-	switch (active_backend)
-	{
 #ifdef HAVE_CUDA
-	case LW_GPU_CUDA:
+	if (active_backend == LW_GPU_CUDA)
 		return lwgpu_cuda_rotate_z(xy_pairs, stride, npoints, theta);
 #endif
 #ifdef HAVE_ROCM
-	case LW_GPU_ROCM:
+	if (active_backend == LW_GPU_ROCM)
 		return lwgpu_rocm_rotate_z(xy_pairs, stride, npoints, theta);
 #endif
 #ifdef HAVE_ONEAPI
-	case LW_GPU_ONEAPI:
+	if (active_backend == LW_GPU_ONEAPI)
 		return lwgpu_oneapi_rotate_z(xy_pairs, stride, npoints, theta);
 #endif
-	default:
-		return 0;
-	}
 #else
-	(void)xy_pairs; (void)stride; (void)npoints; (void)theta;
-	return 0;
+	(void)xy_pairs;
+	(void)stride;
+	(void)npoints;
+	(void)theta;
 #endif
+	return 0;
 }
 
 int
-lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride,
-			     uint32_t npoints, size_t m_offset,
-			     int direction)
+lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride, uint32_t npoints, size_t m_offset, int direction)
 {
 #ifdef HAVE_ANY_GPU
-	switch (active_backend)
-	{
 #ifdef HAVE_CUDA
-	case LW_GPU_CUDA:
-		return lwgpu_cuda_rotate_z_m_epoch(xyzm, stride, npoints,
-						   m_offset, direction);
+	if (active_backend == LW_GPU_CUDA)
+		return lwgpu_cuda_rotate_z_m_epoch(xyzm, stride, npoints, m_offset, direction);
 #endif
 #ifdef HAVE_ROCM
-	case LW_GPU_ROCM:
-		return lwgpu_rocm_rotate_z_m_epoch(xyzm, stride, npoints,
-						   m_offset, direction);
+	if (active_backend == LW_GPU_ROCM)
+		return lwgpu_rocm_rotate_z_m_epoch(xyzm, stride, npoints, m_offset, direction);
 #endif
 #ifdef HAVE_ONEAPI
-	case LW_GPU_ONEAPI:
-		return lwgpu_oneapi_rotate_z_m_epoch(xyzm, stride, npoints,
-						     m_offset, direction);
+	if (active_backend == LW_GPU_ONEAPI)
+		return lwgpu_oneapi_rotate_z_m_epoch(xyzm, stride, npoints, m_offset, direction);
 #endif
-	default:
-		return 0;
-	}
 #else
-	(void)xyzm; (void)stride; (void)npoints; (void)m_offset; (void)direction;
-	return 0;
+	(void)xyzm;
+	(void)stride;
+	(void)npoints;
+	(void)m_offset;
+	(void)direction;
 #endif
+	return 0;
 }
 
 void
 lwgpu_shutdown(void)
 {
 #ifdef HAVE_ANY_GPU
-	switch (active_backend)
-	{
 #ifdef HAVE_CUDA
-	case LW_GPU_CUDA:
+	if (active_backend == LW_GPU_CUDA)
 		lwgpu_cuda_shutdown();
-		break;
+	else
 #endif
 #ifdef HAVE_ROCM
-	case LW_GPU_ROCM:
+	    if (active_backend == LW_GPU_ROCM)
 		lwgpu_rocm_shutdown();
-		break;
+	else
 #endif
 #ifdef HAVE_ONEAPI
-	case LW_GPU_ONEAPI:
+	    if (active_backend == LW_GPU_ONEAPI)
 		lwgpu_oneapi_shutdown();
-		break;
+	else
 #endif
-	default:
-		break;
+	{
+		/* No active backend to shut down */
+		(void)0;
 	}
 #endif
 	active_backend = LW_GPU_NONE;
