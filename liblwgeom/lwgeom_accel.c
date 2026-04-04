@@ -23,6 +23,9 @@
 #include "lwgeom_log.h"
 
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <math.h>
 #include <time.h>
 
@@ -144,15 +147,16 @@ static int (*cpu_rotate_z_m_epoch)(POINTARRAY *pa, int direction) = NULL;
 static double
 accel_now_us(void)
 {
-#if defined(CLOCK_MONOTONIC)
+#if defined(_WIN32)
+	/* Windows/mingw: use QueryPerformanceCounter */
+	LARGE_INTEGER freq, cnt;
+	QueryPerformanceFrequency(&freq);
+	QueryPerformanceCounter(&cnt);
+	return (double)cnt.QuadPart / freq.QuadPart * 1e6;
+#elif defined(CLOCK_MONOTONIC) && !defined(__MINGW32__) && !defined(__MINGW64__)
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return ts.tv_sec * 1e6 + ts.tv_nsec / 1e3;
-#elif defined(__MACH__)
-	/* macOS: clock_gettime may not be available on older versions */
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return tv.tv_sec * 1e6 + tv.tv_usec;
 #else
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
