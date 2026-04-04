@@ -107,8 +107,11 @@ ptarray_rotate_z_m_epoch_scalar(POINTARRAY *pa, int direction)
 
 		if (p.m < 1000.0 || p.m > 3000.0)
 		{
-			lwerror("ECI transform: point %u has invalid epoch M=%.4f "
-				"(expected decimal year in range 1000-3000)", i, p.m);
+			lwerror(
+			    "ECI transform: point %u has invalid epoch M=%.4f "
+			    "(expected decimal year in range 1000-3000)",
+			    i,
+			    p.m);
 			return LW_FAILURE;
 		}
 
@@ -149,7 +152,8 @@ accel_now_us(void)
 {
 #if defined(_WIN32)
 	/* Windows/mingw: use QueryPerformanceCounter */
-	LARGE_INTEGER freq, cnt;
+	LARGE_INTEGER freq;
+	LARGE_INTEGER cnt;
 	QueryPerformanceFrequency(&freq);
 	QueryPerformanceCounter(&cnt);
 	return (double)cnt.QuadPart / freq.QuadPart * 1e6;
@@ -196,15 +200,13 @@ calibrate_make_points(uint32_t n)
 static POINTARRAY *
 calibrate_copy_pa(const POINTARRAY *src)
 {
-	POINTARRAY *dst = ptarray_construct(
-		FLAGS_GET_Z(src->flags), FLAGS_GET_M(src->flags), src->npoints);
-	memcpy(dst->serialized_pointlist, src->serialized_pointlist,
-	       src->npoints * ptarray_point_size(src));
+	POINTARRAY *dst = ptarray_construct(FLAGS_GET_Z(src->flags), FLAGS_GET_M(src->flags), src->npoints);
+	memcpy(dst->serialized_pointlist, src->serialized_pointlist, src->npoints * ptarray_point_size(src));
 	return dst;
 }
 
-#define CALIBRATE_WARMUP  2
-#define CALIBRATE_ITERS   5
+#define CALIBRATE_WARMUP 2
+#define CALIBRATE_ITERS 5
 
 /*
  * Auto-calibrate GPU dispatch threshold.
@@ -231,8 +233,7 @@ lwaccel_calibrate_gpu(void)
 	{
 		POINTARRAY *warmup = calibrate_make_points(100);
 		size_t stride = ptarray_point_size(warmup);
-		lwgpu_rotate_z_batch((double *)warmup->serialized_pointlist,
-				     stride, warmup->npoints, theta);
+		lwgpu_rotate_z_batch((double *)warmup->serialized_pointlist, stride, warmup->npoints, theta);
 		ptarray_free(warmup);
 	}
 
@@ -251,8 +252,7 @@ lwaccel_calibrate_gpu(void)
 			ptarray_free(tmp);
 
 			tmp = calibrate_copy_pa(base);
-			lwgpu_rotate_z_batch((double *)tmp->serialized_pointlist,
-					     ptarray_point_size(tmp), n, theta);
+			lwgpu_rotate_z_batch((double *)tmp->serialized_pointlist, ptarray_point_size(tmp), n, theta);
 			ptarray_free(tmp);
 		}
 
@@ -271,8 +271,7 @@ lwaccel_calibrate_gpu(void)
 
 			tmp = calibrate_copy_pa(base);
 			t0 = accel_now_us();
-			lwgpu_rotate_z_batch((double *)tmp->serialized_pointlist,
-					     ptarray_point_size(tmp), n, theta);
+			lwgpu_rotate_z_batch((double *)tmp->serialized_pointlist, ptarray_point_size(tmp), n, theta);
 			t1 = accel_now_us();
 			gpu_total += (t1 - t0);
 			ptarray_free(tmp);
@@ -280,8 +279,11 @@ lwaccel_calibrate_gpu(void)
 
 		ptarray_free(base);
 
-		LWDEBUGF(1, "GPU calibration: %u pts — CPU %.0f us, GPU %.0f us",
-			 n, cpu_total / CALIBRATE_ITERS, gpu_total / CALIBRATE_ITERS);
+		LWDEBUGF(1,
+			 "GPU calibration: %u pts — CPU %.0f us, GPU %.0f us",
+			 n,
+			 cpu_total / CALIBRATE_ITERS,
+			 gpu_total / CALIBRATE_ITERS);
 
 		if (gpu_total < cpu_total)
 		{
@@ -364,12 +366,10 @@ gpu_aware_rotate_z(POINTARRAY *pa, double theta)
 		return cpu_rotate_z(pa, theta);
 #endif
 
-	if (gpu_dispatch_threshold > 0 &&
-	    pa->npoints >= effective_gpu_threshold() && lwgpu_available())
+	if (gpu_dispatch_threshold > 0 && pa->npoints >= effective_gpu_threshold() && lwgpu_available())
 	{
 		size_t stride = ptarray_point_size(pa);
-		if (lwgpu_rotate_z_batch((double *)pa->serialized_pointlist,
-					 stride, pa->npoints, theta))
+		if (lwgpu_rotate_z_batch((double *)pa->serialized_pointlist, stride, pa->npoints, theta))
 			return LW_SUCCESS;
 		/* GPU failed, fall through to CPU */
 	}
@@ -392,15 +392,13 @@ gpu_aware_rotate_z_m_epoch(POINTARRAY *pa, int direction)
 	 * the GPU advantage is clear.
 	 */
 	threshold = effective_gpu_threshold();
-	if (threshold > 0 &&
-	    pa->npoints >= threshold && lwgpu_available())
+	if (threshold > 0 && pa->npoints >= threshold && lwgpu_available())
 	{
 		int has_z = FLAGS_GET_Z(pa->flags);
 		size_t m_offset = has_z ? 3 : 2;
 		size_t stride = ptarray_point_size(pa);
-		if (lwgpu_rotate_z_m_epoch_batch((double *)pa->serialized_pointlist,
-						 stride, pa->npoints, m_offset,
-						 direction))
+		if (lwgpu_rotate_z_m_epoch_batch(
+			(double *)pa->serialized_pointlist, stride, pa->npoints, m_offset, direction))
 			return LW_SUCCESS;
 		/* GPU failed, fall through to CPU */
 	}
@@ -543,10 +541,18 @@ lwaccel_features_string(void)
 
 	switch (dispatch.backend)
 	{
-	case LW_ACCEL_AVX512: simd_name = "AVX-512"; break;
-	case LW_ACCEL_AVX2:   simd_name = "AVX2+FMA"; break;
-	case LW_ACCEL_NEON:   simd_name = "ARM NEON"; break;
-	default:              simd_name = "none"; break;
+	case LW_ACCEL_AVX512:
+		simd_name = "AVX-512";
+		break;
+	case LW_ACCEL_AVX2:
+		simd_name = "AVX2+FMA";
+		break;
+	case LW_ACCEL_NEON:
+		simd_name = "ARM NEON";
+		break;
+	default:
+		simd_name = "none";
+		break;
 	}
 
 	{
@@ -558,18 +564,22 @@ lwaccel_features_string(void)
 #endif
 
 		if (lwgpu_available() && gpu_threshold_calibrated)
-			snprintf(buf, sizeof(buf),
-				"SIMD: %s; GPU: %s (threshold: %u pts); Valkey: %s",
-				simd_name, lwgpu_backend_name(), gpu_dispatch_threshold,
-				valkey_status);
+			snprintf(buf,
+				 sizeof(buf),
+				 "SIMD: %s; GPU: %s (threshold: %u pts); Valkey: %s",
+				 simd_name,
+				 lwgpu_backend_name(),
+				 gpu_dispatch_threshold,
+				 valkey_status);
 		else if (lwgpu_available())
-			snprintf(buf, sizeof(buf),
-				"SIMD: %s; GPU: %s (threshold: auto); Valkey: %s",
-				simd_name, lwgpu_backend_name(), valkey_status);
+			snprintf(buf,
+				 sizeof(buf),
+				 "SIMD: %s; GPU: %s (threshold: auto); Valkey: %s",
+				 simd_name,
+				 lwgpu_backend_name(),
+				 valkey_status);
 		else
-			snprintf(buf, sizeof(buf),
-				"SIMD: %s; GPU: none; Valkey: %s",
-				simd_name, valkey_status);
+			snprintf(buf, sizeof(buf), "SIMD: %s; GPU: none; Valkey: %s", simd_name, valkey_status);
 	}
 
 	{
