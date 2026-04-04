@@ -262,6 +262,90 @@ print_usage(void)
 	printf("  --help             Show this help\n");
 }
 
+static void
+run_rotation_bench(const BenchOptions *opts)
+{
+	int pi;
+	if (strcmp(opts->operation, "all") != 0 && strcmp(opts->operation, "eci_rotate") != 0)
+		return;
+
+	if (!opts->csv)
+		printf("--- ECI Rotation (uniform epoch) ---\n");
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		if (strcmp(opts->backend, "scalar") == 0 || strcmp(opts->backend, "all") == 0)
+			bench_eci_rotate("scalar", POINT_COUNTS[pi], opts->csv, NULL);
+		if (strcmp(opts->backend, "auto") == 0 || strcmp(opts->backend, "all") == 0 ||
+		    strcmp(opts->backend, "simd") == 0)
+			bench_eci_rotate("simd", POINT_COUNTS[pi], opts->csv, NULL);
+	}
+
+	if (!opts->csv)
+		printf("\n");
+}
+
+static void
+run_radconvert_bench(const BenchOptions *opts)
+{
+	int pi;
+	if (strcmp(opts->operation, "all") != 0 && strcmp(opts->operation, "rad_convert") != 0)
+		return;
+
+	if (!opts->csv)
+		printf("--- Radian/Degree Conversion ---\n");
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		if (strcmp(opts->backend, "scalar") == 0 || strcmp(opts->backend, "all") == 0)
+			bench_rad_convert("scalar", POINT_COUNTS[pi], opts->csv);
+		if (strcmp(opts->backend, "auto") == 0 || strcmp(opts->backend, "all") == 0 ||
+		    strcmp(opts->backend, "simd") == 0)
+			bench_rad_convert("simd", POINT_COUNTS[pi], opts->csv);
+	}
+
+	if (!opts->csv)
+		printf("\n");
+}
+
+static void
+run_gpu_overhead_bench(const BenchOptions *opts)
+{
+	int pi;
+	if (strcmp(opts->operation, "gpu_overhead") != 0)
+		return;
+
+	if (!opts->csv)
+		printf("--- GPU Dispatch Overhead ---\n");
+
+	if (!lwgpu_available())
+	{
+		printf("  No GPU available, skipping.\n");
+		return;
+	}
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		int n = POINT_COUNTS[pi];
+		POINTARRAY *pa = make_test_points(n);
+		double t_start = now_us();
+		lwgpu_rotate_z_batch((double *)pa->serialized_pointlist, ptarray_point_size(pa), n, 1.234);
+		double t_end = now_us();
+		double gpu_us = t_end - t_start;
+		double throughput = (gpu_us > 0) ? (double)n / (gpu_us / 1e6) : 0;
+
+		if (opts->csv)
+			printf("gpu_overhead,gpu,%d,%.0f,%.2f\n", n, throughput, gpu_us);
+		else
+			printf("  gpu  %10d pts  %12.0f pts/sec  %10.2f us\n", n, throughput, gpu_us);
+
+		ptarray_free(pa);
+	}
+
+	if (!opts->csv)
+		printf("\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -356,84 +440,9 @@ main(int argc, char *argv[])
 		printf("operation,backend,point_count,throughput_pts_per_sec,latency_us\n");
 
 	/* Run benchmarks */
-	int do_rotate = (strcmp(opts.operation, "all") == 0 || strcmp(opts.operation, "eci_rotate") == 0);
-	int do_rad = (strcmp(opts.operation, "all") == 0 || strcmp(opts.operation, "rad_convert") == 0);
-	int pi;
-
-	if (do_rotate)
-	{
-		if (!opts.csv)
-			printf("--- ECI Rotation (uniform epoch) ---\n");
-
-		for (pi = 0; pi < N_POINT_COUNTS; pi++)
-		{
-			if (strcmp(opts.backend, "scalar") == 0 || strcmp(opts.backend, "all") == 0)
-				bench_eci_rotate("scalar", POINT_COUNTS[pi], opts.csv, NULL);
-			if (strcmp(opts.backend, "auto") == 0 || strcmp(opts.backend, "all") == 0 ||
-			    strcmp(opts.backend, "simd") == 0)
-				bench_eci_rotate("simd", POINT_COUNTS[pi], opts.csv, NULL);
-		}
-
-		if (!opts.csv)
-			printf("\n");
-	}
-
-	if (do_rad)
-	{
-		if (!opts.csv)
-			printf("--- Radian/Degree Conversion ---\n");
-
-		for (pi = 0; pi < N_POINT_COUNTS; pi++)
-		{
-			if (strcmp(opts.backend, "scalar") == 0 || strcmp(opts.backend, "all") == 0)
-				bench_rad_convert("scalar", POINT_COUNTS[pi], opts.csv);
-			if (strcmp(opts.backend, "auto") == 0 || strcmp(opts.backend, "all") == 0 ||
-			    strcmp(opts.backend, "simd") == 0)
-				bench_rad_convert("simd", POINT_COUNTS[pi], opts.csv);
-		}
-
-		if (!opts.csv)
-			printf("\n");
-	}
-
-	/* GPU overhead benchmark */
-	if (strcmp(opts.operation, "gpu_overhead") == 0)
-	{
-		if (!opts.csv)
-			printf("--- GPU Dispatch Overhead ---\n");
-
-		if (!lwgpu_available())
-		{
-			printf("  No GPU available, skipping.\n");
-		}
-		else
-		{
-			/* Measure: allocation + transfer + kernel launch separately */
-			for (pi = 0; pi < N_POINT_COUNTS; pi++)
-			{
-				int n = POINT_COUNTS[pi];
-				POINTARRAY *pa = make_test_points(n);
-				double t_start, t_end;
-
-				t_start = now_us();
-				lwgpu_rotate_z_batch(
-				    (double *)pa->serialized_pointlist, ptarray_point_size(pa), n, 1.234);
-				t_end = now_us();
-
-				double gpu_us = t_end - t_start;
-				double throughput = (gpu_us > 0) ? (double)n / (gpu_us / 1e6) : 0;
-
-				if (opts.csv)
-					printf("gpu_overhead,gpu,%d,%.0f,%.2f\n", n, throughput, gpu_us);
-				else
-					printf("  gpu  %10d pts  %12.0f pts/sec  %10.2f us\n", n, throughput, gpu_us);
-
-				ptarray_free(pa);
-			}
-		}
-		if (!opts.csv)
-			printf("\n");
-	}
+	run_rotation_bench(&opts);
+	run_radconvert_bench(&opts);
+	run_gpu_overhead_bench(&opts);
 
 	return 0;
 }
