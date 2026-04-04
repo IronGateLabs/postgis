@@ -15,7 +15,7 @@
 
 - [x] Create `sonar-project.properties` at project root with project key `IronGateLabs_postgis`, org `irongatelabs`, sources, exclusions, and encoding settings
 - [x] Create `.github/workflows/sonar.yml` GitHub Actions workflow: trigger on PRs to develop and pushes to develop, checkout with fetch-depth 0, run make lint, run SonarCloud scanner
-- [ ] Add `SONAR_TOKEN` as a GitHub Actions repository secret (value: `527c819b53c81f7a233600a72a1091c82278295a`)
+- [ ] Add `SONAR_TOKEN` as a GitHub Actions repository secret (value: `<SONAR_TOKEN from GitHub Secrets>`)
 - [ ] Configure SonarCloud quality gate: 0 new bugs, 0 new vulnerabilities, 100% new hotspots reviewed, maintainability/reliability/security rating A on new code
 - [ ] Configure SonarCloud to use `develop` as the main branch for analysis (not `master`)
 - [ ] Add SonarCloud quality gate as a required status check on `develop` branch protection rules
