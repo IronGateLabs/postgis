@@ -46,9 +46,8 @@ ptarray_rotate_z_avx512(POINTARRAY *pa, double theta)
 			p0[7 * stride + 1], p0[6 * stride + 1], p0[5 * stride + 1], p0[4 * stride + 1],
 			p0[3 * stride + 1], p0[2 * stride + 1], p0[stride + 1], p0[1]);
 
-		/* x_new = x * cos + y * sin */
+		/* Rotation: x' via cos/sin, y' via negated sin/cos */
 		__m512d x_new = _mm512_fmadd_pd(x, cos_v, _mm512_mul_pd(y, sin_v));
-		/* y_new = x * (-sin) + y * cos */
 		__m512d y_new = _mm512_fmadd_pd(x, neg_sin_v, _mm512_mul_pd(y, cos_v));
 
 		/* Scatter back */

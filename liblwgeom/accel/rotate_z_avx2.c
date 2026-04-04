@@ -54,9 +54,8 @@ ptarray_rotate_z_avx2(POINTARRAY *pa, double theta)
 		__m256d y = _mm256_set_pd(
 			p0[3 * stride + 1], p0[2 * stride + 1], p0[stride + 1], p0[1]);
 
-		/* x_new = x * cos + y * sin */
+		/* Rotation: x' via cos/sin, y' via negated sin/cos */
 		__m256d x_new = _mm256_fmadd_pd(x, cos_v, _mm256_mul_pd(y, sin_v));
-		/* y_new = -x * sin + y * cos = x * (-sin) + y * cos */
 		__m256d y_new = _mm256_fmadd_pd(x, neg_sin_v, _mm256_mul_pd(y, cos_v));
 
 		/* Scatter results back to interleaved layout */

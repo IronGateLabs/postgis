@@ -45,9 +45,8 @@ ptarray_rotate_z_neon(POINTARRAY *pa, double theta)
 		float64x2_t x = vld1q_f64(xv);
 		float64x2_t y = vld1q_f64(yv);
 
-		/* x_new = x * cos + y * sin */
+		/* Rotation: x' via cos/sin, y' via negated sin/cos */
 		float64x2_t x_new = vfmaq_f64(vmulq_f64(y, sin_v), x, cos_v);
-		/* y_new = x * (-sin) + y * cos */
 		float64x2_t y_new = vfmaq_f64(vmulq_f64(y, cos_v), x, neg_sin_v);
 
 		double xr[2];

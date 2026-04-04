@@ -32,9 +32,9 @@
 /* origin at Earth's center. Converting between ECI and ECEF requires       */
 /* applying the Earth Rotation Angle (ERA) at a given epoch.               */
 /*                                                                          */
-/* The simplified conversion used here:                                     */
-/*   ECEF = Rz(-ERA) * ECI                                                 */
-/*   ECI  = Rz(+ERA) * ECEF                                               */
+/* The simplified conversion used here applies a Z-axis rotation:           */
+/*   ECEF from ECI via Rz(-ERA)                                            */
+/*   ECI from ECEF via Rz(+ERA)                                            */
 /*                                                                          */
 /* where Rz(theta) is rotation about the Z axis.                           */
 /* This is the IERS 2003 ERA-based rotation, suitable for most             */
@@ -172,7 +172,7 @@ lwgeom_transform_eci_to_ecef(LWGEOM *geom, double epoch)
 	jd = lweci_epoch_to_jd(epoch);
 	era = lweci_earth_rotation_angle(jd);
 
-	/* ECEF = Rz(-ERA) * ECI */
+	/* Apply Rz(-ERA) to convert from ECI to ECEF */
 	return lwgeom_rotate_z(geom, -era);
 }
 
@@ -192,7 +192,7 @@ lwgeom_transform_ecef_to_eci(LWGEOM *geom, double epoch)
 	jd = lweci_epoch_to_jd(epoch);
 	era = lweci_earth_rotation_angle(jd);
 
-	/* ECI = Rz(+ERA) * ECEF */
+	/* Apply Rz(+ERA) to convert from ECEF to ECI */
 	return lwgeom_rotate_z(geom, era);
 }
 
@@ -290,8 +290,8 @@ lwgeom_transform_ecef_to_eci_m(LWGEOM *geom)
 /*   2. Polar motion (xp, yp): additional X/Y axis rotations               */
 /*                                                                          */
 /* IERS 2003 convention (simplified, no precession-nutation):               */
-/*   ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI                         */
-/*   ECI  = Rz(+ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF                      */
+/*   ECEF from ECI via Ry(xp) then Rx(yp) then Rz(-ERA_UT1)              */
+/*   ECI from ECEF via Rz(+ERA_UT1) then Rx(-yp) then Ry(-xp)            */
 /*                                                                          */
 /* where xp, yp are polar motion in arcseconds and dut1 is UT1-UTC in      */
 /* seconds. The TIO locator s' is neglected (sub-microarcsecond).          */
@@ -432,7 +432,7 @@ lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
 	xp_rad = xp * ARCSEC_TO_RAD;
 	yp_rad = yp * ARCSEC_TO_RAD;
 
-	/* ECI = Rz(+ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF */
+	/* ECEF to ECI via Rz(+ERA_UT1), Rx(-yp), Ry(-xp) */
 	/* Apply in reverse order to geometry: */
 	/* 1. Ry(-xp) */
 	if (lwgeom_rotate_xy(geom, -xp_rad, 1) != LW_SUCCESS)
@@ -469,7 +469,7 @@ lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch,
 	xp_rad = xp * ARCSEC_TO_RAD;
 	yp_rad = yp * ARCSEC_TO_RAD;
 
-	/* ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI */
+	/* ECI to ECEF via Ry(xp), Rx(yp), Rz(-ERA_UT1) */
 	/* Apply in reverse order to geometry: */
 	/* 1. Rz(-ERA) */
 	if (lwgeom_rotate_z(geom, -era) != LW_SUCCESS)
