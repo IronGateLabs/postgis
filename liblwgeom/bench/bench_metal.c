@@ -482,6 +482,32 @@ pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
 	return max_d;
 }
 
+/**
+ * Validate Metal Z-rotation against scalar reference.
+ * Returns updated pass flag.
+ */
+static int
+validate_metal_rotate_z(const POINTARRAY *base, const POINTARRAY *scalar_pa,
+			uint32_t n, double theta, int pass)
+{
+	POINTARRAY *metal_pa = pa_copy(base);
+	int rc = op_rotate_z_metal(metal_pa, theta);
+	double diff;
+
+	if (!rc)
+	{
+		printf("  Metal  %7u pts: dispatch failed\n", n);
+		ptarray_free(metal_pa);
+		return 0;
+	}
+	diff = pa_max_diff(scalar_pa, metal_pa);
+	printf("  Metal  %7u pts: max_diff = %.2e %s\n",
+	       n, diff, diff < 1e-10 ? "PASS" : "FAIL");
+	if (diff >= 1e-10) pass = 0;
+	ptarray_free(metal_pa);
+	return pass;
+}
+
 static int
 run_validation(void)
 {
@@ -520,23 +546,7 @@ run_validation(void)
 
 		/* Metal check */
 		if (metal_ok)
-		{
-			POINTARRAY *metal_pa = pa_copy(base);
-			int rc = op_rotate_z_metal(metal_pa, theta);
-			if (rc)
-			{
-				diff = pa_max_diff(scalar_pa, metal_pa);
-				printf("  Metal  %7u pts: max_diff = %.2e %s\n",
-				       n, diff, diff < 1e-10 ? "PASS" : "FAIL");
-				if (diff >= 1e-10) pass = 0;
-			}
-			else
-			{
-				printf("  Metal  %7u pts: dispatch failed\n", n);
-				pass = 0;
-			}
-			ptarray_free(metal_pa);
-		}
+			pass = validate_metal_rotate_z(base, scalar_pa, n, theta, pass);
 
 		ptarray_free(base);
 		ptarray_free(scalar_pa);
@@ -588,6 +598,88 @@ print_usage(void)
 	printf("  --help       Show this help\n");
 }
 
+/**
+ * Print a single benchmark result row in the chosen format.
+ */
+static void
+emit_result(int csv_mode, const char *op_csv, const char *op_table,
+	    const char *backend, uint32_t n, const BenchResult *r)
+{
+	if (csv_mode)
+		print_csv_row(op_csv, backend, n, r);
+	else
+		print_table_row(op_table, backend, n, r);
+}
+
+/**
+ * Run uniform Z-rotation benchmarks across all point counts.
+ */
+static void
+run_bench_rotate_z(int csv_mode, int metal_ok)
+{
+	int pi;
+	BenchResult result;
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		uint32_t n = POINT_COUNTS[pi];
+
+		bench_rotate_z("scalar", n, &result);
+		emit_result(csv_mode, "rotate_z", "rotate_z", "scalar", n, &result);
+
+		bench_rotate_z("neon", n, &result);
+		emit_result(csv_mode, "rotate_z", "rotate_z", "neon", n, &result);
+
+		if (metal_ok && bench_rotate_z("metal", n, &result))
+			emit_result(csv_mode, "rotate_z", "rotate_z", "metal", n, &result);
+	}
+}
+
+/**
+ * Run per-point M-epoch Z-rotation benchmarks across all point counts.
+ */
+static void
+run_bench_rotate_z_m_epoch(int csv_mode, int metal_ok)
+{
+	int pi;
+	BenchResult result;
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		uint32_t n = POINT_COUNTS[pi];
+
+		bench_rotate_z_m_epoch("scalar", n, &result);
+		emit_result(csv_mode, "rotate_z_m_epoch", "rotate_z_m", "scalar", n, &result);
+
+		bench_rotate_z_m_epoch("neon", n, &result);
+		emit_result(csv_mode, "rotate_z_m_epoch", "rotate_z_m", "neon", n, &result);
+
+		if (metal_ok && bench_rotate_z_m_epoch("metal", n, &result))
+			emit_result(csv_mode, "rotate_z_m_epoch", "rotate_z_m", "metal", n, &result);
+	}
+}
+
+/**
+ * Run radian conversion benchmarks across all point counts.
+ */
+static void
+run_bench_rad_convert(int csv_mode)
+{
+	int pi;
+	BenchResult result;
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		uint32_t n = POINT_COUNTS[pi];
+
+		bench_rad_convert("scalar", n, &result);
+		emit_result(csv_mode, "rad_convert", "rad_convert", "scalar", n, &result);
+
+		bench_rad_convert("neon", n, &result);
+		emit_result(csv_mode, "rad_convert", "rad_convert", "neon", n, &result);
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -596,7 +688,6 @@ main(int argc, char *argv[])
 	int help_mode = 0;
 	int metal_ok = 0;
 	int pi;
-	BenchResult result;
 
 	static struct option long_opts[] = {
 		{"csv",      no_argument, 0, 'c'},
@@ -674,94 +765,19 @@ main(int argc, char *argv[])
 		print_table_header();
 
 	/* Uniform Z-rotation */
-	for (pi = 0; pi < N_POINT_COUNTS; pi++)
-	{
-		uint32_t n = POINT_COUNTS[pi];
-
-		/* Scalar */
-		bench_rotate_z("scalar", n, &result);
-		if (csv_mode)
-			print_csv_row("rotate_z", "scalar", n, &result);
-		else
-			print_table_row("rotate_z", "scalar", n, &result);
-
-		/* NEON */
-		bench_rotate_z("neon", n, &result);
-		if (csv_mode)
-			print_csv_row("rotate_z", "neon", n, &result);
-		else
-			print_table_row("rotate_z", "neon", n, &result);
-
-		/* Metal */
-		if (metal_ok)
-		{
-			if (bench_rotate_z("metal", n, &result))
-			{
-				if (csv_mode)
-					print_csv_row("rotate_z", "metal", n, &result);
-				else
-					print_table_row("rotate_z", "metal", n, &result);
-			}
-		}
-	}
+	run_bench_rotate_z(csv_mode, metal_ok);
 
 	if (!csv_mode)
 		printf("\n");
 
 	/* Per-point M-epoch Z-rotation */
-	for (pi = 0; pi < N_POINT_COUNTS; pi++)
-	{
-		uint32_t n = POINT_COUNTS[pi];
-
-		/* Scalar */
-		bench_rotate_z_m_epoch("scalar", n, &result);
-		if (csv_mode)
-			print_csv_row("rotate_z_m_epoch", "scalar", n, &result);
-		else
-			print_table_row("rotate_z_m", "scalar", n, &result);
-
-		/* NEON */
-		bench_rotate_z_m_epoch("neon", n, &result);
-		if (csv_mode)
-			print_csv_row("rotate_z_m_epoch", "neon", n, &result);
-		else
-			print_table_row("rotate_z_m", "neon", n, &result);
-
-		/* Metal */
-		if (metal_ok)
-		{
-			if (bench_rotate_z_m_epoch("metal", n, &result))
-			{
-				if (csv_mode)
-					print_csv_row("rotate_z_m_epoch", "metal", n, &result);
-				else
-					print_table_row("rotate_z_m", "metal", n, &result);
-			}
-		}
-	}
+	run_bench_rotate_z_m_epoch(csv_mode, metal_ok);
 
 	if (!csv_mode)
 		printf("\n");
 
 	/* Radian conversion (scalar + NEON only, no GPU kernel) */
-	for (pi = 0; pi < N_POINT_COUNTS; pi++)
-	{
-		uint32_t n = POINT_COUNTS[pi];
-
-		/* Scalar */
-		bench_rad_convert("scalar", n, &result);
-		if (csv_mode)
-			print_csv_row("rad_convert", "scalar", n, &result);
-		else
-			print_table_row("rad_convert", "scalar", n, &result);
-
-		/* NEON */
-		bench_rad_convert("neon", n, &result);
-		if (csv_mode)
-			print_csv_row("rad_convert", "neon", n, &result);
-		else
-			print_table_row("rad_convert", "neon", n, &result);
-	}
+	run_bench_rad_convert(csv_mode);
 
 	if (!csv_mode)
 		printf("\nDone.\n");
