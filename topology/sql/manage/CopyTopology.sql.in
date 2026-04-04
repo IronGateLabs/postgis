@@ -88,7 +88,7 @@ BEGIN
   FOR rec IN
     SELECT * FROM topology.layer
     WHERE topology_id = oldtopo_id
-    ORDER BY COALESCE(child_id, 0), layer_id
+    ORDER BY COALESCE(child_id, 0) ASC, layer_id ASC
   LOOP
     INSERT INTO topology.layer (topology_id, layer_id, feature_type,
       level, child_id, schema_name, table_name, feature_column)

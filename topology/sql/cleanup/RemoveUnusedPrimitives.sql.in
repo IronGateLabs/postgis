@@ -302,7 +302,7 @@ BEGIN
 
     END LOOP; --}
 
-    mergedFaces := array_agg(distinct x ORDER BY x) FROM unnest(mergedFaces) x;
+    mergedFaces := array_agg(distinct x ORDER BY x ASC) FROM unnest(mergedFaces) x;
     RAISE DEBUG 'Storing merged faceset: %', mergedFaces;
 
     INSERT INTO pg_temp.merged_faces VALUES (
@@ -597,7 +597,7 @@ BEGIN
           array_agg(
             e.edge_id
             -- order to make cleanup outcome predictable
-            ORDER BY e.edge_id
+            ORDER BY e.edge_id ASC
           ) edges
         FROM
           unused_connected_nodes_in_bbox n,

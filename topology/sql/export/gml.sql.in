@@ -210,7 +210,7 @@ BEGIN
         || '.edge e WHERE ( e.left_face = $2'
         || ' OR e.right_face = $2'
         || ') AND ST_Covers($1'
-        || ', e.geom) ORDER BY pos'
+        || ', e.geom) ORDER BY pos ASC'
         USING bounds, face_id
       LOOP
 
@@ -354,7 +354,7 @@ BEGIN
         || ', ST_LineInterpolatePoint(e.geom, 0.8)) as pos2 FROM '
         || quote_ident(toponame)
         || '.edge e WHERE ST_Covers($1'
-        || ', e.geom) ORDER BY pos'
+        || ', e.geom) ORDER BY pos ASC'
         -- TODO: add relation to the conditional, to reduce load ?
         USING rec.geom
       LOOP

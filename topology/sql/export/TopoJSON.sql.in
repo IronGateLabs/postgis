@@ -74,7 +74,7 @@ BEGIN
             || ', ST_LineInterpolatePoint(e.geom, 0.8)) as pos2 FROM '
             || quote_ident(toponame)
             || '.edge e WHERE ST_Covers($1'
-            || ', e.geom) ORDER BY pos';
+            || ', e.geom) ORDER BY pos ASC';
             -- TODO: add relation to the conditional, to reduce load ?
       FOR rec2 IN EXECUTE sql USING rec.geom
       LOOP -- {
@@ -135,9 +135,9 @@ BEGIN
     SELECT
          ROW_NUMBER() OVER (
             ORDER BY
-              ST_XMin(e.geom),
-              ST_YMin(e.geom),
-              edge_id
+              ST_XMin(e.geom) ASC,
+              ST_YMin(e.geom) ASC,
+              edge_id ASC
          ) leftmost_index,
          e.edge_id,
          e.left_face,
@@ -175,7 +175,7 @@ _leftmost_non_dangling_edge AS (
   SELECT e.edge_id
     FROM _edges e WHERE e.lf != e.rf
   ORDER BY
-    leftmost_index
+    leftmost_index ASC
   LIMIT 1
 ),
 _edgepath AS (

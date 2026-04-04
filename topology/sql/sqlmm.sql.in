@@ -568,7 +568,7 @@ BEGIN
     WITH linework AS ( SELECT geom FROM ST_Dump(nodededges) )
     SELECT topology._TopoGeo_addLinestringNoFace(atopology, geom)
     FROM linework
-    ORDER BY geom
+    ORDER BY geom ASC
   LOOP
   END LOOP;
 
@@ -590,7 +590,7 @@ BEGIN
   --
   FOR rec IN SELECT geom FROM
     ( SELECT * FROM ST_Dump(points) ) foo
-    ORDER BY geom
+    ORDER BY geom ASC
   LOOP
     PERFORM topology.TopoGeo_addPoint(atopology, rec.geom);
   END LOOP;

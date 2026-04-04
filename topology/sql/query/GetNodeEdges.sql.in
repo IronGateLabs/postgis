@@ -58,7 +58,7 @@ BEGIN
         ST_Azimuth(ST_EndPoint(geom), ST_PointN(geom, ST_NumPoints(geom)-1))
       FROM incident_edges
       WHERE end_node = $1
-      ORDER BY az
+      ORDER BY az ASC
     $$,
     atopology
   );

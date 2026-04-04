@@ -3180,7 +3180,7 @@ BEGIN
 			'postgis_sfcgal',
 			'postgis_topology'
 		)
-		ORDER BY length(name) -- this is to make sure 'postgis' is first !
+		ORDER BY length(name) ASC -- this is to make sure 'postgis' is first !
 	LOOP --{
 
 		IF target_version IS NULL THEN
@@ -6902,7 +6902,7 @@ $$
 									AND @extschema@.ST_DWithin(var_atempgeoms[i],var_atempgeoms[j], var_buf*10)
 									)
 									WHERE j IS NULL
-								ORDER BY 1, 2
+								ORDER BY 1 ASC, 2 ASC
 							) As foo	) );
 				IF @extschema@.ST_IsValid(var_tempgeom) AND @extschema@.ST_GeometryType(var_tempgeom) = 'ST_Polygon' THEN
 					var_tempgeom := @extschema@.ST_ForceSFS(@extschema@.ST_Intersection(var_tempgeom, var_convhull));

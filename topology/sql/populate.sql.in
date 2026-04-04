@@ -334,7 +334,7 @@ BEGIN
       SELECT d.geom
       FROM ST_DumpPoints(ix) d
       WHERE ST_Force2D(geom) NOT IN ( SELECT g FROM SharedBounds )
-      ORDER BY d.path
+      ORDER BY d.path ASC
       LIMIT 1
       INTO STRICT ix;
     ELSE

@@ -78,7 +78,7 @@ BEGIN
       FROM %1$I.edge
       WHERE left_face = $1 or right_face = $1
       ORDER BY
-        geom <-> $2
+        geom <-> $2 ASC
       LIMIT 1
     $$,
     atopology
@@ -109,7 +109,7 @@ BEGIN
           ELSE
             ST_Reverse(e.geom)
           END
-          ORDER BY r.sequence
+          ORDER BY r.sequence ASC
         ) outerRing
       FROM edgering r, %1$I.edge e
       WHERE e.edge_id = abs(r.edge)
@@ -297,7 +297,7 @@ BEGIN
         FROM edge_star
       )
       SELECT * FROM sequenced_edge_star
-      ORDER BY node_id, seq
+      ORDER BY node_id ASC, seq ASC
   LOOP --}{
     IF last_node_id IS NULL OR last_node_id != rec.node_id
     THEN --{
@@ -483,7 +483,7 @@ BEGIN
             ST_Reverse(e.geom)
           END
            -- TODO: how to make sure rows are ordered ?
-          ORDER BY seq
+          ORDER BY seq ASC
         ) geom,
         array_agg(
           DISTINCT
@@ -724,7 +724,7 @@ BEGIN
       bbox IS NULL
       OR e.geom && bbox
     )
-    ORDER BY edge_id
+    ORDER BY edge_id ASC
   LOOP --{
 
     -- Any invalid edge becomes a cancer for higher level complexes
