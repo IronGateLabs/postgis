@@ -21,74 +21,13 @@
 #include "liblwgeom_internal.h"
 #include "../lwgeom_accel.h"
 #include "../lwgeom_gpu.h"
+#include "../bench/bench_helpers.h"
 #include "cu_tester.h"
 
-/**
- * Helper: create a POINTARRAY with n 4D (XYZM) points on a circle.
- * X,Y in ECEF-like range, Z small, M = epoch value.
- */
-static POINTARRAY *
-make_test_pa(uint32_t n)
-{
-	POINTARRAY *pa;
-	uint32_t i;
-
-	pa = ptarray_construct(1, 1, n); /* has_z=1, has_m=1 */
-	for (i = 0; i < n; i++)
-	{
-		POINT4D p;
-		double angle = (double)i / (n > 1 ? n : 1) * 2.0 * M_PI;
-		p.x = 6378137.0 * cos(angle);
-		p.y = 6378137.0 * sin(angle);
-		p.z = 1000.0 * (i % 100);
-		p.m = 2025.0 + (double)i / (n > 1 ? n : 1);
-		ptarray_set_point4d(pa, i, &p);
-	}
-	return pa;
-}
-
-/**
- * Helper: deep-copy a POINTARRAY.
- */
-static POINTARRAY *
-pa_copy(const POINTARRAY *src)
-{
-	POINTARRAY *dst = ptarray_construct(
-		FLAGS_GET_Z(src->flags), FLAGS_GET_M(src->flags), src->npoints);
-	memcpy(dst->serialized_pointlist, src->serialized_pointlist,
-	       src->npoints * ptarray_point_size(src));
-	return dst;
-}
-
-/**
- * Helper: compute maximum per-component difference between two POINTARRAYs.
- */
-static double
-pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
-{
-	uint32_t i;
-	double max_d = 0.0;
-
-	for (i = 0; i < a->npoints && i < b->npoints; i++)
-	{
-		POINT4D pa_pt;
-		POINT4D pb_pt;
-		double dx;
-		double dy;
-		double dz;
-
-		getPoint4d_p(a, i, &pa_pt);
-		getPoint4d_p(b, i, &pb_pt);
-
-		dx = fabs(pa_pt.x - pb_pt.x);
-		dy = fabs(pa_pt.y - pb_pt.y);
-		dz = fabs(pa_pt.z - pb_pt.z);
-		if (dx > max_d) max_d = dx;
-		if (dy > max_d) max_d = dy;
-		if (dz > max_d) max_d = dz;
-	}
-	return max_d;
-}
+/* Convenience aliases for shared helpers from bench_helpers.h */
+#define make_test_pa bench_make_test_pa
+#define pa_copy bench_pa_copy
+#define pa_max_diff bench_pa_max_diff
 
 /***********************************************************************
  * test_metal_init
@@ -96,7 +35,8 @@ pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
  * Verify lwgpu_metal_init() returns success on macOS with Metal,
  * or gracefully returns 0 on non-Metal systems.
  */
-static void test_metal_init(void)
+static void
+test_metal_init(void)
 {
 #ifdef HAVE_METAL
 	int rc = lwgpu_metal_init();
@@ -134,7 +74,8 @@ static void test_metal_init(void)
  * Create a 4D POINTARRAY with known points, apply Z-rotation via
  * Metal, verify results match scalar computation within 1e-10.
  */
-static void test_metal_rotate_z_uniform(void)
+static void
+test_metal_rotate_z_uniform(void)
 {
 #ifdef HAVE_METAL
 	POINTARRAY *base, *scalar_pa, *metal_pa;
@@ -157,10 +98,7 @@ static void test_metal_rotate_z_uniform(void)
 
 	/* Metal GPU */
 	rc = lwgpu_metal_rotate_z(
-		(double *)metal_pa->serialized_pointlist,
-		ptarray_point_size(metal_pa),
-		metal_pa->npoints,
-		theta);
+	    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
 	CU_ASSERT_EQUAL(rc, 1);
 
 	/* Compare */
@@ -183,7 +121,8 @@ static void test_metal_rotate_z_uniform(void)
  * Create 4D POINTARRAY with M=epoch values, run per-point epoch
  * rotation, verify against scalar reference.
  */
-static void test_metal_rotate_z_m_epoch(void)
+static void
+test_metal_rotate_z_m_epoch(void)
 {
 #ifdef HAVE_METAL
 	POINTARRAY *base, *scalar_pa, *metal_pa;
@@ -209,12 +148,11 @@ static void test_metal_rotate_z_m_epoch(void)
 	/* Metal GPU */
 	has_z = FLAGS_GET_Z(metal_pa->flags);
 	m_offset = has_z ? 3 : 2;
-	rc = lwgpu_metal_rotate_z_m_epoch(
-		(double *)metal_pa->serialized_pointlist,
-		ptarray_point_size(metal_pa),
-		metal_pa->npoints,
-		m_offset,
-		direction);
+	rc = lwgpu_metal_rotate_z_m_epoch((double *)metal_pa->serialized_pointlist,
+					  ptarray_point_size(metal_pa),
+					  metal_pa->npoints,
+					  m_offset,
+					  direction);
 	CU_ASSERT_EQUAL(rc, 1);
 
 	/* Compare */
@@ -237,7 +175,8 @@ static void test_metal_rotate_z_m_epoch(void)
  * Verify that when Metal is not available or fails, the system falls
  * back to NEON/scalar without error.
  */
-static void test_metal_fallback(void)
+static void
+test_metal_fallback(void)
 {
 #ifdef HAVE_METAL
 	POINTARRAY *base, *accel_pa, *scalar_pa;
@@ -323,7 +262,8 @@ static void test_metal_fallback(void)
  *
  * Test with very small arrays (1, 2, 3 points) to verify edge cases.
  */
-static void test_metal_small_array(void)
+static void
+test_metal_small_array(void)
 {
 #ifdef HAVE_METAL
 	uint32_t sizes[] = {1, 2, 3};
@@ -347,16 +287,12 @@ static void test_metal_small_array(void)
 		ptarray_rotate_z_scalar(scalar_pa, theta);
 
 		rc = lwgpu_metal_rotate_z(
-			(double *)metal_pa->serialized_pointlist,
-			ptarray_point_size(metal_pa),
-			metal_pa->npoints,
-			theta);
+		    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
 		CU_ASSERT_EQUAL(rc, 1);
 
 		diff = pa_max_diff(scalar_pa, metal_pa);
 		if (diff >= 1e-10)
-			fprintf(stderr, "Metal small_array(%u) max_diff = %.2e\n",
-				sizes[si], diff);
+			fprintf(stderr, "Metal small_array(%u) max_diff = %.2e\n", sizes[si], diff);
 		CU_ASSERT(diff < 1e-10);
 
 		ptarray_free(base);
@@ -373,7 +309,8 @@ static void test_metal_small_array(void)
  *
  * Test with 100K points to verify no memory issues.
  */
-static void test_metal_large_array(void)
+static void
+test_metal_large_array(void)
 {
 #ifdef HAVE_METAL
 	POINTARRAY *base, *scalar_pa, *metal_pa;
@@ -396,10 +333,7 @@ static void test_metal_large_array(void)
 
 	/* Metal GPU */
 	rc = lwgpu_metal_rotate_z(
-		(double *)metal_pa->serialized_pointlist,
-		ptarray_point_size(metal_pa),
-		metal_pa->npoints,
-		theta);
+	    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
 	CU_ASSERT_EQUAL(rc, 1);
 
 	/* Compare */
@@ -419,7 +353,8 @@ static void test_metal_large_array(void)
 /***********************************************************************
  * Suite registration
  */
-void metal_suite_setup(void)
+void
+metal_suite_setup(void)
 {
 	CU_pSuite suite = CU_add_suite("metal", NULL, NULL);
 

@@ -19,21 +19,18 @@
 #include "../lwgeom_accel.h"
 #include "../lwgeom_gpu.h"
 
+#include "bench_helpers.h"
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <getopt.h>
 #include <mach/mach_time.h>
 
-#define BENCH_TOTAL_ITERS    10
-#define BENCH_WARMUP_ITERS   2
-#define BENCH_MEASURE_ITERS  (BENCH_TOTAL_ITERS - BENCH_WARMUP_ITERS)
+#define BENCH_TOTAL_ITERS 10
+#define BENCH_WARMUP_ITERS 2
+#define BENCH_MEASURE_ITERS (BENCH_TOTAL_ITERS - BENCH_WARMUP_ITERS)
 
 /* Point counts to benchmark */
-static const uint32_t POINT_COUNTS[] = {
-	100, 1000, 5000, 10000, 50000, 100000, 500000
-};
+static const uint32_t POINT_COUNTS[] = {100, 1000, 5000, 10000, 50000, 100000, 500000};
 static const int N_POINT_COUNTS = sizeof(POINT_COUNTS) / sizeof(POINT_COUNTS[0]);
 
 /* Mach timebase for converting ticks to nanoseconds */
@@ -48,44 +45,10 @@ ticks_to_us(uint64_t ticks)
 	return (double)ticks * tb_info.numer / tb_info.denom / 1000.0;
 }
 
-/**
- * Create a POINTARRAY with n random 4D points (XYZM).
- * X,Y in typical ECEF range (~6M meters), Z small, M = epoch.
- */
-static POINTARRAY *
-make_test_points(uint32_t n)
-{
-	POINTARRAY *pa;
-	uint32_t i;
-
-	pa = ptarray_construct(1, 1, n); /* has_z=1, has_m=1 */
-
-	for (i = 0; i < n; i++)
-	{
-		POINT4D p;
-		double angle = (double)i / n * 2.0 * M_PI;
-		p.x = 6378137.0 * cos(angle);
-		p.y = 6378137.0 * sin(angle);
-		p.z = 1000.0 * (i % 100);
-		p.m = 2025.0 + (double)i / n; /* Epoch range 2025-2026 */
-		ptarray_set_point4d(pa, i, &p);
-	}
-
-	return pa;
-}
-
-/**
- * Deep-copy a POINTARRAY.
- */
-static POINTARRAY *
-pa_copy(const POINTARRAY *src)
-{
-	POINTARRAY *dst = ptarray_construct(
-		FLAGS_GET_Z(src->flags), FLAGS_GET_M(src->flags), src->npoints);
-	memcpy(dst->serialized_pointlist, src->serialized_pointlist,
-	       src->npoints * ptarray_point_size(src));
-	return dst;
-}
+/* Convenience aliases for shared helpers */
+#define make_test_points bench_make_test_pa
+#define pa_copy bench_pa_copy
+#define pa_max_diff bench_pa_max_diff
 
 /**
  * Compare function for qsort on doubles.
@@ -95,8 +58,10 @@ cmp_double(const void *a, const void *b)
 {
 	double da = *(const double *)a;
 	double db = *(const double *)b;
-	if (da < db) return -1;
-	if (da > db) return 1;
+	if (da < db)
+		return -1;
+	if (da > db)
+		return 1;
 	return 0;
 }
 
@@ -132,8 +97,10 @@ compute_stats(double *times, int n, uint32_t npoints, BenchResult *out)
 	max_val = times[0];
 	for (int i = 1; i < n; i++)
 	{
-		if (times[i] < min_val) min_val = times[i];
-		if (times[i] > max_val) max_val = times[i];
+		if (times[i] < min_val)
+			min_val = times[i];
+		if (times[i] > max_val)
+			max_val = times[i];
 	}
 	out->min_us = min_val;
 	out->max_us = max_val;
@@ -179,11 +146,7 @@ static int
 op_rotate_z_metal(POINTARRAY *pa, double theta)
 {
 #ifdef HAVE_METAL
-	return lwgpu_metal_rotate_z(
-		(double *)pa->serialized_pointlist,
-		ptarray_point_size(pa),
-		pa->npoints,
-		theta);
+	return lwgpu_metal_rotate_z((double *)pa->serialized_pointlist, ptarray_point_size(pa), pa->npoints, theta);
 #else
 	(void)pa;
 	(void)theta;
@@ -223,11 +186,7 @@ op_rotate_z_m_epoch_metal(POINTARRAY *pa, int direction)
 	int has_z = FLAGS_GET_Z(pa->flags);
 	size_t m_offset = has_z ? 3 : 2;
 	return lwgpu_metal_rotate_z_m_epoch(
-		(double *)pa->serialized_pointlist,
-		ptarray_point_size(pa),
-		pa->npoints,
-		m_offset,
-		direction);
+	    (double *)pa->serialized_pointlist, ptarray_point_size(pa), pa->npoints, m_offset, direction);
 #else
 	(void)pa;
 	(void)direction;
@@ -416,21 +375,32 @@ static void
 print_table_header(void)
 {
 	printf("%-22s  %10s  %12s  %10s  %10s  %12s\n",
-	       "Operation/Backend", "Points", "Median (us)", "Min (us)",
-	       "Max (us)", "Mpts/sec");
+	       "Operation/Backend",
+	       "Points",
+	       "Median (us)",
+	       "Min (us)",
+	       "Max (us)",
+	       "Mpts/sec");
 	printf("%-22s  %10s  %12s  %10s  %10s  %12s\n",
-	       "----------------------", "----------", "------------",
-	       "----------", "----------", "------------");
+	       "----------------------",
+	       "----------",
+	       "------------",
+	       "----------",
+	       "----------",
+	       "------------");
 }
 
 static void
-print_table_row(const char *op, const char *backend, uint32_t npoints,
-		const BenchResult *r)
+print_table_row(const char *op, const char *backend, uint32_t npoints, const BenchResult *r)
 {
 	char label[64];
 	snprintf(label, sizeof(label), "%s/%s", op, backend);
 	printf("%-22s  %10u  %12.1f  %10.1f  %10.1f  %12.3f\n",
-	       label, npoints, r->median_us, r->min_us, r->max_us,
+	       label,
+	       npoints,
+	       r->median_us,
+	       r->min_us,
+	       r->max_us,
 	       r->throughput_mpts);
 }
 
@@ -441,11 +411,15 @@ print_csv_header(void)
 }
 
 static void
-print_csv_row(const char *op, const char *backend, uint32_t npoints,
-	      const BenchResult *r)
+print_csv_row(const char *op, const char *backend, uint32_t npoints, const BenchResult *r)
 {
 	printf("%s,%s,%u,%.1f,%.1f,%.1f,%.3f\n",
-	       op, backend, npoints, r->median_us, r->min_us, r->max_us,
+	       op,
+	       backend,
+	       npoints,
+	       r->median_us,
+	       r->min_us,
+	       r->max_us,
 	       r->throughput_mpts);
 }
 
@@ -453,40 +427,14 @@ print_csv_row(const char *op, const char *backend, uint32_t npoints,
  * Validation: compare Metal and NEON against scalar reference
  * ================================================================ */
 
-static double
-pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
-{
-	uint32_t i;
-	double max_d = 0.0;
-
-	for (i = 0; i < a->npoints && i < b->npoints; i++)
-	{
-		POINT4D pa_pt;
-		POINT4D pb_pt;
-		double dx;
-		double dy;
-		double dz;
-
-		getPoint4d_p(a, i, &pa_pt);
-		getPoint4d_p(b, i, &pb_pt);
-
-		dx = fabs(pa_pt.x - pb_pt.x);
-		dy = fabs(pa_pt.y - pb_pt.y);
-		dz = fabs(pa_pt.z - pb_pt.z);
-		if (dx > max_d) max_d = dx;
-		if (dy > max_d) max_d = dy;
-		if (dz > max_d) max_d = dz;
-	}
-	return max_d;
-}
+/* pa_max_diff provided by bench_helpers.h */
 
 /**
  * Validate Metal Z-rotation against scalar reference.
  * Returns updated pass flag.
  */
 static int
-validate_metal_rotate_z(const POINTARRAY *base, const POINTARRAY *scalar_pa,
-			uint32_t n, double theta, int pass)
+validate_metal_rotate_z(const POINTARRAY *base, const POINTARRAY *scalar_pa, uint32_t n, double theta, int pass)
 {
 	POINTARRAY *metal_pa = pa_copy(base);
 	int rc = op_rotate_z_metal(metal_pa, theta);
@@ -499,9 +447,9 @@ validate_metal_rotate_z(const POINTARRAY *base, const POINTARRAY *scalar_pa,
 		return 0;
 	}
 	diff = pa_max_diff(scalar_pa, metal_pa);
-	printf("  Metal  %7u pts: max_diff = %.2e %s\n",
-	       n, diff, diff < 1e-10 ? "PASS" : "FAIL");
-	if (diff >= 1e-10) pass = 0;
+	printf("  Metal  %7u pts: max_diff = %.2e %s\n", n, diff, diff < 1e-10 ? "PASS" : "FAIL");
+	if (diff >= 1e-10)
+		pass = 0;
 	ptarray_free(metal_pa);
 	return pass;
 }
@@ -535,9 +483,9 @@ run_validation(void)
 #ifdef HAVE_NEON
 		ptarray_rotate_z_neon(neon_pa, theta);
 		diff = pa_max_diff(scalar_pa, neon_pa);
-		printf("  NEON   %7u pts: max_diff = %.2e %s\n",
-		       n, diff, diff < 1e-9 ? "PASS" : "FAIL");
-		if (diff >= 1e-9) pass = 0;
+		printf("  NEON   %7u pts: max_diff = %.2e %s\n", n, diff, diff < 1e-9 ? "PASS" : "FAIL");
+		if (diff >= 1e-9)
+			pass = 0;
 #else
 		printf("  NEON   %7u pts: not compiled\n", n);
 #endif
@@ -565,9 +513,9 @@ run_validation(void)
 #ifdef HAVE_NEON
 		ptarray_rad_convert_neon(neon_pa, M_PI / 180.0);
 		diff = pa_max_diff(scalar_pa, neon_pa);
-		printf("  NEON   %7u pts: max_diff = %.2e %s\n",
-		       n, diff, diff < 1e-9 ? "PASS" : "FAIL");
-		if (diff >= 1e-9) pass = 0;
+		printf("  NEON   %7u pts: max_diff = %.2e %s\n", n, diff, diff < 1e-9 ? "PASS" : "FAIL");
+		if (diff >= 1e-9)
+			pass = 0;
 #else
 		printf("  NEON   %7u pts: not compiled\n", n);
 #endif
@@ -600,8 +548,12 @@ print_usage(void)
  * Print a single benchmark result row in the chosen format.
  */
 static void
-emit_result(int csv_mode, const char *op_csv, const char *op_table,
-	    const char *backend, uint32_t n, const BenchResult *r)
+emit_result(int csv_mode,
+	    const char *op_csv,
+	    const char *op_table,
+	    const char *backend,
+	    uint32_t n,
+	    const BenchResult *r)
 {
 	if (csv_mode)
 		print_csv_row(op_csv, backend, n, r);
@@ -687,22 +639,28 @@ main(int argc, char *argv[])
 	int metal_ok = 0;
 	int pi;
 
-	static struct option long_opts[] = {
-		{"csv",      no_argument, 0, 'c'},
-		{"validate", no_argument, 0, 'v'},
-		{"help",     no_argument, 0, 'h'},
-		{0, 0, 0, 0}
-	};
+	static struct option long_opts[] = {{"csv", no_argument, 0, 'c'},
+					    {"validate", no_argument, 0, 'v'},
+					    {"help", no_argument, 0, 'h'},
+					    {0, 0, 0, 0}};
 
 	int opt;
 	while ((opt = getopt_long(argc, argv, "cvh", long_opts, NULL)) != -1)
 	{
 		switch (opt)
 		{
-		case 'c': csv_mode = 1; break;
-		case 'v': validate_mode = 1; break;
-		case 'h': help_mode = 1; break;
-		default: print_usage(); return 1;
+		case 'c':
+			csv_mode = 1;
+			break;
+		case 'v':
+			validate_mode = 1;
+			break;
+		case 'h':
+			help_mode = 1;
+			break;
+		default:
+			print_usage();
+			return 1;
 		}
 	}
 
@@ -731,8 +689,7 @@ main(int argc, char *argv[])
 		char *features = lwaccel_features_string();
 		printf("=== PostGIS CPU vs SIMD vs GPU Benchmark ===\n\n");
 		printf("Acceleration: %s\n", features);
-		printf("GPU backend:  %s",
-		       metal_ok ? "Metal" : "none (Metal not available)");
+		printf("GPU backend:  %s", metal_ok ? "Metal" : "none (Metal not available)");
 		if (metal_ok)
 		{
 #ifdef HAVE_METAL
@@ -740,14 +697,14 @@ main(int argc, char *argv[])
 #endif
 		}
 		printf("\n");
-		printf("Timing:       mach_absolute_time (%.2f ns/tick)\n",
-		       (double)tb_info.numer / tb_info.denom);
+		printf("Timing:       mach_absolute_time (%.2f ns/tick)\n", (double)tb_info.numer / tb_info.denom);
 		printf("Iterations:   %d total, %d warmup, %d measured\n",
-		       BENCH_TOTAL_ITERS, BENCH_WARMUP_ITERS, BENCH_MEASURE_ITERS);
+		       BENCH_TOTAL_ITERS,
+		       BENCH_WARMUP_ITERS,
+		       BENCH_MEASURE_ITERS);
 		printf("Point counts: ");
 		for (pi = 0; pi < N_POINT_COUNTS; pi++)
-			printf("%u%s", POINT_COUNTS[pi],
-			       pi < N_POINT_COUNTS - 1 ? ", " : "\n");
+			printf("%u%s", POINT_COUNTS[pi], pi < N_POINT_COUNTS - 1 ? ", " : "\n");
 		lwfree(features);
 		printf("\n");
 	}
