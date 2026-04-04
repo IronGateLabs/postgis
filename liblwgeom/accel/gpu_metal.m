@@ -9,6 +9,8 @@
  *
  **********************************************************************/
 
+#include "../../postgis_config.h"
+
 #ifdef HAVE_METAL
 #if defined(__APPLE__)
 
@@ -26,18 +28,20 @@
 /*
  * Parameter structs matching the Metal kernel constant buffers.
  * These must stay in sync with the structs in gpu_metal_kernels.metal.
+ * NOTE: Metal does not support double. All GPU-side data uses float.
+ * Host side converts double <-> float at dispatch boundaries.
  */
 struct RotateZParams
 {
-	uint32_t stride_doubles;
+	uint32_t stride;
 	uint32_t npoints;
-	double cos_t;
-	double sin_t;
+	float cos_t;
+	float sin_t;
 };
 
 struct RotateZMEpochParams
 {
-	uint32_t stride_doubles;
+	uint32_t stride;
 	uint32_t npoints;
 	uint32_t m_offset;
 	int32_t  direction;
@@ -45,10 +49,35 @@ struct RotateZMEpochParams
 
 struct RadConvertParams
 {
-	uint32_t stride_doubles;
+	uint32_t stride;
 	uint32_t npoints;
-	double scale;
+	float scale;
 };
+
+/*
+ * Convert interleaved double coordinate data to float for Metal dispatch.
+ * Returns a malloc'd float array that the caller must free.
+ */
+static float *
+metal_doubles_to_floats(const double *src, size_t count)
+{
+	float *dst = malloc(count * sizeof(float));
+	if (!dst)
+		return NULL;
+	for (size_t i = 0; i < count; i++)
+		dst[i] = (float)src[i];
+	return dst;
+}
+
+/*
+ * Convert float results from Metal back to double coordinate data.
+ */
+static void
+metal_floats_to_doubles(double *dst, const float *src, size_t count)
+{
+	for (size_t i = 0; i < count; i++)
+		dst[i] = (double)src[i];
+}
 
 /*
  * File-scope statics: cached Metal objects.
@@ -222,44 +251,34 @@ lwgpu_metal_rotate_z(double *data, size_t stride, uint32_t n, double theta)
 
 	@autoreleasepool
 	{
-		/* Compute trig on CPU -- single sin/cos for all points */
-		double cos_t = cos(theta);
-		double sin_t = sin(theta);
-
 		uint32_t stride_doubles = (uint32_t)(stride / sizeof(double));
-		size_t data_len = (size_t)n * stride;
-		int zerocopy = 0;
+		size_t total_doubles = (size_t)n * stride_doubles;
 
-		/* Create Metal buffer for point data */
-		id<MTLBuffer> data_buf = nil;
-		if (metal_can_zerocopy(data, data_len))
-		{
-			data_buf = [mtl_device newBufferWithBytesNoCopy:data
-								length:data_len
-							       options:MTLResourceStorageModeShared
-							   deallocator:nil];
-			if (data_buf)
-				zerocopy = 1;
-		}
-		if (!data_buf)
-		{
-			data_buf = [mtl_device newBufferWithBytes:data
-							  length:data_len
-						         options:MTLResourceStorageModeShared];
-		}
+		/* Convert double -> float for Metal (no double support on GPU) */
+		float *fdata = metal_doubles_to_floats(data, total_doubles);
+		if (!fdata)
+			return 0;
+
+		size_t fdata_len = total_doubles * sizeof(float);
+
+		/* Create Metal buffer for float point data */
+		id<MTLBuffer> data_buf = [mtl_device newBufferWithBytes:fdata
+								length:fdata_len
+							       options:MTLResourceStorageModeShared];
 		if (!data_buf)
 		{
 			lwnotice("Metal: failed to create data buffer for rotate_z");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
 
 		/* Create constant buffer for kernel parameters */
 		struct RotateZParams params;
-		params.stride_doubles = stride_doubles;
+		params.stride = stride_doubles;
 		params.npoints = n;
-		params.cos_t = cos_t;
-		params.sin_t = sin_t;
+		params.cos_t = (float)cos(theta);
+		params.sin_t = (float)sin(theta);
 
 		id<MTLBuffer> params_buf = [mtl_device newBufferWithBytes:&params
 								  length:sizeof(params)
@@ -267,23 +286,18 @@ lwgpu_metal_rotate_z(double *data, size_t stride, uint32_t n, double theta)
 		if (!params_buf)
 		{
 			lwnotice("Metal: failed to create params buffer for rotate_z");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
 
 		/* Encode and dispatch compute command */
 		id<MTLCommandBuffer> cmd_buf = [mtl_queue commandBuffer];
-		if (!cmd_buf)
-		{
-			lwnotice("Metal: failed to create command buffer");
-			metal_disabled = 1;
-			return 0;
-		}
-
 		id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
-		if (!encoder)
+		if (!cmd_buf || !encoder)
 		{
-			lwnotice("Metal: failed to create compute encoder");
+			lwnotice("Metal: failed to create command buffer/encoder");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
@@ -292,35 +306,30 @@ lwgpu_metal_rotate_z(double *data, size_t stride, uint32_t n, double theta)
 		[encoder setBuffer:data_buf offset:0 atIndex:0];
 		[encoder setBuffer:params_buf offset:0 atIndex:1];
 
-		/* Dispatch one thread per point */
 		NSUInteger tg_size = METAL_THREADGROUP_SIZE;
 		if (tg_size > [mtl_pipeline_rotate_z maxTotalThreadsPerThreadgroup])
 			tg_size = [mtl_pipeline_rotate_z maxTotalThreadsPerThreadgroup];
 
-		MTLSize grid_size = MTLSizeMake(n, 1, 1);
-		MTLSize threadgroup_size = MTLSizeMake(tg_size, 1, 1);
-
-		[encoder dispatchThreads:grid_size threadsPerThreadgroup:threadgroup_size];
+		[encoder dispatchThreads:MTLSizeMake(n, 1, 1)
+		    threadsPerThreadgroup:MTLSizeMake(tg_size, 1, 1)];
 		[encoder endEncoding];
 
 		[cmd_buf commit];
 		[cmd_buf waitUntilCompleted];
 
-		/* Check for GPU execution errors */
 		if ([cmd_buf status] == MTLCommandBufferStatusError)
 		{
 			NSError *cb_error = [cmd_buf error];
 			lwnotice("Metal: command buffer error in rotate_z: %s",
 				 cb_error ? [[cb_error localizedDescription] UTF8String] : "unknown");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
 
-		/* If we used a copy, write results back to caller's memory */
-		if (!zerocopy)
-		{
-			memcpy(data, [data_buf contents], data_len);
-		}
+		/* Convert float results back to double */
+		metal_floats_to_doubles(data, [data_buf contents], total_doubles);
+		free(fdata);
 	}
 
 	return 1;
@@ -346,36 +355,28 @@ lwgpu_metal_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
 	@autoreleasepool
 	{
 		uint32_t stride_doubles = (uint32_t)(stride / sizeof(double));
-		size_t data_len = (size_t)n * stride;
-		int zerocopy = 0;
+		size_t total_doubles = (size_t)n * stride_doubles;
 
-		/* Create Metal buffer for point data */
-		id<MTLBuffer> data_buf = nil;
-		if (metal_can_zerocopy(data, data_len))
-		{
-			data_buf = [mtl_device newBufferWithBytesNoCopy:data
-								length:data_len
-							       options:MTLResourceStorageModeShared
-							   deallocator:nil];
-			if (data_buf)
-				zerocopy = 1;
-		}
-		if (!data_buf)
-		{
-			data_buf = [mtl_device newBufferWithBytes:data
-							  length:data_len
-						         options:MTLResourceStorageModeShared];
-		}
+		/* Convert double -> float for Metal */
+		float *fdata = metal_doubles_to_floats(data, total_doubles);
+		if (!fdata)
+			return 0;
+
+		size_t fdata_len = total_doubles * sizeof(float);
+
+		id<MTLBuffer> data_buf = [mtl_device newBufferWithBytes:fdata
+								length:fdata_len
+							       options:MTLResourceStorageModeShared];
 		if (!data_buf)
 		{
 			lwnotice("Metal: failed to create data buffer for rotate_z_m_epoch");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
 
-		/* Create constant buffer for kernel parameters */
 		struct RotateZMEpochParams params;
-		params.stride_doubles = stride_doubles;
+		params.stride = stride_doubles;
 		params.npoints = n;
 		params.m_offset = (uint32_t)m_off;
 		params.direction = (int32_t)dir;
@@ -386,23 +387,17 @@ lwgpu_metal_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
 		if (!params_buf)
 		{
 			lwnotice("Metal: failed to create params buffer for rotate_z_m_epoch");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
 
-		/* Encode and dispatch compute command */
 		id<MTLCommandBuffer> cmd_buf = [mtl_queue commandBuffer];
-		if (!cmd_buf)
-		{
-			lwnotice("Metal: failed to create command buffer");
-			metal_disabled = 1;
-			return 0;
-		}
-
 		id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
-		if (!encoder)
+		if (!cmd_buf || !encoder)
 		{
-			lwnotice("Metal: failed to create compute encoder");
+			lwnotice("Metal: failed to create command buffer/encoder");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
@@ -411,35 +406,30 @@ lwgpu_metal_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
 		[encoder setBuffer:data_buf offset:0 atIndex:0];
 		[encoder setBuffer:params_buf offset:0 atIndex:1];
 
-		/* Dispatch one thread per point */
 		NSUInteger tg_size = METAL_THREADGROUP_SIZE;
 		if (tg_size > [mtl_pipeline_rotate_z_m_epoch maxTotalThreadsPerThreadgroup])
 			tg_size = [mtl_pipeline_rotate_z_m_epoch maxTotalThreadsPerThreadgroup];
 
-		MTLSize grid_size = MTLSizeMake(n, 1, 1);
-		MTLSize threadgroup_size = MTLSizeMake(tg_size, 1, 1);
-
-		[encoder dispatchThreads:grid_size threadsPerThreadgroup:threadgroup_size];
+		[encoder dispatchThreads:MTLSizeMake(n, 1, 1)
+		    threadsPerThreadgroup:MTLSizeMake(tg_size, 1, 1)];
 		[encoder endEncoding];
 
 		[cmd_buf commit];
 		[cmd_buf waitUntilCompleted];
 
-		/* Check for GPU execution errors */
 		if ([cmd_buf status] == MTLCommandBufferStatusError)
 		{
 			NSError *cb_error = [cmd_buf error];
 			lwnotice("Metal: command buffer error in rotate_z_m_epoch: %s",
 				 cb_error ? [[cb_error localizedDescription] UTF8String] : "unknown");
+			free(fdata);
 			metal_disabled = 1;
 			return 0;
 		}
 
-		/* If we used a copy, write results back to caller's memory */
-		if (!zerocopy)
-		{
-			memcpy(data, [data_buf contents], data_len);
-		}
+		/* Convert float results back to double */
+		metal_floats_to_doubles(data, [data_buf contents], total_doubles);
+		free(fdata);
 	}
 
 	return 1;
