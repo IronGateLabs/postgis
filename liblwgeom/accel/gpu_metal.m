@@ -18,6 +18,7 @@
 #import <Foundation/Foundation.h>
 #include "../lwgeom_gpu.h"
 #include "../lwgeom_log.h"
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include <mach/vm_page_size.h>
@@ -45,13 +46,6 @@ struct RotateZMEpochParams
 	uint32_t npoints;
 	uint32_t m_offset;
 	int32_t  direction;
-};
-
-struct RadConvertParams
-{
-	uint32_t stride;
-	uint32_t npoints;
-	float scale;
 };
 
 /*
@@ -92,7 +86,13 @@ static id<MTLCommandQueue> mtl_queue = nil;
 static id<MTLLibrary> mtl_library = nil;
 static id<MTLComputePipelineState> mtl_pipeline_rotate_z = nil;
 static id<MTLComputePipelineState> mtl_pipeline_rotate_z_m_epoch = nil;
-static id<MTLComputePipelineState> mtl_pipeline_rad_convert = nil;
+/*
+ * Note: rad_convert kernel exists in the metallib but has no GPU dispatch
+ * function because the operation (simple x,y multiply) is too lightweight
+ * to overcome Metal command buffer overhead. SIMD handles it via the
+ * dispatch table. Pipeline creation is deferred until a dispatch function
+ * is added in a future release.
+ */
 
 /* Threadgroup size for compute dispatches */
 #define METAL_THREADGROUP_SIZE 256
@@ -201,21 +201,6 @@ lwgpu_metal_init(void)
 		if (!mtl_pipeline_rotate_z_m_epoch)
 		{
 			lwnotice("Metal: failed to create rotate_z_m_epoch pipeline: %s",
-				 error ? [[error localizedDescription] UTF8String] : "unknown");
-			goto fail;
-		}
-
-		/* Create pipeline state for rad_convert kernel */
-		fn = [mtl_library newFunctionWithName:@"rad_convert"];
-		if (!fn)
-		{
-			lwnotice("Metal: kernel 'rad_convert' not found in metallib");
-			goto fail;
-		}
-		mtl_pipeline_rad_convert = [mtl_device newComputePipelineStateWithFunction:fn error:&error];
-		if (!mtl_pipeline_rad_convert)
-		{
-			lwnotice("Metal: failed to create rad_convert pipeline: %s",
 				 error ? [[error localizedDescription] UTF8String] : "unknown");
 			goto fail;
 		}
@@ -429,7 +414,6 @@ lwgpu_metal_shutdown(void)
 {
 	@autoreleasepool
 	{
-		mtl_pipeline_rad_convert = nil;
 		mtl_pipeline_rotate_z_m_epoch = nil;
 		mtl_pipeline_rotate_z = nil;
 		mtl_library = nil;

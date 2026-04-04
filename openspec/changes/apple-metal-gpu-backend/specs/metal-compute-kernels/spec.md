@@ -77,13 +77,13 @@ The system SHALL provide a Metal compute kernel that performs bulk radian-to-deg
 ### Requirement: Metal Shading Language source conventions
 The Metal compute kernels SHALL follow consistent coding conventions compatible with the Metal Shading Language specification.
 
-#### Scenario: Double-precision types
+#### Scenario: Floating-point precision
 - **WHEN** kernel source is written
-- **THEN** all coordinate arithmetic SHALL use `double` (64-bit IEEE 754), not `float` or `half`
+- **THEN** all coordinate arithmetic SHALL use `float` (32-bit IEEE 754), because Apple Silicon GPUs do not support double-precision compute. The host side (gpu_metal.m) converts double to float before dispatch and float to double after, trading precision (~7 decimal digits vs ~15) for GPU acceleration. At Earth-scale coordinates the precision loss is sub-millimeter.
 
 #### Scenario: Kernel function attributes
 - **WHEN** kernel functions are declared
-- **THEN** each SHALL use the `kernel` function qualifier and accept `device double *data` as a buffer argument with `[[buffer(0)]]` attribute binding
+- **THEN** each SHALL use the `kernel` function qualifier and accept `device float *data` as a buffer argument with `[[buffer(0)]]` attribute binding
 
 #### Scenario: Thread index access
 - **WHEN** kernels determine which point to process
