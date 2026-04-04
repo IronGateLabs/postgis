@@ -23,13 +23,14 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
+          PG_VER=$(pg_config --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "16")
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             autoconf \
             automake \
             libtool \
             pkg-config \
-            postgresql-server-dev-all \
+            postgresql-server-dev-${PG_VER} \
             libgeos-dev \
             libproj-dev \
             libgdal-dev \

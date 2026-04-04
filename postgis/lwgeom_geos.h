@@ -76,7 +76,7 @@ Datum ST_3DDistance(PG_FUNCTION_ARGS);
 	int8_t result; \
 	GBOX box1; \
 	GBOX box2; \
-	PrepGeomCache *prep_cache
+	PrepGeomCache *prep_cache __attribute__((unused))
 
 /*
  * Check that bounding boxes overlap; if not, return early.
