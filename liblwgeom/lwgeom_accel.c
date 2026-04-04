@@ -370,8 +370,7 @@ gpu_aware_rotate_z(POINTARRAY *pa, double theta)
 		return cpu_rotate_z(pa, theta);
 #endif
 
-	if (gpu_dispatch_threshold > 0 &&
-	    pa->npoints >= effective_gpu_threshold() && lwgpu_available())
+	if (gpu_dispatch_threshold > 0 && pa->npoints >= effective_gpu_threshold() && lwgpu_available())
 	{
 		size_t stride = ptarray_point_size(pa);
 		if (lwgpu_rotate_z_batch((double *)pa->serialized_pointlist, stride, pa->npoints, theta))
@@ -397,8 +396,7 @@ gpu_aware_rotate_z_m_epoch(POINTARRAY *pa, int direction)
 	 * the GPU advantage is clear.
 	 */
 	threshold = effective_gpu_threshold();
-	if (threshold > 0 &&
-	    pa->npoints >= threshold && lwgpu_available())
+	if (threshold > 0 && pa->npoints >= threshold && lwgpu_available())
 	{
 		int has_z = FLAGS_GET_Z(pa->flags);
 		size_t m_offset = has_z ? 3 : 2;
