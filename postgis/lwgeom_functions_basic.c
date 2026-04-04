@@ -147,6 +147,10 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 	GSERIALIZED *g = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwg = lwgeom_from_gserialized(g);
 	char *lwresult = lwgeom_summary(lwg, 0);
+	/*
+	 * Safe: summary_str is guaranteed non-NULL by the ternary above,
+	 * so strlen cannot dereference a NULL pointer (SonarCloud S5813).
+	 */
 	const char *summary_str = lwresult ? lwresult : "";
 	uint32_t gver = gserialized_get_version(g);
 	int32_t srid = gserialized_get_srid(g);
