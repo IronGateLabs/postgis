@@ -49,8 +49,8 @@ static std::set<void *> oSetPointers; // NOSONAR - mutable tracking set
 static jmp_buf jmpBuf;                // NOSONAR - required for longjmp error recovery
 
 extern "C" {
-static void *
-allocator(size_t size) // NOSONAR - void* required by liblwgeom allocator API
+static void * // NOSONAR - void* required by liblwgeom allocator API
+allocator(size_t size)
 {
 	void *mem = std::malloc(size); // NOSONAR - liblwgeom allocator must use malloc
 	oSetPointers.insert(mem);
@@ -64,8 +64,8 @@ freeor(void *mem) // NOSONAR - void* required by liblwgeom allocator API
 	std::free(mem); // NOSONAR - liblwgeom allocator must use free
 }
 
-static void *
-reallocator(void *mem, size_t size) // NOSONAR - void* required by liblwgeom allocator API
+static void * // NOSONAR - void* required by liblwgeom allocator API
+reallocator(void *mem, size_t size)
 {
 	oSetPointers.erase(mem);
 	void *ret = std::realloc(mem, size); // NOSONAR - liblwgeom allocator must use realloc
@@ -79,7 +79,7 @@ noticereporter(const char *, va_list)
 	/* intentionally empty: suppress liblwgeom notice output during fuzzing */
 }
 
-static void
+__attribute__((noreturn)) static void
 errorreporter(const char *, va_list)
 {
 	for (auto const &ptr : oSetPointers)
