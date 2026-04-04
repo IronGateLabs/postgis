@@ -55,8 +55,7 @@ surface_arc_find_and_update(surface_arcs arcs, uint32_t carc,
                             const POINT4D *pa, const POINT4D *pb,
                             uint32_t face)
 {
-	uint32_t k;
-	for (k = 0; k < carc; k++)
+	for (uint32_t k = 0; k < carc; k++)
 	{
 		/*
 		 * Exact float equality is intentional here: arc endpoints
@@ -106,8 +105,7 @@ static inline int
 surface_arcs_check_closed(surface_arcs arcs, uint32_t carc,
                            uint32_t ngeoms)
 {
-	uint32_t k;
-	for (k = 0; k < carc; k++)
+	for (uint32_t k = 0; k < carc; k++)
 	{
 		if (arcs[k].cnt != 2)
 		{
