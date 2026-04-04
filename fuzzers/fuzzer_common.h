@@ -30,82 +30,81 @@
 #ifndef FUZZER_COMMON_H
 #define FUZZER_COMMON_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <setjmp.h>
 
 #include <set>
 
-extern "C"
-{
+extern "C" {
 #include "liblwgeom.h"
 #include "geos_stub.h"
 #include "proj_stub.h"
 }
 
 /* Heap tracking for leak-free cleanup on longjmp */
-static std::set<void*> oSetPointers; // NOSONAR - mutable tracking set
-static jmp_buf jmpBuf; // NOSONAR - required for longjmp error recovery
+static std::set<void *> oSetPointers; // NOSONAR - mutable tracking set
+static jmp_buf jmpBuf;                // NOSONAR - required for longjmp error recovery
 
-extern "C"
+extern "C" {
+static void *
+allocator(size_t size) // NOSONAR - void* required by liblwgeom allocator API
 {
-    static void *
-    allocator(size_t size)
-    {
-            // NOSONAR: must use malloc to match liblwgeom's C allocator interface
-            void *mem = malloc(size);
-            oSetPointers.insert(mem);
-            return mem;
-    }
-
-    static void
-    freeor(void *mem) // NOSONAR: void* required by liblwgeom allocator API
-    {
-            oSetPointers.erase(mem);
-            // NOSONAR: must use free to match liblwgeom's C allocator interface
-            free(mem);
-    }
-
-    static void *
-    reallocator(void *mem, size_t size) // NOSONAR: void* required by liblwgeom allocator API
-    {
-            oSetPointers.erase(mem);
-            // NOSONAR: must use realloc to match liblwgeom's C allocator interface
-            void *ret = realloc(mem, size);
-            oSetPointers.insert(ret);
-            return ret;
-    }
-
-    static void
-    noticereporter(const char *, va_list)
-    {
-        /* intentionally empty: suppress liblwgeom notice output during fuzzing */
-    }
-
-    static void
-    errorreporter(const char *, va_list)
-    {
-        for (auto const &ptr : oSetPointers)
-        {
-            free(ptr); // NOSONAR: matches malloc from allocator()
-        }
-        oSetPointers.clear();
-        longjmp(jmpBuf, 1);
-    }
-
-    static void
-    debuglogger(int, const char *, va_list)
-    {
-        /* intentionally empty: suppress liblwgeom debug output during fuzzing */
-    }
+	void *mem = std::malloc(size); // NOSONAR - liblwgeom allocator must use malloc
+	oSetPointers.insert(mem);
+	return mem;
 }
 
-extern "C" int LLVMFuzzerInitialize(int* /*argc*/, char*** /*argv*/)
+static void
+freeor(void *mem) // NOSONAR - void* required by liblwgeom allocator API
 {
-	// NOSONAR: must pass C malloc/realloc/free to match liblwgeom handler API
-	lwgeom_set_handlers(malloc, realloc, free, noticereporter, noticereporter);
+	oSetPointers.erase(mem);
+	std::free(mem); // NOSONAR - liblwgeom allocator must use free
+}
+
+static void *
+reallocator(void *mem, size_t size) // NOSONAR - void* required by liblwgeom allocator API
+{
+	oSetPointers.erase(mem);
+	void *ret = std::realloc(mem, size); // NOSONAR - liblwgeom allocator must use realloc
+	oSetPointers.insert(ret);
+	return ret;
+}
+
+static void
+noticereporter(const char *, va_list)
+{
+	/* intentionally empty: suppress liblwgeom notice output during fuzzing */
+}
+
+static void
+errorreporter(const char *, va_list)
+{
+	for (auto const &ptr : oSetPointers)
+	{
+		std::free(ptr); // NOSONAR - matches malloc from allocator()
+	}
+	oSetPointers.clear();
+	longjmp(jmpBuf, 1);
+}
+
+static void
+debuglogger(int, const char *, va_list)
+{
+	/* intentionally empty: suppress liblwgeom debug output during fuzzing */
+}
+}
+
+extern "C" int
+LLVMFuzzerInitialize(int * /*argc*/, char *** /*argv*/)
+{
+	lwgeom_set_handlers(std::malloc,
+			    std::realloc,
+			    std::free, // NOSONAR - liblwgeom handler API
+			    noticereporter,
+			    noticereporter);
 	lwgeom_set_debuglogger(debuglogger);
 	return 0;
 }

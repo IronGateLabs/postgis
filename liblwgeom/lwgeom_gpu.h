@@ -19,11 +19,12 @@
 /**
  * GPU backend identifier.
  */
-typedef enum {
-	LW_GPU_NONE   = 0,
-	LW_GPU_CUDA   = 1,
-	LW_GPU_ROCM   = 2,
-	LW_GPU_ONEAPI = 3
+typedef enum
+{ /* NOSONAR - C header; enum class not usable across C/C++ boundary */
+  LW_GPU_NONE = 0,
+  LW_GPU_CUDA = 1,
+  LW_GPU_ROCM = 2,
+  LW_GPU_ONEAPI = 3
 } LW_GPU_BACKEND;
 
 /**
@@ -60,8 +61,7 @@ const char *lwgpu_backend_name(void);
  * @param theta     Rotation angle in radians
  * @return 1 on success, 0 on failure (caller should fallback to CPU)
  */
-int lwgpu_rotate_z_batch(double *xy_pairs, size_t stride,
-			 uint32_t npoints, double theta);
+int lwgpu_rotate_z_batch(double *xy_pairs, size_t stride, uint32_t npoints, double theta);
 
 /**
  * GPU batch Z-rotation: per-point epoch from M coordinate.
@@ -73,9 +73,7 @@ int lwgpu_rotate_z_batch(double *xy_pairs, size_t stride,
  * @param direction -1 for ECI->ECEF, +1 for ECEF->ECI
  * @return 1 on success, 0 on failure (caller should fallback to CPU)
  */
-int lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride,
-				 uint32_t npoints, size_t m_offset,
-				 int direction);
+int lwgpu_rotate_z_m_epoch_batch(double *xyzm, size_t stride, uint32_t npoints, size_t m_offset, int direction);
 
 /**
  * Shut down GPU backend and release resources.
@@ -89,8 +87,7 @@ void lwgpu_shutdown(void);
 #ifdef HAVE_CUDA
 int lwgpu_cuda_init(void);
 int lwgpu_cuda_rotate_z(double *data, size_t stride, uint32_t n, double theta);
-int lwgpu_cuda_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
-				size_t m_off, int dir);
+int lwgpu_cuda_rotate_z_m_epoch(double *data, size_t stride, uint32_t n, size_t m_off, int dir);
 void lwgpu_cuda_shutdown(void);
 const char *lwgpu_cuda_device_name(void);
 #endif
@@ -98,8 +95,7 @@ const char *lwgpu_cuda_device_name(void);
 #ifdef HAVE_ROCM
 int lwgpu_rocm_init(void);
 int lwgpu_rocm_rotate_z(double *data, size_t stride, uint32_t n, double theta);
-int lwgpu_rocm_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
-				size_t m_off, int dir);
+int lwgpu_rocm_rotate_z_m_epoch(double *data, size_t stride, uint32_t n, size_t m_off, int dir);
 void lwgpu_rocm_shutdown(void);
 const char *lwgpu_rocm_device_name(void);
 #endif
@@ -107,8 +103,7 @@ const char *lwgpu_rocm_device_name(void);
 #ifdef HAVE_ONEAPI
 int lwgpu_oneapi_init(void);
 int lwgpu_oneapi_rotate_z(double *data, size_t stride, uint32_t n, double theta);
-int lwgpu_oneapi_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
-				  size_t m_off, int dir);
+int lwgpu_oneapi_rotate_z_m_epoch(double *data, size_t stride, uint32_t n, size_t m_off, int dir);
 void lwgpu_oneapi_shutdown(void);
 const char *lwgpu_oneapi_device_name(void);
 #endif

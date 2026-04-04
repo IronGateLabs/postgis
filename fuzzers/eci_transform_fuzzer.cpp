@@ -27,45 +27,46 @@
  ****************************************************************************/
 
 #include <math.h>
+#include <vector>
 #include "fuzzer_common.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len);
 
-int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len)
+int
+LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
-    /* Need at least 8 bytes for epoch + 1 byte for WKT */
-    if (len < 9)
-        return 0;
+	/* Need at least 8 bytes for epoch + 1 byte for WKT */
+	if (len < 9)
+		return 0;
 
-    /* Extract epoch from first 8 bytes */
-    double epoch;
-    memcpy(&epoch, buf, 8);
+	/* Extract epoch from first 8 bytes */
+	double epoch;
+	memcpy(&epoch, buf, 8);
 
-    /* Skip NaN, Inf, and zero epochs (rejected by the API) */
-    if (!isfinite(epoch) || epoch == 0.0)
-        return 0;
+	/* Skip NaN, Inf, and zero epochs (rejected by the API) */
+	if (!isfinite(epoch) || epoch == 0.0)
+		return 0;
 
-    /* Clamp to reasonable range to avoid extreme computation */
-    if (epoch < -10000.0 || epoch > 10000.0)
-        return 0;
+	/* Clamp to reasonable range to avoid extreme computation */
+	if (epoch < -10000.0 || epoch > 10000.0)
+		return 0;
 
-    /* Extract WKT from remaining bytes */
-    auto wkt_len = len - 8;
-    auto pszWKT = new char[wkt_len + 1];
-    memcpy(pszWKT, buf + 8, wkt_len);
-    pszWKT[wkt_len] = '\0';
+	/* Extract WKT from remaining bytes */
+	auto wkt_len = len - 8;
+	std::vector<char> wkt_buf(wkt_len + 1);
+	memcpy(wkt_buf.data(), buf + 8, wkt_len);
+	wkt_buf[wkt_len] = '\0';
 
-    if (!setjmp(jmpBuf))
-    {
-        LWGEOM* lwgeom = lwgeom_from_wkt(pszWKT, LW_PARSER_CHECK_NONE);
-        if (lwgeom)
-        {
-            /* Try ECI -> ECEF -> ECI roundtrip */
-            lwgeom_transform_eci_to_ecef(lwgeom, epoch);
-            lwgeom_transform_ecef_to_eci(lwgeom, epoch);
-            lwgeom_free(lwgeom);
-        }
-    }
-    delete[] pszWKT;
-    return 0;
+	if (!setjmp(jmpBuf))
+	{
+		LWGEOM *lwgeom = lwgeom_from_wkt(wkt_buf.data(), LW_PARSER_CHECK_NONE);
+		if (lwgeom)
+		{
+			/* Try ECI -> ECEF -> ECI roundtrip */
+			lwgeom_transform_eci_to_ecef(lwgeom, epoch);
+			lwgeom_transform_ecef_to_eci(lwgeom, epoch);
+			lwgeom_free(lwgeom);
+		}
+	}
+	return 0;
 }
