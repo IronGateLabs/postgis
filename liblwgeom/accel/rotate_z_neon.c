@@ -10,6 +10,7 @@
 
 #include "../lwgeom_accel.h"
 #include "../lwgeom_log.h"
+#include "rotate_z_common.h"
 #include <math.h>
 #include <arm_neon.h>
 
@@ -59,14 +60,7 @@ ptarray_rotate_z_neon(POINTARRAY *pa, double theta)
 	}
 
 	/* Scalar tail for odd point */
-	if (i < npoints)
-	{
-		double *p = pts + i * stride;
-		double x = p[0];
-		double y = p[1];
-		p[0] = x * cos_t + y * sin_t;
-		p[1] = -x * sin_t + y * cos_t;
-	}
+	rotate_z_scalar_tail(pts, i, npoints, stride, cos_t, sin_t);
 
 	return LW_SUCCESS;
 }
@@ -146,35 +140,6 @@ ptarray_rotate_z_m_epoch_neon(POINTARRAY *pa, int direction)
 	}
 
 	/* Scalar tail */
-	if (i < npoints)
-	{
-		double *p = pts + i * stride;
-		double epoch = p[m_offset];
-		double jd;
-		double era;
-		double theta;
-		double cos_t;
-		double sin_t;
-		double x;
-		double y;
-
-		if (epoch < 1000.0 || epoch > 3000.0)
-		{
-			lwerror("ECI transform: point %u has invalid epoch M=%.4f "
-				"(expected decimal year in range 1000-3000)", i, epoch);
-			return LW_FAILURE;
-		}
-
-		jd = lweci_epoch_to_jd(epoch);
-		era = lweci_earth_rotation_angle(jd);
-		theta = direction * era;
-		cos_t = cos(theta);
-		sin_t = sin(theta);
-
-		x = p[0]; y = p[1];
-		p[0] = x * cos_t + y * sin_t;
-		p[1] = -x * sin_t + y * cos_t;
-	}
-
-	return LW_SUCCESS;
+	return rotate_z_m_epoch_scalar_tail(pts, i, npoints, stride,
+					    m_offset, direction);
 }

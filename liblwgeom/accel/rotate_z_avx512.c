@@ -9,6 +9,7 @@
  **********************************************************************/
 
 #include "../lwgeom_accel.h"
+#include "rotate_z_common.h"
 #include <math.h>
 #include <immintrin.h>
 
@@ -65,14 +66,7 @@ ptarray_rotate_z_avx512(POINTARRAY *pa, double theta)
 	}
 
 	/* Scalar tail for remaining points */
-	for (; i < npoints; i++)
-	{
-		double *p = pts + i * stride;
-		double x = p[0];
-		double y = p[1];
-		p[0] = x * cos_t + y * sin_t;
-		p[1] = -x * sin_t + y * cos_t;
-	}
+	rotate_z_scalar_tail(pts, i, npoints, stride, cos_t, sin_t);
 
 	return LW_SUCCESS;
 }
