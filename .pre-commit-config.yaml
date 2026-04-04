@@ -1,7 +1,12 @@
 # Pre-commit hooks for PostGIS code quality
 # Install: pip install pre-commit && pre-commit install
-# Bypass:  git commit --no-verify
+# Bypass:  git commit --no-verify (emergencies only)
 # See: https://pre-commit.com
+#
+# Strategy: The upstream PostGIS codebase has many pre-existing style
+# and lint violations. These hooks enforce quality only on CHANGED files
+# (the default pre-commit behavior on `git commit`). Running with
+# --all-files will show upstream issues we don't own.
 
 repos:
   # codespell: catch typos before they reach CI
@@ -12,18 +17,33 @@ repos:
         args: ['--ignore-words=.codespell.ignore']
         exclude: '^(deps/|extensions/.*/sql/|doc/html/|doc/po/|autom4te\.cache/|build-aux/|configure$|aclocal\.m4$|macros/libtool\.m4$)'
 
-  # merge conflict markers
+  # clang-format: enforce .clang-format on changed C/H files only
+  # Excludes dirs with pre-existing style that differs from .clang-format
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+        args: ['--dry-run', '--Werror']
+        exclude: '^(deps/|regress/|doc/|topology/|fuzzers/)'
+
+  # shellcheck: catch script errors on changed shell files only
+  # --severity=error: only block on actual errors, not style warnings
+  # Excludes upstream CI scripts we don't maintain
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: ['--severity=error']
+        exclude: '^(deps/|configure$|libtool$|build-aux/|ci/berrie|ci/debbie|ci/winnie|utils/)'
+
+  # basic hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-merge-conflict
-
-  # NOTE on clang-format: The upstream PostGIS codebase has many
-  # pre-existing formatting variations. Do NOT use a clang-format
-  # pre-commit hook on all files. Instead use: git clang-format
-  # This formats only staged changes, matching the project convention
-  # of separating style commits from logic commits.
-  #
-  # NOTE on shellcheck: Upstream CI/utility scripts have many
-  # pre-existing shellcheck warnings. We only run shellcheck in CI
-  # via the codespell workflow, not as a blocking pre-commit hook.
+      - id: trailing-whitespace
+        exclude: '(_expected|\.patch|\.sql\.in)$'
+        args: ['--markdown-linebreak-ext=md']
+      - id: end-of-file-fixer
+        exclude: '(_expected|\.patch)$'
