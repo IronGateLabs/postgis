@@ -39,13 +39,13 @@ POSTGIS_DIR="$(cd "$LIBLWGEOM_DIR/.." && pwd)"
 BENCH_BIN="$SCRIPT_DIR/bench_metal"
 
 # Check that liblwgeom is built
-if [ ! -f "$LIBLWGEOM_DIR/.libs/liblwgeom.a" ] && [ ! -f "$LIBLWGEOM_DIR/.libs/liblwgeom.dylib" ]; then
+if [[ ! -f "$LIBLWGEOM_DIR/.libs/liblwgeom.a" ]] && [[ ! -f "$LIBLWGEOM_DIR/.libs/liblwgeom.dylib" ]]; then
 	echo "Error: liblwgeom not built. Run 'make' in $POSTGIS_DIR first." >&2
 	exit 1
 fi
 
 # Build the benchmark if needed or if source is newer
-if [ ! -f "$BENCH_BIN" ] || [ "$SCRIPT_DIR/bench_metal.c" -nt "$BENCH_BIN" ]; then
+if [[ ! -f "$BENCH_BIN" ]] || [[ "$SCRIPT_DIR/bench_metal.c" -nt "$BENCH_BIN" ]]; then
 	echo "Building bench_metal..."
 	make -C "$SCRIPT_DIR" bench_metal
 	echo ""
