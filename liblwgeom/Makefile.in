@@ -193,6 +193,7 @@ SA_HEADERS = \
 	bytebuffer.h \
 	effectivearea.h \
 	liblwgeom.h \
+	lw_surface_arcs.h \
 	liblwgeom_internal.h \
 	lwgeodetic.h \
 	lwgeodetic_tree.h \

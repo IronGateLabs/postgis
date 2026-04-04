@@ -29,6 +29,7 @@
 
 #include "liblwgeom_internal.h"
 #include "lwgeom_log.h"
+#include "lw_surface_arcs.h"
 
 
 LWTIN* lwtin_add_lwtriangle(LWTIN *mobj, const LWTRIANGLE *obj)
@@ -80,55 +81,15 @@ void printLWTIN(LWTIN *tin)
  * TODO rewrite all this stuff to be based on a truly topological model
  */
 
-struct struct_tin_arcs
-{
-	double ax;
-	double ay;
-	double az;
-	double bx;
-	double by;
-	double bz;
-	uint32_t cnt;
-	uint32_t face;
-};
-typedef struct struct_tin_arcs *tin_arcs;
-
-/*
- * Search for a matching arc in the arc list.  If found, increment its
- * count and return 1.  If the count exceeds 2, return -1 to signal an
- * invalid surface.  If not found, return 0.
- */
-static int
-arc_find_and_update(tin_arcs arcs, uint32_t carc,
-                    const POINT4D *pa, const POINT4D *pb, uint32_t face)
-{
-	uint32_t k;
-	for (k = 0; k < carc; k++)
-	{
-		if (arcs[k].ax == pa->x && arcs[k].ay == pa->y &&
-		    arcs[k].az == pa->z && arcs[k].bx == pb->x &&
-		    arcs[k].by == pb->y && arcs[k].bz == pb->z &&
-		    arcs[k].face != face)
-		{
-			arcs[k].cnt++;
-			if (arcs[k].cnt > 2)
-				return -1;
-			return 1;
-		}
-	}
-	return 0;
-}
-
 /* We supposed that the geometry is valid
    we could have wrong result if not */
 int lwtin_is_closed(const LWTIN *tin)
 {
 	uint32_t i;
 	uint32_t j;
-	uint32_t k;
 	uint32_t narcs;
 	uint32_t carc;
-	tin_arcs arcs;
+	surface_arcs arcs;
 	POINT4D pa;
 	POINT4D pb;
 	LWTRIANGLE *patch;
@@ -139,7 +100,7 @@ int lwtin_is_closed(const LWTIN *tin)
 	/* Max theoretical arcs number if no one is shared ... */
 	narcs = 3 * tin->ngeoms;
 
-	arcs = lwalloc(sizeof(struct struct_tin_arcs) * narcs);
+	arcs = lwalloc(sizeof(struct surface_arc) * narcs);
 	for (i=0, carc=0; i < tin->ngeoms ; i++)
 	{
 
@@ -160,7 +121,7 @@ int lwtin_is_closed(const LWTIN *tin)
 				getPoint4d_p(patch->points, j, &pb);
 			}
 
-			rc = arc_find_and_update(arcs, carc, &pa, &pb, i);
+			rc = surface_arc_find_and_update(arcs, carc, &pa, &pb, i);
 			if (rc < 0)
 			{
 				lwfree(arcs);
@@ -169,15 +130,7 @@ int lwtin_is_closed(const LWTIN *tin)
 
 			if (!rc)
 			{
-				arcs[carc].cnt=1;
-				arcs[carc].face=i;
-				arcs[carc].ax = pa.x;
-				arcs[carc].ay = pa.y;
-				arcs[carc].az = pa.z;
-				arcs[carc].bx = pb.x;
-				arcs[carc].by = pb.y;
-				arcs[carc].bz = pb.z;
-				carc++;
+				surface_arc_add(arcs, &carc, &pa, &pb, i);
 
 				if (carc > narcs)
 				{
@@ -188,20 +141,5 @@ int lwtin_is_closed(const LWTIN *tin)
 		}
 	}
 
-	/* A TIN is closed if each edge
-	       is shared by exactly 2 faces */
-	for (k=0; k < carc ; k++)
-	{
-		if (arcs[k].cnt != 2)
-		{
-			lwfree(arcs);
-			return 0;
-		}
-	}
-	lwfree(arcs);
-
-	/* Invalid TIN case */
-	if (carc < tin->ngeoms) return 0;
-
-	return 1;
+	return surface_arcs_check_closed(arcs, carc, tin->ngeoms);
 }
