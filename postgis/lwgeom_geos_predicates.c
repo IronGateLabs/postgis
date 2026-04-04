@@ -151,14 +151,7 @@ Datum ST_Intersects(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSIntersects(g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -212,14 +205,7 @@ Datum ST_Equals(PG_FUNCTION_ARGS)
 
 	initGEOS(lwpgnotice, lwgeom_geos_error);
 
-	g1 = POSTGIS2GEOS(geom1);
-	if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-	g2 = POSTGIS2GEOS(geom2);
-	if (!g2)
-	{
-		GEOSGeom_destroy(g1);
-		HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-	}
+	POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 	result = GEOSEquals(g1, g2);
 	GEOSGeom_destroy(g1);
 	GEOSGeom_destroy(g2);
@@ -278,14 +264,7 @@ Datum touches(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSTouches(g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -344,14 +323,7 @@ Datum disjoint(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSDisjoint(g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -414,14 +386,7 @@ Datum overlaps(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSOverlaps(g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -483,14 +448,7 @@ Datum crosses(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSCrosses(g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -567,14 +525,7 @@ Datum contains(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-			GEOSGeom_destroy(g1);
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSContains( g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -650,14 +601,7 @@ Datum within(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-			GEOSGeom_destroy(g1);
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSWithin(g1, g2);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -714,14 +658,7 @@ Datum containsproperly(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSRelatePattern(g1, g2, "T**FF*FF*");
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -799,14 +736,7 @@ Datum covers(PG_FUNCTION_ARGS)
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
 
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			GEOSGeom_destroy(g1);
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSRelatePattern( g1, g2, "******FF*" );
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);
@@ -972,14 +902,7 @@ Datum relate_pattern(PG_FUNCTION_ARGS)
 	{
 		GEOSGeometry *g1;
 		GEOSGeometry *g2;
-		g1 = POSTGIS2GEOS(geom1);
-		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-		g2 = POSTGIS2GEOS(geom2);
-		if (!g2)
-		{
-			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-			GEOSGeom_destroy(g1);
-		}
+		POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 		result = GEOSRelatePattern(g1, g2, im);
 		GEOSGeom_destroy(g1);
 		GEOSGeom_destroy(g2);

@@ -60,4 +60,25 @@ Datum ST_3DDistance(PG_FUNCTION_ARGS);
 		PG_RETURN_NULL(); \
 	}
 
+/*
+ * Convert two GSERIALIZED geometries to GEOSGeometry, with error handling.
+ * On failure of geom1 conversion, returns NULL via HANDLE_GEOS_ERROR.
+ * On failure of geom2 conversion, destroys g1 first, then returns NULL.
+ * Both g1 and g2 must be declared as GEOSGeometry* before this macro.
+ */
+#define POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2) \
+	do { \
+		(g1) = POSTGIS2GEOS(geom1); \
+		if (!(g1)) \
+			HANDLE_GEOS_ERROR( \
+				"First argument geometry could not be converted to GEOS"); \
+		(g2) = POSTGIS2GEOS(geom2); \
+		if (!(g2)) \
+		{ \
+			GEOSGeom_destroy((g1)); \
+			HANDLE_GEOS_ERROR( \
+				"Second argument geometry could not be converted to GEOS"); \
+		} \
+	} while (0)
+
 #endif /* LWGEOM_GEOS_H_ */

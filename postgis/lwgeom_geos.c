@@ -129,16 +129,7 @@ Datum hausdorffdistance(PG_FUNCTION_ARGS)
 
 	initGEOS(lwpgnotice, lwgeom_geos_error);
 
-	g1 = POSTGIS2GEOS(geom1);
-	if (!g1)
-		HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-
-	g2 = POSTGIS2GEOS(geom2);
-	if (!g2)
-	{
-		GEOSGeom_destroy(g1);
-		HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-	}
+	POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 
 	retcode = GEOSHausdorffDistance(g1, g2, &result);
 	GEOSGeom_destroy(g1);
@@ -180,16 +171,7 @@ Datum hausdorffdistancedensify(PG_FUNCTION_ARGS)
 
 	initGEOS(lwpgnotice, lwgeom_geos_error);
 
-	g1 = POSTGIS2GEOS(geom1);
-	if (!g1)
-		HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-
-	g2 = POSTGIS2GEOS(geom2);
-	if (!g2)
-	{
-		GEOSGeom_destroy(g1);
-		HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-	}
+	POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 
 	retcode = GEOSHausdorffDistanceDensify(g1, g2, densifyFrac, &result);
 	GEOSGeom_destroy(g1);
@@ -230,16 +212,7 @@ Datum ST_FrechetDistance(PG_FUNCTION_ARGS)
 
 	initGEOS(lwpgnotice, lwgeom_geos_error);
 
-	g1 = POSTGIS2GEOS(geom1);
-	if (!g1)
-		HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
-
-	g2 = POSTGIS2GEOS(geom2);
-	if (!g2)
-	{
-		GEOSGeom_destroy(g1);
-		HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS");
-	}
+	POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2);
 
 	if (densifyFrac <= 0.0)
 	{
