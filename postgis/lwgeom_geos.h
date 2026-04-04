@@ -22,13 +22,12 @@
  *
  **********************************************************************/
 
-
 #ifndef LWGEOM_GEOS_H_
 #define LWGEOM_GEOS_H_ 1
 
 #include "../liblwgeom/lwgeom_geos.h" /* for GEOSGeom */
-#include "liblwgeom.h" /* for GSERIALIZED */
-#include "utils/array.h" /* for ArrayType */
+#include "liblwgeom.h"                /* for GSERIALIZED */
+#include "utils/array.h"              /* for ArrayType */
 
 /*
 ** Public prototypes for GEOS utility functions.
@@ -36,8 +35,8 @@
 
 GSERIALIZED *GEOS2POSTGIS(GEOSGeom geom, uint8_t want3d);
 GEOSGeometry *POSTGIS2GEOS(const GSERIALIZED *g);
-GEOSGeometry** ARRAY2GEOS(ArrayType* array, uint32_t nelems, int* is3d, int* srid);
-LWGEOM** ARRAY2LWGEOM(ArrayType* array, uint32_t nelems, int* is3d, int* srid);
+GEOSGeometry **ARRAY2GEOS(ArrayType *array, uint32_t nelems, int *is3d, int *srid);
+LWGEOM **ARRAY2LWGEOM(ArrayType *array, uint32_t nelems, int *is3d, int *srid);
 
 Datum geos_intersects(PG_FUNCTION_ARGS);
 Datum geos_intersection(PG_FUNCTION_ARGS);
@@ -46,7 +45,6 @@ Datum geos_geomunion(PG_FUNCTION_ARGS);
 Datum LWGEOM_area_polygon(PG_FUNCTION_ARGS);
 Datum LWGEOM_mindistance2d(PG_FUNCTION_ARGS);
 Datum ST_3DDistance(PG_FUNCTION_ARGS);
-
 
 /* Return NULL on GEOS error
  *
@@ -66,18 +64,79 @@ Datum ST_3DDistance(PG_FUNCTION_ARGS);
  * On failure of geom2 conversion, destroys g1 first, then returns NULL.
  * Both g1 and g2 must be declared as GEOSGeometry* before this macro.
  */
+/*
+ * Deserialize two geometries from PG function args and declare common
+ * variables used by GEOS predicate functions.
+ */
+#define GEOS_PREDICATE_PREAMBLE(fcinfo) \
+	SHARED_GSERIALIZED *shared_geom1 = ToastCacheGetGeometry(fcinfo, 0); \
+	SHARED_GSERIALIZED *shared_geom2 = ToastCacheGetGeometry(fcinfo, 1); \
+	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1); \
+	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2); \
+	int8_t result; \
+	GBOX box1; \
+	GBOX box2; \
+	PrepGeomCache *prep_cache
+
+/*
+ * Check that bounding boxes overlap; if not, return early.
+ * Used by predicates where non-overlapping boxes imply FALSE.
+ */
+#define GEOS_BBOX_OVERLAP_CHECK(geom1, geom2, retval) \
+	do \
+	{ \
+		if (gserialized_get_gbox_p(geom1, &box1) && gserialized_get_gbox_p(geom2, &box2)) \
+		{ \
+			if (gbox_overlaps_2d(&box1, &box2) == LW_FALSE) \
+				PG_RETURN_BOOL(retval); \
+		} \
+	} while (0)
+
+/*
+ * Run a GEOS predicate using the prepared geometry cache when available,
+ * falling back to the plain (unprepared) version otherwise.
+ *
+ * prep_fn:   prepared GEOS function, e.g. GEOSPreparedTouches
+ * plain_fn:  plain GEOS function, e.g. GEOSTouches
+ * label:     error label string, e.g. "GEOSTouches"
+ */
+#define GEOS_PREP_OR_PLAIN(fcinfo, shared1, shared2, geom1, geom2, prep_fn, plain_fn, label) \
+	do \
+	{ \
+		initGEOS(lwpgnotice, lwgeom_geos_error); \
+		prep_cache = GetPrepGeomCache(fcinfo, shared1, shared2); \
+		if (prep_cache && prep_cache->prepared_geom) \
+		{ \
+			GEOSGeometry *g = prep_cache->gcache.argnum == 1 ? POSTGIS2GEOS(geom2) : POSTGIS2GEOS(geom1); \
+			if (!g) \
+				HANDLE_GEOS_ERROR("Geometry could not be converted to GEOS"); \
+			result = prep_fn(prep_cache->prepared_geom, g); \
+			GEOSGeom_destroy(g); \
+		} \
+		else \
+		{ \
+			GEOSGeometry *g1; \
+			GEOSGeometry *g2; \
+			POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2); \
+			result = plain_fn(g1, g2); \
+			GEOSGeom_destroy(g1); \
+			GEOSGeom_destroy(g2); \
+		} \
+		if (result == 2) \
+			HANDLE_GEOS_ERROR(label); \
+	} while (0)
+
 #define POSTGIS2GEOS_BOTH(g1, geom1, g2, geom2) \
-	do { \
+	do \
+	{ \
 		(g1) = POSTGIS2GEOS(geom1); \
 		if (!(g1)) \
-			HANDLE_GEOS_ERROR( \
-				"First argument geometry could not be converted to GEOS"); \
+			HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS"); \
 		(g2) = POSTGIS2GEOS(geom2); \
 		if (!(g2)) \
 		{ \
 			GEOSGeom_destroy((g1)); \
-			HANDLE_GEOS_ERROR( \
-				"Second argument geometry could not be converted to GEOS"); \
+			HANDLE_GEOS_ERROR("Second argument geometry could not be converted to GEOS"); \
 		} \
 	} while (0)
 
