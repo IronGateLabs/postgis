@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - master
   pull_request:
     branches:
       - develop
@@ -50,6 +49,10 @@ jobs:
           ./autogen.sh
           ./configure --with-raster --with-topology --with-sfcgal
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} make -j$(nproc)
+
+      # make lint (clang-format check + cppcheck) is not run here because
+      # SonarCloud performs its own static analysis via the build wrapper
+      # output.  Lint checks are enforced by pre-commit hooks locally.
 
       - name: Run SonarCloud scanner
         uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0

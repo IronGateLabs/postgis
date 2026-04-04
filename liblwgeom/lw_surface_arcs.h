@@ -58,6 +58,12 @@ surface_arc_find_and_update(surface_arcs arcs, uint32_t carc,
 	uint32_t k;
 	for (k = 0; k < carc; k++)
 	{
+		/*
+		 * Exact float equality is intentional here: arc endpoints
+		 * are copied verbatim from shared polygon ring vertices, so
+		 * matching arcs have bit-identical coordinates.  An epsilon
+		 * comparison would risk false matches between distinct arcs.
+		 */
 		if (arcs[k].ax == pa->x && arcs[k].ay == pa->y &&
 		    arcs[k].az == pa->z && arcs[k].bx == pb->x &&
 		    arcs[k].by == pb->y && arcs[k].bz == pb->z &&
