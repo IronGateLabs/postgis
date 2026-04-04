@@ -18,8 +18,13 @@ if [[ -z "$ASAN_RT" ]]; then
 	ASAN_RT=$(find /usr/lib/clang/ /usr/lib/llvm-*/ -name 'libclang_rt.asan-x86_64.so' 2>/dev/null | head -1)
 fi
 if [[ -z "$ASAN_RT" ]]; then
+<<<<<<< HEAD
 	echo "ERROR: Cannot find ASan runtime library. Skipping ASan build." >&2
 	echo "Install libclang-rt-${CLANG_VER}-dev or equivalent package." >&2
+=======
+	echo "ERROR: Cannot find ASan runtime library. Skipping ASan build."
+	echo "Install libclang-rt-${CLANG_VER}-dev or equivalent package."
+>>>>>>> e5e27cd75 (Fix ASan CI: locate runtime library dynamically and install if missing)
 	exit 0
 fi
 echo "ASan runtime: $ASAN_RT"
