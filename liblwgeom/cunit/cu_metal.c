@@ -71,8 +71,11 @@ pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
 
 	for (i = 0; i < a->npoints && i < b->npoints; i++)
 	{
-		POINT4D pa_pt, pb_pt;
-		double dx, dy, dz;
+		POINT4D pa_pt;
+		POINT4D pb_pt;
+		double dx;
+		double dy;
+		double dz;
 
 		getPoint4d_p(a, i, &pa_pt);
 		getPoint4d_p(b, i, &pb_pt);

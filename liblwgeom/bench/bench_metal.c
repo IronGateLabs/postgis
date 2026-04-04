@@ -116,8 +116,10 @@ typedef struct {
 static void
 compute_stats(double *times, int n, uint32_t npoints, BenchResult *out)
 {
+	/* S5955: i declared here for C89-style consistency with rest of file */
 	int i;
-	double min_val, max_val;
+	double min_val;
+	double max_val;
 
 	qsort(times, n, sizeof(double), cmp_double);
 
@@ -270,7 +272,8 @@ bench_rotate_z(const char *label, uint32_t npoints, BenchResult *result)
 	POINTARRAY *base;
 	double theta = 1.23456;
 	double times[BENCH_MEASURE_ITERS];
-	int iter, mi;
+	int iter;
+	int mi;
 	int is_metal = (strcmp(label, "metal") == 0);
 
 	base = make_test_points(npoints);
@@ -320,7 +323,8 @@ bench_rotate_z_m_epoch(const char *label, uint32_t npoints, BenchResult *result)
 	POINTARRAY *base;
 	int direction = -1; /* ECI -> ECEF */
 	double times[BENCH_MEASURE_ITERS];
-	int iter, mi;
+	int iter;
+	int mi;
 	int is_metal = (strcmp(label, "metal") == 0);
 
 	base = make_test_points(npoints);
@@ -371,7 +375,8 @@ bench_rad_convert(const char *label, uint32_t npoints, BenchResult *result)
 	POINTARRAY *base;
 	double scale = M_PI / 180.0;
 	double times[BENCH_MEASURE_ITERS];
-	int iter, mi;
+	int iter;
+	int mi;
 
 	/* Metal GPU does not expose a rad_convert batch API */
 	if (strcmp(label, "metal") == 0)
@@ -458,8 +463,11 @@ pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
 
 	for (i = 0; i < a->npoints && i < b->npoints; i++)
 	{
-		POINT4D pa_pt, pb_pt;
-		double dx, dy, dz;
+		POINT4D pa_pt;
+		POINT4D pb_pt;
+		double dx;
+		double dy;
+		double dz;
 
 		getPoint4d_p(a, i, &pa_pt);
 		getPoint4d_p(b, i, &pb_pt);
@@ -477,7 +485,8 @@ pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
 static int
 run_validation(void)
 {
-	int pi, pass = 1;
+	int pi;
+	int pass = 1;
 	double theta = 1.23456;
 	int metal_ok = 0;
 
@@ -664,7 +673,7 @@ main(int argc, char *argv[])
 	else
 		print_table_header();
 
-	/* === Uniform Z-rotation === */
+	/* Uniform Z-rotation */
 	for (pi = 0; pi < N_POINT_COUNTS; pi++)
 	{
 		uint32_t n = POINT_COUNTS[pi];
@@ -699,7 +708,7 @@ main(int argc, char *argv[])
 	if (!csv_mode)
 		printf("\n");
 
-	/* === Per-point M-epoch Z-rotation === */
+	/* Per-point M-epoch Z-rotation */
 	for (pi = 0; pi < N_POINT_COUNTS; pi++)
 	{
 		uint32_t n = POINT_COUNTS[pi];
@@ -734,7 +743,7 @@ main(int argc, char *argv[])
 	if (!csv_mode)
 		printf("\n");
 
-	/* === Radian conversion (scalar + NEON only, no GPU kernel) === */
+	/* Radian conversion (scalar + NEON only, no GPU kernel) */
 	for (pi = 0; pi < N_POINT_COUNTS; pi++)
 	{
 		uint32_t n = POINT_COUNTS[pi];
