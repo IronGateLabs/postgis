@@ -1970,7 +1970,7 @@ PG_FUNCTION_INFO_V1(polygonize_garray);
 Datum polygonize_garray(PG_FUNCTION_ARGS)
 {
 	ArrayType *array;
-	int is3d;
+	int is3d = LW_FALSE;
 	uint32 nelems, i;
 	GSERIALIZED *result;
 	GEOSGeometry *geos_result;
@@ -2023,7 +2023,7 @@ Datum clusterintersecting_garray(PG_FUNCTION_ARGS)
 	Datum* result_array_data;
 	ArrayType *array;
 	ArrayType *result;
-	int is3d;
+	int is3d = LW_FALSE;
 	uint32 nelems, nclusters, i;
 	GEOSGeometry **geos_inputs;
 	GEOSGeometry **geos_results;
@@ -2091,7 +2091,7 @@ Datum cluster_within_distance_garray(PG_FUNCTION_ARGS)
 	Datum* result_array_data;
 	ArrayType *array;
 	ArrayType *result;
-	int is3d;
+	int is3d = LW_FALSE;
 	uint32 nelems, nclusters, i;
 	LWGEOM** lw_inputs;
 	LWGEOM** lw_results;
