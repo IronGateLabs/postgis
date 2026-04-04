@@ -1615,9 +1615,20 @@ int main(void) { return 0; }
 EOF
           if $CC -ObjC -framework Foundation conftest.m -o conftest 2>/dev/null; then
             AC_MSG_RESULT([yes])
-            HAVE_METAL=yes
-            AC_DEFINE([HAVE_METAL], [1], [Apple Metal GPU support available])
-            METAL_LDFLAGS="-framework Metal -framework Foundation"
+            dnl Check for xxd (used to embed metallib as C array)
+            AC_MSG_CHECKING([for xxd (metallib embedding)])
+            XXD=`command -v xxd 2>/dev/null`
+            if test -n "$XXD"; then
+              AC_MSG_RESULT([$XXD])
+              HAVE_METAL=yes
+              AC_DEFINE([HAVE_METAL], [1], [Apple Metal GPU support available])
+              METAL_LDFLAGS="-framework Metal -framework Foundation"
+            else
+              AC_MSG_RESULT([not found])
+              if test "x$WITH_METAL" != "xauto"; then
+                AC_MSG_ERROR([--with-metal specified but xxd not found (needed to embed metallib)])
+              fi
+            fi
           else
             AC_MSG_RESULT([no])
             if test "x$WITH_METAL" != "xauto"; then
@@ -1649,6 +1660,7 @@ AC_SUBST([METAL_COMPILER])
 AC_SUBST([METALLIB_TOOL])
 AC_SUBST([METAL_LDFLAGS])
 AC_SUBST([HAVE_METAL])
+AC_SUBST([XXD])
 
 dnl ===========================================================================
 dnl Detect Valkey/hiredis client library for GPU batch queueing

@@ -79,8 +79,8 @@ kernel void rotate_z_uniform(device float          *data    [[buffer(0)]],
 	float x = data[base];
 	float y = data[base + 1];
 
-	data[base]     = x * params.cos_t - y * params.sin_t;
-	data[base + 1] = x * params.sin_t + y * params.cos_t;
+	data[base]     = x * params.cos_t + y * params.sin_t;
+	data[base + 1] = -x * params.sin_t + y * params.cos_t;
 }
 
 /**
@@ -107,8 +107,8 @@ kernel void rotate_z_m_epoch(device float                *data   [[buffer(0)]],
 	float x = data[base];
 	float y = data[base + 1];
 
-	data[base]     = x * cos_t - y * sin_t;
-	data[base + 1] = x * sin_t + y * cos_t;
+	data[base]     = x * cos_t + y * sin_t;
+	data[base + 1] = -x * sin_t + y * cos_t;
 }
 
 /**
