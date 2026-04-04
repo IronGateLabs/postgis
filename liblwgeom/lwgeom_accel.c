@@ -383,13 +383,11 @@ detect_simd_backend(void)
 		if (ebx & (1 << 5))
 		{
 			/* Also check FMA: CPUID leaf 1, ECX bit 12 */
-			if (__get_cpuid(1, &eax, &ebx, &ecx, &edx))
+			if (__get_cpuid(1, &eax, &ebx, &ecx, &edx) &&
+			    (ecx & (1 << 12)))
 			{
-				if (ecx & (1 << 12))
-				{
-					LWDEBUG(1, "SIMD: AVX2+FMA detected");
-					return LW_ACCEL_AVX2;
-				}
+				LWDEBUG(1, "SIMD: AVX2+FMA detected");
+				return LW_ACCEL_AVX2;
 			}
 			/* AVX2 without FMA — still usable but less optimal */
 			LWDEBUG(1, "SIMD: AVX2 detected (no FMA)");

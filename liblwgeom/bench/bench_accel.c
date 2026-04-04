@@ -313,6 +313,122 @@ validate_backends(void)
 	return pass ? 0 : 1;
 }
 
+/*
+ * Run GPU calibration and display results.
+ * Returns 0 on success, 1 on failure.
+ */
+static int
+run_calibration(void)
+{
+	if (!lwgpu_available())
+	{
+		printf("No GPU available, calibration requires GPU.\n");
+		return 1;
+	}
+	printf("Running GPU auto-calibration...\n\n");
+	uint32_t threshold = lwaccel_calibrate_gpu();
+	printf("\nCalibrated GPU dispatch threshold: %u points\n", threshold);
+	printf("Set via: SET postgis.gpu_dispatch_threshold = %u;\n", threshold);
+	printf("Or 0 for auto-calibrate on first use (default).\n");
+
+	/* Show updated features string */
+	lwaccel_set_gpu_threshold(threshold);
+	char *features2 = lwaccel_features_string();
+	printf("\nFeatures: %s\n", features2);
+	lwfree(features2);
+	return 0;
+}
+
+/*
+ * Run rotation benchmarks for all point counts.
+ */
+static void
+run_rotate_benchmarks(const BenchOptions *opts)
+{
+	int pi;
+
+	if (!opts->csv)
+		printf("--- ECI Rotation (uniform epoch) ---\n");
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		if (strcmp(opts->backend, "scalar") == 0 || strcmp(opts->backend, "all") == 0)
+			bench_eci_rotate("scalar", POINT_COUNTS[pi], opts->csv, NULL);
+		if (strcmp(opts->backend, "auto") == 0 || strcmp(opts->backend, "all") == 0 ||
+		    strcmp(opts->backend, "simd") == 0)
+			bench_eci_rotate("simd", POINT_COUNTS[pi], opts->csv, NULL);
+	}
+
+	if (!opts->csv) printf("\n");
+}
+
+/*
+ * Run radian conversion benchmarks for all point counts.
+ */
+static void
+run_rad_benchmarks(const BenchOptions *opts)
+{
+	int pi;
+
+	if (!opts->csv)
+		printf("--- Radian/Degree Conversion ---\n");
+
+	for (pi = 0; pi < N_POINT_COUNTS; pi++)
+	{
+		if (strcmp(opts->backend, "scalar") == 0 || strcmp(opts->backend, "all") == 0)
+			bench_rad_convert("scalar", POINT_COUNTS[pi], opts->csv);
+		if (strcmp(opts->backend, "auto") == 0 || strcmp(opts->backend, "all") == 0 ||
+		    strcmp(opts->backend, "simd") == 0)
+			bench_rad_convert("simd", POINT_COUNTS[pi], opts->csv);
+	}
+
+	if (!opts->csv) printf("\n");
+}
+
+/*
+ * Run GPU overhead benchmarks for all point counts.
+ */
+static void
+run_gpu_overhead_benchmarks(const BenchOptions *opts)
+{
+	int pi;
+
+	if (!opts->csv)
+		printf("--- GPU Dispatch Overhead ---\n");
+
+	if (!lwgpu_available())
+	{
+		printf("  No GPU available, skipping.\n");
+	}
+	else
+	{
+		for (pi = 0; pi < N_POINT_COUNTS; pi++)
+		{
+			int n = POINT_COUNTS[pi];
+			POINTARRAY *pa = make_test_points(n);
+			double t_start;
+			double t_end;
+
+			t_start = now_us();
+			lwgpu_rotate_z_batch((double *)pa->serialized_pointlist,
+					     ptarray_point_size(pa), n, 1.234);
+			t_end = now_us();
+
+			double gpu_us = t_end - t_start;
+			double throughput = (gpu_us > 0) ? (double)n / (gpu_us / 1e6) : 0;
+
+			if (opts->csv)
+				printf("gpu_overhead,gpu,%d,%.0f,%.2f\n", n, throughput, gpu_us);
+			else
+				printf("  gpu  %10d pts  %12.0f pts/sec  %10.2f us\n",
+				       n, throughput, gpu_us);
+
+			ptarray_free(pa);
+		}
+	}
+	if (!opts->csv) printf("\n");
+}
+
 static void
 print_usage(void)
 {
@@ -390,25 +506,7 @@ main(int argc, char *argv[])
 
 	/* Calibration mode */
 	if (opts.calibrate)
-	{
-		if (!lwgpu_available())
-		{
-			printf("No GPU available, calibration requires GPU.\n");
-			return 1;
-		}
-		printf("Running GPU auto-calibration...\n\n");
-		uint32_t threshold = lwaccel_calibrate_gpu();
-		printf("\nCalibrated GPU dispatch threshold: %u points\n", threshold);
-		printf("Set via: SET postgis.gpu_dispatch_threshold = %u;\n", threshold);
-		printf("Or 0 for auto-calibrate on first use (default).\n");
-
-		/* Show updated features string */
-		lwaccel_set_gpu_threshold(threshold);
-		char *features2 = lwaccel_features_string();
-		printf("\nFeatures: %s\n", features2);
-		lwfree(features2);
-		return 0;
-	}
+		return run_calibration();
 
 	/* CSV header */
 	if (opts.csv)
@@ -417,81 +515,16 @@ main(int argc, char *argv[])
 	/* Run benchmarks */
 	int do_rotate = (strcmp(opts.operation, "all") == 0 || strcmp(opts.operation, "eci_rotate") == 0);
 	int do_rad = (strcmp(opts.operation, "all") == 0 || strcmp(opts.operation, "rad_convert") == 0);
-	int pi;
 
 	if (do_rotate)
-	{
-		if (!opts.csv)
-			printf("--- ECI Rotation (uniform epoch) ---\n");
-
-		for (pi = 0; pi < N_POINT_COUNTS; pi++)
-		{
-			if (strcmp(opts.backend, "scalar") == 0 || strcmp(opts.backend, "all") == 0)
-				bench_eci_rotate("scalar", POINT_COUNTS[pi], opts.csv, NULL);
-			if (strcmp(opts.backend, "auto") == 0 || strcmp(opts.backend, "all") == 0 ||
-			    strcmp(opts.backend, "simd") == 0)
-				bench_eci_rotate("simd", POINT_COUNTS[pi], opts.csv, NULL);
-		}
-
-		if (!opts.csv) printf("\n");
-	}
+		run_rotate_benchmarks(&opts);
 
 	if (do_rad)
-	{
-		if (!opts.csv)
-			printf("--- Radian/Degree Conversion ---\n");
-
-		for (pi = 0; pi < N_POINT_COUNTS; pi++)
-		{
-			if (strcmp(opts.backend, "scalar") == 0 || strcmp(opts.backend, "all") == 0)
-				bench_rad_convert("scalar", POINT_COUNTS[pi], opts.csv);
-			if (strcmp(opts.backend, "auto") == 0 || strcmp(opts.backend, "all") == 0 ||
-			    strcmp(opts.backend, "simd") == 0)
-				bench_rad_convert("simd", POINT_COUNTS[pi], opts.csv);
-		}
-
-		if (!opts.csv) printf("\n");
-	}
+		run_rad_benchmarks(&opts);
 
 	/* GPU overhead benchmark */
 	if (strcmp(opts.operation, "gpu_overhead") == 0)
-	{
-		if (!opts.csv)
-			printf("--- GPU Dispatch Overhead ---\n");
-
-		if (!lwgpu_available())
-		{
-			printf("  No GPU available, skipping.\n");
-		}
-		else
-		{
-			/* Measure: allocation + transfer + kernel launch separately */
-			for (pi = 0; pi < N_POINT_COUNTS; pi++)
-			{
-				int n = POINT_COUNTS[pi];
-				POINTARRAY *pa = make_test_points(n);
-				double t_start;
-				double t_end;
-
-				t_start = now_us();
-				lwgpu_rotate_z_batch((double *)pa->serialized_pointlist,
-						     ptarray_point_size(pa), n, 1.234);
-				t_end = now_us();
-
-				double gpu_us = t_end - t_start;
-				double throughput = (gpu_us > 0) ? (double)n / (gpu_us / 1e6) : 0;
-
-				if (opts.csv)
-					printf("gpu_overhead,gpu,%d,%.0f,%.2f\n", n, throughput, gpu_us);
-				else
-					printf("  gpu  %10d pts  %12.0f pts/sec  %10.2f us\n",
-					       n, throughput, gpu_us);
-
-				ptarray_free(pa);
-			}
-		}
-		if (!opts.csv) printf("\n");
-	}
+		run_gpu_overhead_benchmarks(&opts);
 
 	return 0;
 }
