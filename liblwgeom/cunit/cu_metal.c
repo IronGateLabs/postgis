@@ -112,7 +112,15 @@ static void test_metal_init(void)
 		/* If init succeeded, the device name should be non-empty */
 		const char *name = lwgpu_metal_device_name();
 		CU_ASSERT_PTR_NOT_NULL(name);
-		CU_ASSERT(strlen(name) > 0);
+		if (name)
+		{
+			/*
+			 * strlen is safe: lwgpu_metal_device_name() returns a
+			 * pointer to metal_device_name[], a fixed-size static
+			 * buffer that is always null-terminated.
+			 */
+			CU_ASSERT(strlen(name) > 0);
+		}
 	}
 #else
 	/* Metal not compiled in -- trivially pass */
