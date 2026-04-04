@@ -1,6 +1,12 @@
 -- Tests for ECEF/ECI coordinate frame conversion and ECEF accessors
 -- ECEF/ECI functions are loaded by the test infrastructure (run_test.pl)
 
+-- Common test literals to reduce duplication
+\set frame_icrf 'ICRF'
+\set epoch_jun15 '2024-06-15 12:00:00+00'
+\set epoch_jan01 '2024-01-01 00:00:00+00'
+\set epoch_j2000 '2000-01-01 00:00:00+00'
+
 --------------------------------------------
 -- 1. SRID Registration Tests
 --------------------------------------------
@@ -48,23 +54,23 @@ SELECT 'ecef_x_null', ST_ECEF_X(NULL) IS NULL;
 -- Basic ECEF-to-ECI conversion: verify output SRID for each frame
 SELECT 'to_eci_icrf_srid', ST_SRID(ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-	'2024-06-15 12:00:00+00'::timestamptz,
-	'ICRF'));
+	:'epoch_jun15'::timestamptz,
+	:'frame_icrf'));
 
 SELECT 'to_eci_j2000_srid', ST_SRID(ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-	'2024-06-15 12:00:00+00'::timestamptz,
+	:'epoch_jun15'::timestamptz,
 	'J2000'));
 
 SELECT 'to_eci_teme_srid', ST_SRID(ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-	'2024-06-15 12:00:00+00'::timestamptz,
+	:'epoch_jun15'::timestamptz,
 	'TEME'));
 
 -- Case insensitivity of frame name
 SELECT 'to_eci_case', ST_SRID(ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-	'2024-06-15 12:00:00+00'::timestamptz,
+	:'epoch_jun15'::timestamptz,
 	'icrf'));
 
 -- Round-trip test: ECEF -> ECI (ICRF) -> ECEF should recover original coordinates
@@ -74,10 +80,10 @@ SELECT 'roundtrip',
 		ST_SnapToGrid(ST_ECI_To_ECEF(
 			ST_ECEF_To_ECI(
 				ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-				'2024-06-15 12:00:00+00'::timestamptz,
-				'ICRF'),
-			'2024-06-15 12:00:00+00'::timestamptz,
-			'ICRF'), 0.001),
+				:'epoch_jun15'::timestamptz,
+				:'frame_icrf'),
+			:'epoch_jun15'::timestamptz,
+			:'frame_icrf'), 0.001),
 		ST_SnapToGrid(ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978), 0.001));
 
 -- Round-trip with a point that has all three nonzero coordinates
@@ -86,24 +92,24 @@ SELECT 'roundtrip_3d',
 		ST_SnapToGrid(ST_ECI_To_ECEF(
 			ST_ECEF_To_ECI(
 				ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-				'2024-01-01 00:00:00+00'::timestamptz,
+				:'epoch_jan01'::timestamptz,
 				'TEME'),
-			'2024-01-01 00:00:00+00'::timestamptz,
+			:'epoch_jan01'::timestamptz,
 			'TEME'), 0.001),
 		ST_SnapToGrid(ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978), 0.001));
 
 -- Verify ECI-to-ECEF output SRID is ECEF (4978)
 SELECT 'to_ecef_srid', ST_SRID(ST_ECI_To_ECEF(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 900001),
-	'2024-06-15 12:00:00+00'::timestamptz,
-	'ICRF'));
+	:'epoch_jun15'::timestamptz,
+	:'frame_icrf'));
 
 -- Z coordinate is preserved through rotation (only X/Y change)
 SELECT 'z_preserved',
 	abs(ST_Z(ST_ECEF_To_ECI(
 		ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-		'2024-06-15 12:00:00+00'::timestamptz,
-		'ICRF')) - 4500000) < 0.001;
+		:'epoch_jun15'::timestamptz,
+		:'frame_icrf')) - 4500000) < 0.001;
 
 -- Different epochs give different ECI results (Earth rotates)
 SELECT 'diff_epochs',
@@ -112,10 +118,10 @@ FROM (
 	SELECT
 		ST_ECEF_To_ECI(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-			'2024-06-15 00:00:00+00'::timestamptz, 'ICRF') AS eci1,
+			'2024-06-15 00:00:00+00'::timestamptz, :'frame_icrf') AS eci1,
 		ST_ECEF_To_ECI(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-			'2024-06-15 06:00:00+00'::timestamptz, 'ICRF') AS eci2
+			'2024-06-15 06:00:00+00'::timestamptz, :'frame_icrf') AS eci2
 ) sub;
 
 --------------------------------------------
@@ -125,31 +131,31 @@ FROM (
 -- SRID mismatch: input must be ECEF (4978) for ECEF-to-ECI
 SELECT 'err_bad_srid_to_eci', ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(0, 0, 0), 4326),
-	'2024-01-01 00:00:00+00'::timestamptz,
-	'ICRF');
+	:'epoch_jan01'::timestamptz,
+	:'frame_icrf');
 
 -- Unknown frame name
 SELECT 'err_bad_frame', ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(0, 0, 0), 4978),
-	'2024-01-01 00:00:00+00'::timestamptz,
+	:'epoch_jan01'::timestamptz,
 	'INVALID');
 
 -- ECI-to-ECEF: input must have ECI SRID
 SELECT 'err_bad_srid_to_ecef', ST_ECI_To_ECEF(
 	ST_SetSRID(ST_MakePoint(0, 0, 0), 4326),
-	'2024-01-01 00:00:00+00'::timestamptz,
-	'ICRF');
+	:'epoch_jan01'::timestamptz,
+	:'frame_icrf');
 
 -- ECI-to-ECEF: SRID/frame mismatch (geometry is ICRF=900001 but frame says J2000)
 SELECT 'err_frame_mismatch', ST_ECI_To_ECEF(
 	ST_SetSRID(ST_MakePoint(0, 0, 0), 900001),
-	'2024-01-01 00:00:00+00'::timestamptz,
+	:'epoch_jan01'::timestamptz,
 	'J2000');
 
 -- NULL inputs: STRICT functions return NULL (no error)
-SELECT 'null_geom', ST_ECEF_To_ECI(NULL, '2024-01-01 00:00:00+00'::timestamptz, 'ICRF') IS NULL;
-SELECT 'null_epoch', ST_ECEF_To_ECI(ST_SetSRID(ST_MakePoint(0,0,0), 4978), NULL, 'ICRF') IS NULL;
-SELECT 'null_frame', ST_ECEF_To_ECI(ST_SetSRID(ST_MakePoint(0,0,0), 4978), '2024-01-01 00:00:00+00'::timestamptz, NULL) IS NULL;
+SELECT 'null_geom', ST_ECEF_To_ECI(NULL, :'epoch_jan01'::timestamptz, :'frame_icrf') IS NULL;
+SELECT 'null_epoch', ST_ECEF_To_ECI(ST_SetSRID(ST_MakePoint(0,0,0), 4978), NULL, :'frame_icrf') IS NULL;
+SELECT 'null_frame', ST_ECEF_To_ECI(ST_SetSRID(ST_MakePoint(0,0,0), 4978), :'epoch_jan01'::timestamptz, NULL) IS NULL;
 
 --------------------------------------------
 -- 5. EOP Table Tests
@@ -171,19 +177,19 @@ SELECT 'eop_interp',
 	round(yp::numeric, 6),
 	round(dut1::numeric, 3)
 FROM postgis_eop_interpolate(
-	('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second')
+	(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second')
 );
 
 -- Epoch before loaded data range returns empty result
 SELECT 'eop_before_range',
 	(SELECT count(*) FROM postgis_eop_interpolate(
-		('2000-01-01 00:00:00+00'::timestamptz + ((59999.0 - 51544.0) * 86400)::int * interval '1 second')
+		(:'epoch_j2000'::timestamptz + ((59999.0 - 51544.0) * 86400)::int * interval '1 second')
 	)) = 0;
 
 -- Epoch after loaded data range returns empty result
 SELECT 'eop_after_range',
 	(SELECT count(*) FROM postgis_eop_interpolate(
-		('2000-01-01 00:00:00+00'::timestamptz + ((60003.0 - 51544.0) * 86400)::int * interval '1 second')
+		(:'epoch_j2000'::timestamptz + ((60003.0 - 51544.0) * 86400)::int * interval '1 second')
 	)) = 0;
 
 --------------------------------------------
@@ -201,10 +207,10 @@ FROM (
 	SELECT ST_ECI_To_ECEF_EOP(
 		ST_ECEF_To_ECI_EOP(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 4500000), 4978),
-			('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
-			'ICRF'),
-		('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
-		'ICRF') AS result
+			(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			:'frame_icrf'),
+		(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+		:'frame_icrf') AS result
 ) sub;
 
 -- EOP transform should differ from non-EOP transform
@@ -216,12 +222,12 @@ FROM (
 	SELECT
 		ST_ECEF_To_ECI(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-			('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
-			'ICRF') AS eci_basic,
+			(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			:'frame_icrf') AS eci_basic,
 		ST_ECEF_To_ECI_EOP(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-			('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
-			'ICRF') AS eci_eop
+			(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			:'frame_icrf') AS eci_eop
 ) sub;
 
 -- EOP fallback: epoch outside EOP range should fall back to non-EOP transform
@@ -234,19 +240,19 @@ FROM (
 		ST_ECEF_To_ECI(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
 			'2020-01-01 00:00:00+00'::timestamptz,
-			'ICRF') AS eci_basic,
+			:'frame_icrf') AS eci_basic,
 		ST_ECEF_To_ECI_EOP(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
 			'2020-01-01 00:00:00+00'::timestamptz,
-			'ICRF') AS eci_eop
+			:'frame_icrf') AS eci_eop
 ) sub;
 
 -- Z coordinate preserved through EOP-enhanced rotation
 SELECT 'eop_z_preserved',
 	abs(ST_Z(ST_ECEF_To_ECI_EOP(
 		ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-		('2000-01-01 00:00:00+00'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
-		'ICRF')) - 4500000) < 1.0;
+		(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+		:'frame_icrf')) - 4500000) < 1.0;
 
 -- Clean up EOP test data
 DELETE FROM postgis_eop WHERE mjd IN (60000.0, 60001.0, 60002.0);
