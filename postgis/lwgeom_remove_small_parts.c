@@ -40,8 +40,12 @@
 static void ptarray_remove_dim_helper(POINTARRAY *points, double mindx, double mindy) {
 
 	int r;
-	double xmin = 0, ymin = 0, xmax = 0, ymax = 0;
-	double x, y;
+	double xmin = 0;
+	double ymin = 0;
+	double xmax = 0;
+	double ymax = 0;
+	double x;
+	double y;
 	POINT4D point;
 
 	int npoints = points->npoints;
@@ -111,8 +115,12 @@ filter_polygon_rings(LWPOLY *polygon)
 PG_FUNCTION_INFO_V1(ST_RemoveSmallParts);
 Datum ST_RemoveSmallParts(PG_FUNCTION_ARGS) {
 
-	double mindx = 0, mindy = 0;
-	unsigned int i, j, iw, jw;
+	double mindx = 0;
+	double mindy = 0;
+	unsigned int i;
+	unsigned int j;
+	unsigned int iw;
+	unsigned int jw;
 
 	GSERIALIZED *serialized_in;
 	GSERIALIZED *serialized_out;

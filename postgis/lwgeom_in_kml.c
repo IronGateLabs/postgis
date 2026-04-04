@@ -94,7 +94,8 @@ PG_FUNCTION_INFO_V1(geom_from_kml);
 Datum geom_from_kml(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom;
-	LWGEOM *lwgeom, *hlwgeom;
+	LWGEOM *lwgeom;
+	LWGEOM *hlwgeom;
 	xmlDocPtr xmldoc;
 	text *xml_input;
 	int xml_size;
@@ -300,7 +301,8 @@ static POINTARRAY* parse_kml_coordinates(xmlNodePtr xnode, bool *hasz)
 	POINTARRAY *dpa;
 	int seen_kml_dims = 0;
 	int kml_dims;
-	char *p, *q;
+	char *p;
+	char *q;
 	POINT4D pt;
   double d;
 

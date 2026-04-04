@@ -107,7 +107,8 @@ Datum point_from_geohash(PG_FUNCTION_ARGS)
 	GSERIALIZED *result = NULL;
 	text *geohash_input = NULL;
 	char *geohash = NULL;
-	double lon, lat;
+	double lon;
+	double lat;
 	int precision = -1;
 
 	if (PG_ARGISNULL(0))

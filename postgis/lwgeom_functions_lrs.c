@@ -45,7 +45,8 @@ Datum ST_AddMeasure(PG_FUNCTION_ARGS)
 	GSERIALIZED *gout;
 	double start_measure = PG_GETARG_FLOAT8(1);
 	double end_measure = PG_GETARG_FLOAT8(2);
-	LWGEOM *lwin, *lwout;
+	LWGEOM *lwin;
+	LWGEOM *lwout;
 	int type = gserialized_get_type(gin);
 
 	/* Raise an error if input is not a linestring or multilinestring */
@@ -83,7 +84,8 @@ Datum ST_LocateAlong(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *gin = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *gout;
-	LWGEOM *lwin = NULL, *lwout = NULL;
+	LWGEOM *lwin = NULL;
+	LWGEOM *lwout = NULL;
 	double measure = PG_GETARG_FLOAT8(1);
 	double offset = PG_GETARG_FLOAT8(2);
 
@@ -223,7 +225,8 @@ Datum LWGEOM_line_locate_point(PG_FUNCTION_ARGS)
 	LWLINE *lwline;
 	LWPOINT *lwpoint;
 	POINTARRAY *pa;
-	POINT4D p, p_proj;
+	POINT4D p;
+	POINT4D p_proj;
 	double ret;
 
 	if ( gserialized_get_type(geom1) != LINETYPE )

@@ -455,7 +455,8 @@ Datum geography_expand(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *g = NULL;
 	GSERIALIZED *g_out = NULL;
-	double unit_distance, distance;
+	double unit_distance;
+	double distance;
 
 	/* Get a wholly-owned pointer to the geography */
 	g = PG_GETARG_GSERIALIZED_P_COPY(0);
@@ -793,12 +794,15 @@ Datum geography_coveredby(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(geography_bestsrid);
 Datum geography_bestsrid(PG_FUNCTION_ARGS)
 {
-	GBOX gbox, gbox1, gbox2;
+	GBOX gbox;
+	GBOX gbox1;
+	GBOX gbox2;
 	GSERIALIZED *g1 = NULL;
 	GSERIALIZED *g2 = NULL;
 	int empty1 = LW_FALSE;
 	int empty2 = LW_FALSE;
-	double xwidth, ywidth;
+	double xwidth;
+	double ywidth;
 	POINT2D center;
 	LWGEOM *lwgeom;
 
@@ -1031,9 +1035,14 @@ Datum geography_project(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(geography_project_geography);
 Datum geography_project_geography(PG_FUNCTION_ARGS)
 {
-	LWGEOM *lwgeom1, *lwgeom2;
-	LWPOINT *lwp1, *lwp2, *lwp3;
-	GSERIALIZED *g1, *g2, *g3;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWPOINT *lwp1;
+	LWPOINT *lwp2;
+	LWPOINT *lwp3;
+	GSERIALIZED *g1;
+	GSERIALIZED *g2;
+	GSERIALIZED *g3;
 	double distance;
 	SPHEROID s;
 
@@ -1109,7 +1118,8 @@ Datum geography_azimuth(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = NULL;
 	double azimuth;
 	SPHEROID s;
-	uint32_t type1, type2;
+	uint32_t type1;
+	uint32_t type2;
 
 	/* Only return for points. */
 	type1 = gserialized_get_type(g1);
@@ -1353,7 +1363,8 @@ Datum geography_line_locate_point(PG_FUNCTION_ARGS)
 	LWLINE *lwline;
 	LWPOINT *lwpoint;
 	POINTARRAY *pa;
-	POINT4D p, p_proj;
+	POINT4D p;
+	POINT4D p_proj;
 	double ret;
 
 	gserialized_error_if_srid_mismatch(gs1, gs2, __func__);
@@ -1408,7 +1419,9 @@ Datum geography_closestpoint(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *g1 = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *g2 = PG_GETARG_GSERIALIZED_P(1);
-	LWGEOM *point, *lwg1, *lwg2;
+	LWGEOM *point;
+	LWGEOM *lwg1;
+	LWGEOM *lwg2;
 	GSERIALIZED *result;
 
 	gserialized_error_if_srid_mismatch(g1, g2, __func__);
@@ -1445,7 +1458,9 @@ Datum geography_shortestline(PG_FUNCTION_ARGS)
 	GSERIALIZED* g1 = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED* g2 = PG_GETARG_GSERIALIZED_P(1);
 	bool use_spheroid = PG_GETARG_BOOL(2);
-	LWGEOM *line, *lwgeom1, *lwgeom2;
+	LWGEOM *line;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
 	GSERIALIZED* result;
 	SPHEROID s;
 

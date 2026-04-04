@@ -78,7 +78,8 @@ Datum transform(PG_FUNCTION_ARGS)
 	GSERIALIZED* result=NULL;
 	LWGEOM* lwgeom;
 	LWPROJ *pj;
-	int32 srid_to, srid_from;
+	int32 srid_to;
+	int32 srid_from;
 
 	srid_to = PG_GETARG_INT32(1);
 	if (srid_to == SRID_UNKNOWN)
@@ -199,7 +200,8 @@ Datum transform_epoch(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom;
 	GSERIALIZED *result = NULL;
 	LWGEOM *lwgeom;
-	int32 srid_to, srid_from;
+	int32 srid_to;
+	int32 srid_from;
 	TimestampTz ts;
 	double epoch;
 	LW_CRS_FAMILY from_family, to_family;
@@ -304,9 +306,11 @@ Datum transform_epoch(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(transform_geom);
 Datum transform_geom(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *gser, *gser_result=NULL;
+	GSERIALIZED *gser;
+	GSERIALIZED *gser_result=NULL;
 	LWGEOM *geom;
-	char *input_srs, *output_srs;
+	char *input_srs;
+	char *output_srs;
 	int32 result_srid;
 	int rv;
 
@@ -350,7 +354,8 @@ Datum transform_geom(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(transform_pipeline_geom);
 Datum transform_pipeline_geom(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *gser, *gser_result=NULL;
+	GSERIALIZED *gser;
+	GSERIALIZED *gser_result=NULL;
 	LWGEOM *geom;
 	char *input_pipeline;
 	bool is_forward;
@@ -536,7 +541,10 @@ srs_tuple_from_entry(const struct srs_entry* entry, TupleDesc tuple_desc)
 	const char * srtext;
 	const char * proj4text;
 	const char * srname;
-	double w_lon, s_lat, e_lon, n_lat;
+	double w_lon;
+	double s_lat;
+	double e_lon;
+	double n_lat;
 	int ok;
 
 	PJ *obj = proj_create_from_database(ctx,

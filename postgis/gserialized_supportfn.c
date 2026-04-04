@@ -363,7 +363,9 @@ Datum postgis_index_supportfn(PG_FUNCTION_ARGS)
 			{
 				int nargs = list_length(clause->args);
 				Node *leftarg, *rightarg;
-				Oid leftdatatype, rightdatatype, oproid;
+				Oid leftdatatype;
+				Oid rightdatatype;
+				Oid oproid;
 				bool swapped = false;
 
 				/*

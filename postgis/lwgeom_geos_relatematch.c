@@ -41,8 +41,10 @@ Datum ST_RelateMatch(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_RelateMatch);
 Datum ST_RelateMatch(PG_FUNCTION_ARGS)
 {
-	char *mat, *pat;
-	text *mat_text, *pat_text;
+	char *mat;
+	char *pat;
+	text *mat_text;
+	text *pat_text;
 	int result;
 
 	/* Read the arguments */

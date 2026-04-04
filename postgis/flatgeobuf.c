@@ -276,7 +276,8 @@ void flatgeobuf_check_magicbytes(struct flatgeobuf_decode_ctx *ctx)
 
 static void decode_properties(struct flatgeobuf_decode_ctx *ctx, Datum *values, bool *isnull)
 {
-	uint16_t i, ci;
+	uint16_t i;
+	uint16_t ci;
 	flatgeobuf_column *column;
 	uint8_t type;
 	uint32_t offset = 0;
@@ -418,7 +419,8 @@ static void decode_properties(struct flatgeobuf_decode_ctx *ctx, Datum *values, 
 			int ftype[MAXDATEFIELDS];
 			int dtype;
 			int nf;
-			struct pg_tm tt, *tm = &tt;
+			struct pg_tm tt;
+			struct pg_tm *tm = &tt;
 			fsec_t fsec;
 			int tzp;
 			TimestampTz dttz;

@@ -43,8 +43,10 @@ Datum ST_MakeValid(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_MakeValid);
 Datum ST_MakeValid(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *in, *out;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	GSERIALIZED *in;
+	GSERIALIZED *out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 
 	in = PG_GETARG_GSERIALIZED_P_COPY(0);
 	lwgeom_in = lwgeom_from_gserialized(in);
@@ -137,8 +139,10 @@ Datum ST_CleanGeometry(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_CleanGeometry);
 Datum ST_CleanGeometry(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *in, *out;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	GSERIALIZED *in;
+	GSERIALIZED *out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 
 	in = PG_GETARG_GSERIALIZED_P(0);
 	lwgeom_in = lwgeom_from_gserialized(in);

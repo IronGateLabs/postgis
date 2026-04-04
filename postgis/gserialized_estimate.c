@@ -385,7 +385,8 @@ nd_box_to_json(const ND_BOX *nd_box, int ndims)
 static char*
 nd_stats_to_json(const ND_STATS *nd_stats)
 {
-	char *json_extent, *str;
+	char *json_extent;
+	char *str;
 	int d;
 	stringbuffer_t *sb = stringbuffer_create();
 	int ndims = (int)roundf(nd_stats->ndims);
@@ -640,14 +641,21 @@ nd_box_overlap(const ND_STATS *nd_stats, const ND_BOX *nd_box, ND_IBOX *nd_ibox)
 static int
 nd_box_array_distribution(const ND_BOX **nd_boxes, int num_boxes, const ND_BOX *extent, int ndims, double *distribution)
 {
-	int d, i, k, range;
+	int d;
+	int i;
+	int k;
+	int range;
 	int *counts;
-	double smin, smax;   /* Spatial min, spatial max */
+	double smin;
+	double smax;
 	double swidth;       /* Spatial width of dimension */
 #if POSTGIS_DEBUG_LEVEL >= 3
-	double average, sdev, sdev_ratio;
+	double average;
+	double sdev;
+	double sdev_ratio;
 #endif
-	int   bmin, bmax;   /* Bin min, bin max */
+	int bmin;
+	int bmax;
 	const ND_BOX *ndb;
 
 	int num_bins = Min(Max(2, num_boxes/BIN_MIN_SIZE), MAX_NUM_BINS);
@@ -678,7 +686,8 @@ nd_box_array_distribution(const ND_BOX **nd_boxes, int num_boxes, const ND_BOX *
 		/* Sum up the overlaps of each feature with the dimensional bins */
 		for ( i = 0; i < num_boxes; i++ )
 		{
-			double minoffset, maxoffset;
+			double minoffset;
+			double maxoffset;
 
 			/* Skip null entries */
 			ndb = nd_boxes[i];
@@ -886,10 +895,14 @@ pg_get_nd_stats_by_name(const Oid table_oid, const text *att_text, int mode, boo
 static float8
 estimate_join_selectivity(const ND_STATS *s1, const ND_STATS *s2)
 {
-	int ncells1, ncells2;
-	int ndims1, ndims2, ndims;
+	int ncells1;
+	int ncells2;
+	int ndims1;
+	int ndims2;
+	int ndims;
 	double ntuples_max;
-	double ntuples_not_null1, ntuples_not_null2;
+	double ntuples_not_null1;
+	double ntuples_not_null2;
 
 	ND_BOX extent1, extent2;
 	ND_IBOX ibox1, ibox2;
@@ -1097,7 +1110,8 @@ double
 gserialized_joinsel_internal(PlannerInfo *root, List *args, JoinType jointype, int mode)
 {
 	float8 selectivity;
-	Oid relid1, relid2;
+	Oid relid1;
+	Oid relid2;
 	ND_STATS *stats1, *stats2;
 	Node *arg1 = (Node*) linitial(args);
 	Node *arg2 = (Node*) lsecond(args);
@@ -1234,7 +1248,8 @@ compute_gserialized_stats_mode(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfu
                           int sample_rows, double total_rows, int mode)
 {
 	MemoryContext old_context;
-	int d, i;                          /* Counters */
+	int d;
+	int i;
 	int notnull_cnt = 0;               /* # not null rows in the sample */
 	int null_cnt = 0;                  /* # null rows in the sample */
 	int histogram_features = 0;        /* # rows that actually got counted in the histogram */
@@ -1878,7 +1893,8 @@ estimate_selectivity(const GBOX *box, const ND_STATS *nd_stats, int mode)
 	/* Move through all the overlap values and sum them */
 	do
 	{
-		float cell_count, ratio;
+		float cell_count;
+		float ratio;
 		ND_BOX nd_cell = { {0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0} };
 
 		/* We have to pro-rate partially overlapped cells. */
@@ -2397,7 +2413,8 @@ Datum _postgis_gserialized_index_extent(PG_FUNCTION_ARGS)
 {
 	GBOX *gbox = NULL;
 	int key_type;
-	int16 att_num, idx_att_num = InvalidAttrNumber;
+	int16 att_num;
+	int16 idx_att_num = InvalidAttrNumber;
 	Oid tbl_oid = PG_GETARG_DATUM(0);
 	char *col = text_to_cstring(PG_GETARG_TEXT_P(1));
 	Oid idx_oid;
@@ -2463,11 +2480,13 @@ Datum gserialized_estimated_extent(PG_FUNCTION_ARGS)
 {
 	text *coltxt = NULL;
 	char *col = NULL;
-	int16 attnum, idx_attnum;
+	int16 attnum;
+	int16 idx_attnum;
 	Oid atttypid = InvalidOid;
 	char nsp_tbl[2*NAMEDATALEN+6];
 	char *tbl = NULL;
-	Oid tbl_oid, idx_oid = 0;
+	Oid tbl_oid;
+	Oid idx_oid = 0;
 	ND_STATS *nd_stats;
 	GBOX *gbox = NULL;
 	bool only_parent = false;

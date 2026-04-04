@@ -124,8 +124,10 @@ compareFloats(const void *a, const void *b)
 static uint16_t
 getOctant(const GIDX *centroid, const GIDX *inBox)
 {
-	uint16_t octant = 0, dim = 0x01;
-	int ndims, i;
+	uint16_t octant = 0;
+	uint16_t dim = 0x01;
+	int ndims;
+	int i;
 
 	ndims = Min(GIDX_NDIMS(centroid), GIDX_NDIMS(inBox));
 
@@ -186,7 +188,8 @@ initCubeBox(int ndims)
 static CubeGIDX *
 nextCubeBox(CubeGIDX *cube_box, GIDX *centroid, uint16_t octant)
 {
-	int ndims = GIDX_NDIMS(centroid), i;
+	int ndims = GIDX_NDIMS(centroid);
+	int i;
 	CubeGIDX *next_cube_box = (CubeGIDX *)palloc(sizeof(CubeGIDX));
 	GIDX *left = (GIDX *)palloc(GIDX_SIZE(ndims));
 	GIDX *right = (GIDX *)palloc(GIDX_SIZE(ndims));
@@ -224,7 +227,8 @@ nextCubeBox(CubeGIDX *cube_box, GIDX *centroid, uint16_t octant)
 static bool
 overlapND(CubeGIDX *cube_box, GIDX *query)
 {
-	int i, ndims;
+	int i;
+	int ndims;
 	bool result = true;
 
 	ndims = Min(GIDX_NDIMS(cube_box->left), GIDX_NDIMS(query));
@@ -243,7 +247,8 @@ overlapND(CubeGIDX *cube_box, GIDX *query)
 static bool
 containND(CubeGIDX *cube_box, GIDX *query)
 {
-	int i, ndims;
+	int i;
+	int ndims;
 	bool result = true;
 
 	ndims = Min(GIDX_NDIMS(cube_box->left), GIDX_NDIMS(query));
@@ -290,7 +295,8 @@ PGDLLEXPORT Datum gserialized_spgist_choose_nd(PG_FUNCTION_ARGS)
 {
 	spgChooseIn *in = (spgChooseIn *)PG_GETARG_POINTER(0);
 	spgChooseOut *out = (spgChooseOut *)PG_GETARG_POINTER(1);
-	GIDX *centroid = (GIDX *)DatumGetPointer(in->prefixDatum), *box = (GIDX *)DatumGetPointer(in->leafDatum);
+	GIDX *centroid = (GIDX *)DatumGetPointer(in->prefixDatum);
+	GIDX *box = (GIDX *)DatumGetPointer(in->leafDatum);
 
 	out->resultType = spgMatchNode;
 	out->result.matchNode.restDatum = PointerGetDatum(box);
@@ -315,7 +321,8 @@ PGDLLEXPORT Datum gserialized_spgist_picksplit_nd(PG_FUNCTION_ARGS)
 	spgPickSplitIn *in = (spgPickSplitIn *)PG_GETARG_POINTER(0);
 	spgPickSplitOut *out = (spgPickSplitOut *)PG_GETARG_POINTER(1);
 	GIDX *centroid;
-	float *lowXs, *highXs;
+	float *lowXs;
+	float *highXs;
 	int ndims, maxdims = -1, count[GIDX_MAX_DIM], median, dim, tuple;
 
 	for (dim = 0; dim < GIDX_MAX_DIM; dim++)
@@ -399,10 +406,13 @@ PGDLLEXPORT Datum gserialized_spgist_inner_consistent_nd(PG_FUNCTION_ARGS)
 	spgInnerConsistentOut *out = (spgInnerConsistentOut *)PG_GETARG_POINTER(1);
 	MemoryContext old_ctx;
 	CubeGIDX *cube_box;
-	int *nodeNumbers, i, j;
+	int *nodeNumbers;
+	int i;
+	int j;
 	void **traversalValues;
 	char gidxmem[GIDX_MAX_SIZE];
-	GIDX *centroid, *query_gbox_index = (GIDX *)gidxmem;
+	GIDX *centroid;
+	GIDX *query_gbox_index = (GIDX *)gidxmem;
 
 	POSTGIS_DEBUG(4, "[SPGIST] 'inner consistent' function called");
 
@@ -532,7 +542,8 @@ PGDLLEXPORT Datum gserialized_spgist_leaf_consistent_nd(PG_FUNCTION_ARGS)
 	bool flag = true;
 	int i;
 	char gidxmem[GIDX_MAX_SIZE];
-	GIDX *leaf = (GIDX *)DatumGetPointer(in->leafDatum), *query_gbox_index = (GIDX *)gidxmem;
+	GIDX *leaf = (GIDX *)DatumGetPointer(in->leafDatum);
+	GIDX *query_gbox_index = (GIDX *)gidxmem;
 
 	POSTGIS_DEBUG(4, "[SPGIST] 'leaf consistent' function called");
 

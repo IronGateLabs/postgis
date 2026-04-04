@@ -18,7 +18,8 @@ geom2d_brin_inclusion_add_value(PG_FUNCTION_ARGS)
 	BrinValues *column = (BrinValues *) PG_GETARG_POINTER(1);
 	Datum      newval = PG_GETARG_DATUM(2);
 	bool	   isnull = PG_GETARG_BOOL(3);
-	BOX2DF     box_geom, *box_key;
+	BOX2DF box_geom;
+	BOX2DF *box_key;
 
 	/*
 	 * If the new value is null, we record that we saw it if it's the first

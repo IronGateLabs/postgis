@@ -68,8 +68,10 @@ Datum LWGEOM_asGML(PG_FUNCTION_ARGS)
 	const char* prefix = default_prefix;
 	const char* gml_id = NULL;
 	size_t len;
-	char *gml_id_buf, *prefix_buf;
-	text *prefix_text, *gml_id_text;
+	char *gml_id_buf;
+	char *prefix_buf;
+	text *prefix_text;
+	text *gml_id_text;
 
 	/*
 	 * Two potential callers, one starts with GML version,

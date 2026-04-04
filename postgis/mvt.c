@@ -149,8 +149,12 @@ static inline uint32_t p_int(int32_t value)
 static uint32_t encode_ptarray(enum mvt_type type, POINTARRAY *pa, uint32_t *buffer, int32_t *px, int32_t *py)
 {
 	uint32_t offset = 0;
-	uint32_t i, c = 0;
-	int32_t dx, dy, x, y;
+	uint32_t i;
+	uint32_t c = 0;
+	int32_t dx;
+	int32_t dy;
+	int32_t x;
+	int32_t y;
 	const POINT2D *p;
 
 	/* loop points and add to buffer */
@@ -197,7 +201,8 @@ static uint32_t encode_ptarray(enum mvt_type type, POINTARRAY *pa, uint32_t *buf
 
 static uint32_t encode_ptarray_initial(enum mvt_type type, POINTARRAY *pa, uint32_t *buffer)
 {
-	int32_t px = 0, py = 0;
+	int32_t px = 0;
+	int32_t py = 0;
 	return encode_ptarray(type, pa, buffer, &px, &py);
 }
 
@@ -234,8 +239,10 @@ static void encode_line(struct feature_builder *feature, LWLINE *lwline)
 static void encode_mline(struct feature_builder *feature, LWMLINE *lwmline)
 {
 	uint32_t i;
-	int32_t px = 0, py = 0;
-	size_t c = 0, offset = 0;
+	int32_t px = 0;
+	int32_t py = 0;
+	size_t c = 0;
+	size_t offset = 0;
 	feature->type = VECTOR_TILE__TILE__GEOM_TYPE__LINESTRING;
 	for (i = 0; i < lwmline->ngeoms; i++)
 		c += 2 + lwmline->geoms[i]->points->npoints * 2;
@@ -250,8 +257,10 @@ static void encode_mline(struct feature_builder *feature, LWMLINE *lwmline)
 static void encode_poly(struct feature_builder *feature, LWPOLY *lwpoly)
 {
 	uint32_t i;
-	int32_t px = 0, py = 0;
-	size_t c = 0, offset = 0;
+	int32_t px = 0;
+	int32_t py = 0;
+	size_t c = 0;
+	size_t offset = 0;
 	feature->type = VECTOR_TILE__TILE__GEOM_TYPE__POLYGON;
 	for (i = 0; i < lwpoly->nrings; i++)
 		c += 3 + ((lwpoly->rings[i]->npoints - 1) * 2);
@@ -265,9 +274,12 @@ static void encode_poly(struct feature_builder *feature, LWPOLY *lwpoly)
 
 static void encode_mpoly(struct feature_builder *feature, LWMPOLY *lwmpoly)
 {
-	uint32_t i, j;
-	int32_t px = 0, py = 0;
-	size_t c = 0, offset = 0;
+	uint32_t i;
+	uint32_t j;
+	int32_t px = 0;
+	int32_t py = 0;
+	size_t c = 0;
+	size_t offset = 0;
 	LWPOLY *poly;
 	feature->type = VECTOR_TILE__TILE__GEOM_TYPE__POLYGON;
 	for (i = 0; i < lwmpoly->ngeoms; i++)
@@ -335,7 +347,8 @@ static uint32_t add_key(mvt_agg_context *ctx, char *name)
 
 static void parse_column_keys(mvt_agg_context *ctx)
 {
-	uint32_t i, natts;
+	uint32_t i;
+	uint32_t natts;
 	bool geom_found = false;
 
 	POSTGIS_DEBUG(2, "parse_column_keys called");
@@ -935,7 +948,8 @@ LWGEOM *mvt_geom(LWGEOM *lwgeom, const GBOX *gbox, uint32_t extent, uint32_t buf
 	gridspec grid = {0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0};
 	double width = gbox->xmax - gbox->xmin;
 	double height = gbox->ymax - gbox->ymin;
-	double fx, fy;
+	double fx;
+	double fy;
 	const uint8_t basic_type = lwgeom_get_basic_type(lwgeom);
 	int preserve_collapsed = LW_FALSE;
 	POSTGIS_DEBUG(2, "mvt_geom called");
@@ -1223,7 +1237,8 @@ vectortile_layer_combine(VectorTile__Tile__Layer *layer, VectorTile__Tile__Layer
 static VectorTile__Tile *
 vectortile_tile_combine(VectorTile__Tile *tile1, VectorTile__Tile *tile2)
 {
-	uint32_t i, j;
+	uint32_t i;
+	uint32_t j;
 	VectorTile__Tile *tile;
 
 	/* Hopelessly messing up memory ownership here */

@@ -419,8 +419,10 @@ Datum BOX2D_combine(PG_FUNCTION_ARGS)
 {
 	static const uint32_t box2d_idx = 0;
 	static const uint32_t geom_idx = 1;
-	GBOX *a,*b;
-	GBOX box, *result;
+	GBOX *a;
+	GBOX *b;
+	GBOX box;
+	GBOX *result;
 
 	if (PG_ARGISNULL(box2d_idx) && PG_ARGISNULL(geom_idx))
 	{
@@ -536,8 +538,11 @@ Datum BOX2D_construct(PG_FUNCTION_ARGS)
 	GSERIALIZED *pgmin = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *pgmax = PG_GETARG_GSERIALIZED_P(1);
 	GBOX *result;
-	LWPOINT *minpoint, *maxpoint;
-	double min, max, tmp;
+	LWPOINT *minpoint;
+	LWPOINT *maxpoint;
+	double min;
+	double max;
+	double tmp;
 	gserialized_error_if_srid_mismatch(pgmin, pgmax, __func__);
 
 	minpoint = (LWPOINT*)lwgeom_from_gserialized(pgmin);

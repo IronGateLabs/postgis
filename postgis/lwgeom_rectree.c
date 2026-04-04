@@ -121,7 +121,8 @@ Datum ST_DistanceRectTree(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *g1 = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *g2 = PG_GETARG_GSERIALIZED_P(1);
-	LWGEOM *lwg1, *lwg2;
+	LWGEOM *lwg1;
+	LWGEOM *lwg2;
 	RECT_NODE *n1, *n2;
 
 	/* Return NULL on empty arguments. */

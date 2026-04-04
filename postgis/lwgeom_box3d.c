@@ -596,7 +596,8 @@ Datum BOX3D_construct(PG_FUNCTION_ARGS)
 	GSERIALIZED *min = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *max = PG_GETARG_GSERIALIZED_P(1);
 	BOX3D *result = palloc(sizeof(BOX3D));
-	LWGEOM *minpoint, *maxpoint;
+	LWGEOM *minpoint;
+	LWGEOM *maxpoint;
 	POINT3DZ minp, maxp;
 
 	minpoint = lwgeom_from_gserialized(min);

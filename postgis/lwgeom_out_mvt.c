@@ -49,8 +49,10 @@ Datum ST_AsMVTGeom(PG_FUNCTION_ARGS)
 	int32_t extent = 0;
 	int32_t buffer = 0;
 	bool clip_geom = true;
-	GSERIALIZED *geom_in, *geom_out;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	GSERIALIZED *geom_in;
+	GSERIALIZED *geom_out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 	uint8_t type = 0;
 
 	if (PG_ARGISNULL(0))

@@ -57,7 +57,8 @@ typedef struct GeometryGridState
 	GBOX bounds;
 	int32_t srid;
 	double size;
-	int32_t i, j;
+	int32_t i;
+	int32_t j;
 }
 GeometryGridState;
 
@@ -97,10 +98,14 @@ typedef struct HexagonGridState
 	GBOX bounds;
 	int32_t srid;
 	double size;
-	int32_t i, j;
-	int32_t column_min, column_max;
-	int32_t row_min_odd, row_max_odd;
-	int32_t row_min_even, row_max_even;
+	int32_t i;
+	int32_t j;
+	int32_t column_min;
+	int32_t column_max;
+	int32_t row_min_odd;
+	int32_t row_max_odd;
+	int32_t row_min_even;
+	int32_t row_max_even;
 }
 HexagonGridState;
 
@@ -179,9 +184,12 @@ typedef struct SquareGridState
 	GBOX bounds;
 	int32_t srid;
 	double size;
-	int32_t i, j;
-	int32_t column_min, column_max;
-	int32_t row_min, row_max;
+	int32_t i;
+	int32_t j;
+	int32_t column_min;
+	int32_t column_max;
+	int32_t row_min;
+	int32_t row_max;
 }
 SquareGridState;
 

@@ -71,7 +71,8 @@ Datum LWGEOM_curve_segmentize(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	int32 perQuad = PG_GETARG_INT32(1);
 	GSERIALIZED *ret;
-	LWGEOM *igeom = NULL, *ogeom = NULL;
+	LWGEOM *igeom = NULL;
+	LWGEOM *ogeom = NULL;
 
 	POSTGIS_DEBUG(2, "LWGEOM_curve_segmentize called.");
 
@@ -104,7 +105,8 @@ Datum ST_CurveToLine(PG_FUNCTION_ARGS)
 	int toltype = PG_GETARG_INT32(2);
 	int flags = PG_GETARG_INT32(3);
 	GSERIALIZED *ret;
-	LWGEOM *igeom = NULL, *ogeom = NULL;
+	LWGEOM *igeom = NULL;
+	LWGEOM *ogeom = NULL;
 
 	POSTGIS_DEBUG(2, "ST_CurveToLine called.");
 
@@ -128,7 +130,8 @@ Datum LWGEOM_line_desegmentize(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *ret;
-	LWGEOM *igeom = NULL, *ogeom = NULL;
+	LWGEOM *igeom = NULL;
+	LWGEOM *ogeom = NULL;
 
 	POSTGIS_DEBUG(2, "LWGEOM_line_desegmentize.");
 

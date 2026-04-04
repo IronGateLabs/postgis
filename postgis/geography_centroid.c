@@ -316,7 +316,10 @@ LWPOINT* geography_centroid_from_mline(const LWMLINE* mline, SPHEROID* s)
 LWPOINT* geography_centroid_from_mpoly(const LWMPOLY* mpoly, bool use_spheroid, SPHEROID* s)
 {
 	uint32_t size = 0;
-	uint32_t i, ir, ip, j = 0;
+	uint32_t i;
+	uint32_t ir;
+	uint32_t ip;
+	uint32_t j = 0;
 	POINT3DM* points;
 	POINT4D* reference_point = NULL;
 	LWPOINT* result = NULL;

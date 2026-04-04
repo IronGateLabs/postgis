@@ -296,8 +296,14 @@ Datum ST_MaximumInscribedCircle(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *ginput, *gcircle, *gcenter, *gnearest;
-		double width, height, size, tolerance;
+		GEOSGeometry *ginput;
+		GEOSGeometry *gcircle;
+		GEOSGeometry *gcenter;
+		GEOSGeometry *gnearest;
+		double width;
+		double height;
+		double size;
+		double tolerance;
 		GBOX gbox;
 		int gtype;
 		LWGEOM *lwg;
@@ -389,9 +395,11 @@ Datum ST_LargestEmptyCircle(PG_FUNCTION_ARGS)
 	Datum result;
 	Datum result_values[3];
 	bool result_is_null[3];
-	double radius = 0.0, tolerance = 0.0;
+	double radius = 0.0;
+	double tolerance = 0.0;
 	int32 srid = SRID_UNKNOWN;
-	bool is3d = false, hasBoundary = false;
+	bool is3d = false;
+	bool hasBoundary = false;
 
 	if (PG_ARGISNULL(0))
 		PG_RETURN_NULL();
@@ -416,9 +424,14 @@ Datum ST_LargestEmptyCircle(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *ginput, *gcircle, *gcenter, *gnearest;
+		GEOSGeometry *ginput;
+		GEOSGeometry *gcircle;
+		GEOSGeometry *gcenter;
+		GEOSGeometry *gnearest;
 		GEOSGeometry *gboundary = NULL;
-		double width, height, size;
+		double width;
+		double height;
+		double size;
 		GBOX gbox;
 		LWGEOM *lwg;
 		lwg = lwgeom_from_gserialized(geom);
@@ -511,8 +524,12 @@ Datum pgis_union_geometry_array(PG_FUNCTION_ARGS)
 	Datum value;
 	bool isnull;
 
-	int is3d = LW_FALSE, gotsrid = LW_FALSE;
-	int nelems = 0, geoms_size = 0, curgeom = 0, count = 0;
+	int is3d = LW_FALSE;
+	int gotsrid = LW_FALSE;
+	int nelems = 0;
+	int geoms_size = 0;
+	int curgeom = 0;
+	int count = 0;
 
 	GSERIALIZED *gser_out = NULL;
 
@@ -692,7 +709,8 @@ Datum ST_UnaryUnion(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom1;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwresult ;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwresult;
 	double prec = -1;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -718,7 +736,9 @@ Datum ST_Union(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom1;
 	GSERIALIZED *geom2;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwgeom2, *lwresult;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWGEOM *lwresult;
 	double gridSize = -1;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -753,7 +773,9 @@ Datum ST_SymDifference(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom1;
 	GSERIALIZED *geom2;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwgeom2, *lwresult ;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWGEOM *lwresult;
 	double prec = -1;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -781,7 +803,8 @@ PG_FUNCTION_INFO_V1(convexhull);
 Datum convexhull(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom1;
-	GEOSGeometry *g1, *g3;
+	GEOSGeometry *g1;
+	GEOSGeometry *g3;
 	GSERIALIZED *result;
 	LWGEOM *lwout;
 	int32_t srid;
@@ -912,7 +935,8 @@ Datum topologypreservesimplify(PG_FUNCTION_ARGS)
 	GSERIALIZED	*gs1;
 	LWGEOM *lwg1;
 	double	tolerance;
-	GEOSGeometry *g1, *g3;
+	GEOSGeometry *g1;
+	GEOSGeometry *g3;
 	GSERIALIZED *result;
 	uint32_t type;
 
@@ -967,7 +991,8 @@ PG_FUNCTION_INFO_V1(buffer);
 Datum buffer(PG_FUNCTION_ARGS)
 {
 	GEOSBufferParams *bufferparams;
-	GEOSGeometry *g1, *g3 = NULL;
+	GEOSGeometry *g1;
+	GEOSGeometry *g3 = NULL;
 	GSERIALIZED *result;
 	LWGEOM *lwg;
 	int quadsegs = 8; /* the default */
@@ -1038,7 +1063,8 @@ Datum buffer(PG_FUNCTION_ARGS)
 
 		for (param=params; ; param=NULL)
 		{
-			char *key, *val;
+			char *key;
+			char *val;
 			param = strtok(param, " ");
 			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
@@ -1305,7 +1331,8 @@ Datum ST_OffsetCurve(PG_FUNCTION_ARGS)
 
 		for ( param=paramstr; ; param=NULL )
 		{
-			char *key, *val;
+			char *key;
+			char *val;
 			param = strtok(param, " ");
 			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
@@ -1384,7 +1411,9 @@ Datum ST_Intersection(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom1;
 	GSERIALIZED *geom2;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwgeom2, *lwresult;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWGEOM *lwresult;
 	double prec = -1;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -1414,7 +1443,9 @@ Datum ST_Difference(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom1;
 	GSERIALIZED *geom2;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwgeom2, *lwresult;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWGEOM *lwresult;
 	double prec = -1;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -1445,8 +1476,10 @@ Datum ST_Difference(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(pointonsurface);
 Datum pointonsurface(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom, *result;
-	LWGEOM *lwgeom, *lwresult;
+	GSERIALIZED *geom;
+	GSERIALIZED *result;
+	LWGEOM *lwgeom;
+	LWGEOM *lwresult;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
 
@@ -1465,8 +1498,10 @@ Datum pointonsurface(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(centroid);
 Datum centroid(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom, *result;
-	LWGEOM *lwgeom, *lwresult;
+	GSERIALIZED *geom;
+	GSERIALIZED *result;
+	LWGEOM *lwgeom;
+	LWGEOM *lwresult;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
 	gserialized_check_crs_family_not_geocentric(geom, "ST_Centroid");
@@ -1487,8 +1522,10 @@ Datum ST_ReducePrecision(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_ReducePrecision);
 Datum ST_ReducePrecision(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom, *result;
-	LWGEOM *lwgeom, *lwresult;
+	GSERIALIZED *geom;
+	GSERIALIZED *result;
+	LWGEOM *lwgeom;
+	LWGEOM *lwresult;
 	double gridSize = PG_GETARG_FLOAT8(1);
 	geom = PG_GETARG_GSERIALIZED_P(0);
 
@@ -1511,7 +1548,8 @@ Datum ST_ClipByBox2d(PG_FUNCTION_ARGS)
 	static const uint32_t geom_idx = 0;
 	static const uint32_t box2d_idx = 1;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwresult ;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwresult;
 	GBOX bbox1 = {0};
 	GBOX *bbox2;
 	uint8_t type;
@@ -2010,7 +2048,8 @@ PG_FUNCTION_INFO_V1(clusterintersecting_garray);
 Datum clusterintersecting_garray(PG_FUNCTION_ARGS)
 {
 	Datum* result_array_data;
-	ArrayType *array, *result;
+	ArrayType *array;
+	ArrayType *result;
 	int is3d;
 	uint32 nelems, nclusters, i;
 	GEOSGeometry **geos_inputs;
@@ -2077,7 +2116,8 @@ PG_FUNCTION_INFO_V1(cluster_within_distance_garray);
 Datum cluster_within_distance_garray(PG_FUNCTION_ARGS)
 {
 	Datum* result_array_data;
-	ArrayType *array, *result;
+	ArrayType *array;
+	ArrayType *result;
 	int is3d;
 	uint32 nelems, nclusters, i;
 	LWGEOM** lw_inputs;
@@ -2155,7 +2195,8 @@ Datum linemerge(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom1;
 	bool directed = false;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom1, *lwresult ;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwresult;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 
@@ -2187,7 +2228,8 @@ Datum ST_BuildArea(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *result;
 	GSERIALIZED *geom;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
 	gserialized_check_crs_family_not_geocentric(geom, "ST_BuildArea");
@@ -2218,7 +2260,8 @@ Datum ST_DelaunayTriangles(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *result;
 	GSERIALIZED *geom;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 	double	tolerance;
 	int flags;
 
@@ -2291,8 +2334,12 @@ Datum ST_Snap(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_Snap);
 Datum ST_Snap(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom1, *geom2, *result;
-	LWGEOM *lwgeom1, *lwgeom2, *lwresult;
+	GSERIALIZED *geom1;
+	GSERIALIZED *geom2;
+	GSERIALIZED *result;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWGEOM *lwresult;
 	double tolerance;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -2342,8 +2389,12 @@ Datum ST_Split(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_Split);
 Datum ST_Split(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *in, *blade_in, *out;
-	LWGEOM *lwgeom_in, *lwblade_in, *lwgeom_out;
+	GSERIALIZED *in;
+	GSERIALIZED *blade_in;
+	GSERIALIZED *out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwblade_in;
+	LWGEOM *lwgeom_out;
 
 	in = PG_GETARG_GSERIALIZED_P(0);
 	blade_in = PG_GETARG_GSERIALIZED_P(1);
@@ -2403,8 +2454,12 @@ Datum ST_SharedPaths(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_SharedPaths);
 Datum ST_SharedPaths(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom1, *geom2, *out;
-	LWGEOM *g1, *g2, *lwgeom_out;
+	GSERIALIZED *geom1;
+	GSERIALIZED *geom2;
+	GSERIALIZED *out;
+	LWGEOM *g1;
+	LWGEOM *g2;
+	LWGEOM *lwgeom_out;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 	geom2 = PG_GETARG_GSERIALIZED_P(1);
@@ -2444,8 +2499,10 @@ Datum ST_Node(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_Node);
 Datum ST_Node(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom1, *out;
-	LWGEOM *g1, *lwgeom_out;
+	GSERIALIZED *geom1;
+	GSERIALIZED *out;
+	LWGEOM *g1;
+	LWGEOM *lwgeom_out;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 
@@ -2681,7 +2738,8 @@ Datum LWGEOM_dfullywithin(PG_FUNCTION_ARGS)
 	LWGEOM *lwg2 = lwgeom_from_gserialized(geom2);
 	double radius = PG_GETARG_FLOAT8(2);
 	GEOSGeometry *buffer1 = NULL;
-	GEOSGeometry *geos1 = NULL, *geos2 = NULL;
+	GEOSGeometry *geos1 = NULL;
+	GEOSGeometry *geos2 = NULL;
 	int8_t contained;
 
 	if (radius < 0.0)

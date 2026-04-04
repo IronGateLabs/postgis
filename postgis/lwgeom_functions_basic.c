@@ -398,7 +398,8 @@ Datum LWGEOM_force_2d(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *pg_geom_in = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *pg_geom_out;
-	LWGEOM *lwg_in, *lwg_out;
+	LWGEOM *lwg_in;
+	LWGEOM *lwg_out;
 
 	/* already 2d */
 	if (gserialized_ndims(pg_geom_in) == 2)
@@ -420,7 +421,8 @@ Datum LWGEOM_force_3dz(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *pg_geom_in = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *pg_geom_out;
-	LWGEOM *lwg_in, *lwg_out;
+	LWGEOM *lwg_in;
+	LWGEOM *lwg_out;
 	double z = PG_NARGS() < 2 ? 0 : PG_GETARG_FLOAT8(1);
 
 	/* already 3d */
@@ -443,7 +445,8 @@ Datum LWGEOM_force_3dm(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *pg_geom_in = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *pg_geom_out;
-	LWGEOM *lwg_in, *lwg_out;
+	LWGEOM *lwg_in;
+	LWGEOM *lwg_out;
 	double m = PG_NARGS() < 2 ? 0 : PG_GETARG_FLOAT8(1);
 
 	/* already 3d */
@@ -466,7 +469,8 @@ Datum LWGEOM_force_4d(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *pg_geom_in = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *pg_geom_out;
-	LWGEOM *lwg_in, *lwg_out;
+	LWGEOM *lwg_in;
+	LWGEOM *lwg_out;
 	double z = PG_NARGS() < 3 ? 0 : PG_GETARG_FLOAT8(1);
 	double m = PG_NARGS() < 3 ? 0 : PG_GETARG_FLOAT8(2);
 
@@ -1094,7 +1098,8 @@ Datum ST_WrapX(PG_FUNCTION_ARGS)
 {
 	Datum gdatum;
 	GSERIALIZED *geom_in;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 	GSERIALIZED *geom_out;
 	double cutx;
 	double amount;
@@ -1123,9 +1128,12 @@ Datum ST_WrapX(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(ST_Scroll);
 Datum ST_Scroll(PG_FUNCTION_ARGS)
 {
-	Datum datum_line, datum_point;
-	GSERIALIZED *ser_line, *ser_point;
-	LWGEOM *lwgeom_line, *lwgeom_point;
+	Datum datum_line;
+	Datum datum_point;
+	GSERIALIZED *ser_line;
+	GSERIALIZED *ser_point;
+	LWGEOM *lwgeom_line;
+	LWGEOM *lwgeom_point;
 	LWLINE *line;
 	LWPOINT *point;
 	POINT4D p;
@@ -1208,7 +1216,9 @@ Datum LWGEOM_inside_circle_point(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_collect);
 Datum LWGEOM_collect(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *gser1, *gser2, *result;
+	GSERIALIZED *gser1;
+	GSERIALIZED *gser2;
+	GSERIALIZED *result;
 	LWGEOM *lwgeoms[2], *outlwg;
 	uint32 type1, type2;
 	uint8_t outtype;
@@ -1419,7 +1429,8 @@ Datum LWGEOM_collect_garray(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_line_from_mpoint);
 Datum LWGEOM_line_from_mpoint(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *ingeom, *result;
+	GSERIALIZED *ingeom;
+	GSERIALIZED *result;
 	LWLINE *lwline;
 	LWMPOINT *mpoint;
 
@@ -1558,7 +1569,8 @@ Datum LWGEOM_makeline_garray(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_makeline);
 Datum LWGEOM_makeline(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *pglwg1, *pglwg2;
+	GSERIALIZED *pglwg1;
+	GSERIALIZED *pglwg2;
 	GSERIALIZED *result = NULL;
 	LWGEOM *lwgeoms[2];
 	LWLINE *outline;
@@ -1879,9 +1891,11 @@ Datum LWGEOM_isempty(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_segmentize2d);
 Datum LWGEOM_segmentize2d(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *outgeom, *ingeom;
+	GSERIALIZED *outgeom;
+	GSERIALIZED *ingeom;
 	double dist;
-	LWGEOM *inlwgeom, *outlwgeom;
+	LWGEOM *inlwgeom;
+	LWGEOM *outlwgeom;
 	int type;
 
 	POSTGIS_DEBUG(2, "LWGEOM_segmentize2d called");
@@ -1961,7 +1975,8 @@ Datum LWGEOM_reverse(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_force_clockwise_poly);
 Datum LWGEOM_force_clockwise_poly(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *ingeom, *outgeom;
+	GSERIALIZED *ingeom;
+	GSERIALIZED *outgeom;
 	LWGEOM *lwgeom;
 
 	POSTGIS_DEBUG(2, "LWGEOM_force_clockwise_poly called");
@@ -1986,7 +2001,8 @@ Datum LWGEOM_force_clockwise_poly(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(ST_ForcePolygonCCW);
 Datum ST_ForcePolygonCCW(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *ingeom, *outgeom;
+	GSERIALIZED *ingeom;
+	GSERIALIZED *outgeom;
 	LWGEOM *lwgeom;
 
 	POSTGIS_DEBUG(2, "ST_ForcePolygonCCW called");
@@ -2017,8 +2033,10 @@ Datum ST_Normalize(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ST_Normalize);
 Datum ST_Normalize(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *in, *out;
-	LWGEOM *lwgeom_in, *lwgeom_out;
+	GSERIALIZED *in;
+	GSERIALIZED *out;
+	LWGEOM *lwgeom_in;
+	LWGEOM *lwgeom_out;
 
 	POSTGIS_DEBUG(2, "ST_Normalize called");
 
@@ -2108,7 +2126,10 @@ Datum ST_MakeEnvelope(PG_FUNCTION_ARGS)
 {
 	LWPOLY *poly;
 	GSERIALIZED *result;
-	double x1, y1, x2, y2;
+	double x1;
+	double y1;
+	double x2;
+	double y2;
 	int32_t srid = SRID_UNKNOWN;
 
 	POSTGIS_DEBUG(2, "ST_MakeEnvelope called");
@@ -2136,11 +2157,18 @@ Datum ST_TileEnvelope(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *bounds;
 	uint32_t zoomu;
-	int32_t x, y, zoom;
+	int32_t x;
+	int32_t y;
+	int32_t zoom;
 	uint32_t worldTileSize;
-	double tileGeoSizeX, tileGeoSizeY;
-	double boundsWidth, boundsHeight;
-	double x1, y1, x2, y2;
+	double tileGeoSizeX;
+	double tileGeoSizeY;
+	double boundsWidth;
+	double boundsHeight;
+	double x1;
+	double y1;
+	double x2;
+	double y2;
 	double margin;
 	/* This is broken, since 3857 doesn't mean "web mercator", it means
 	   the contents of the row in spatial_ref_sys with srid = 3857.
@@ -2239,7 +2267,10 @@ Datum ST_IsCollection(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_makepoint);
 Datum LWGEOM_makepoint(PG_FUNCTION_ARGS)
 {
-	double x, y, z, m;
+	double x;
+	double y;
+	double z;
+	double m;
 	LWPOINT *point;
 	GSERIALIZED *result;
 
@@ -2324,7 +2355,9 @@ Datum ST_PointZM(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_makepoint3dm);
 Datum LWGEOM_makepoint3dm(PG_FUNCTION_ARGS)
 {
-	double x, y, m;
+	double x;
+	double y;
+	double m;
 	LWPOINT *point;
 	GSERIALIZED *result;
 
@@ -2343,9 +2376,12 @@ Datum LWGEOM_makepoint3dm(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_addpoint);
 Datum LWGEOM_addpoint(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *pglwg1, *pglwg2, *result;
+	GSERIALIZED *pglwg1;
+	GSERIALIZED *pglwg2;
+	GSERIALIZED *result;
 	LWPOINT *point;
-	LWLINE *line, *linecopy;
+	LWLINE *line;
+	LWLINE *linecopy;
 	uint32_t uwhere = 0;
 
 	POSTGIS_DEBUGF(2, "%s called.", __func__);
@@ -2417,8 +2453,10 @@ Datum LWGEOM_addpoint(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_removepoint);
 Datum LWGEOM_removepoint(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *pglwg1, *result;
-	LWLINE *line, *outline;
+	GSERIALIZED *pglwg1;
+	GSERIALIZED *result;
+	LWLINE *line;
+	LWLINE *outline;
 	int32 which;
 
 	POSTGIS_DEBUG(2, "LWGEOM_removepoint called.");
@@ -2460,7 +2498,9 @@ Datum LWGEOM_removepoint(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(LWGEOM_setpoint_linestring);
 Datum LWGEOM_setpoint_linestring(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *pglwg1, *pglwg2, *result;
+	GSERIALIZED *pglwg1;
+	GSERIALIZED *pglwg2;
+	GSERIALIZED *result;
 	LWGEOM *lwg;
 	LWLINE *line;
 	LWPOINT *lwpoint;
@@ -2550,7 +2590,8 @@ Datum LWGEOM_azimuth(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom;
 	LWPOINT *lwpoint;
-	POINT2D p1, p2;
+	POINT2D p1;
+	POINT2D p2;
 	double result;
 	int32_t srid;
 
@@ -2624,10 +2665,14 @@ Datum LWGEOM_azimuth(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(geometry_project_direction);
 Datum geometry_project_direction(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom1, *geom2;
-	LWPOINT *lwpoint1, *lwpoint2;
-	LWGEOM *lwgeom1, *lwgeom2;
-	double distance, azimuth;
+	GSERIALIZED *geom1;
+	GSERIALIZED *geom2;
+	LWPOINT *lwpoint1;
+	LWPOINT *lwpoint2;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	double distance;
+	double azimuth;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 	gserialized_check_crs_family_not_geocentric(geom1, "ST_Project");
@@ -2659,9 +2704,15 @@ Datum geometry_project_direction(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(geometry_project_geometry);
 Datum geometry_project_geometry(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom1, *geom2, *geom3;
-	LWPOINT *lwpoint1, *lwpoint2, *lwpoint3;
-	LWGEOM *lwgeom1, *lwgeom2, *lwgeom3;
+	GSERIALIZED *geom1;
+	GSERIALIZED *geom2;
+	GSERIALIZED *geom3;
+	LWPOINT *lwpoint1;
+	LWPOINT *lwpoint2;
+	LWPOINT *lwpoint3;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	LWGEOM *lwgeom3;
 	double distance;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -2701,10 +2752,14 @@ Datum geometry_project_geometry(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(geometry_line_extend);
 Datum geometry_line_extend(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *geom1, *geom2;
-	LWLINE *lwline1, *lwline2;
-	LWGEOM *lwgeom1, *lwgeom2;
-	double distance_forward, distance_backward;
+	GSERIALIZED *geom1;
+	GSERIALIZED *geom2;
+	LWLINE *lwline1;
+	LWLINE *lwline2;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
+	double distance_forward;
+	double distance_backward;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 	distance_forward = PG_GETARG_FLOAT8(1);
@@ -2744,7 +2799,8 @@ Datum LWGEOM_angle(PG_FUNCTION_ARGS)
 	LWGEOM *geom_unser;
 	LWPOINT *lwpoint;
 	POINT2D points[4];
-	double az1, az2;
+	double az1;
+	double az2;
 	double result;
 	int32_t srids[4];
 	int i;
@@ -2984,7 +3040,8 @@ Datum _ST_SortableHash(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(ST_CollectionExtract);
 Datum ST_CollectionExtract(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *gser_in, *gser_out;
+	GSERIALIZED *gser_in;
+	GSERIALIZED *gser_out;
 	LWGEOM *lwg_in = NULL;
 	LWGEOM *lwg_out = NULL;
 	int extype = 0;
@@ -3234,8 +3291,11 @@ Datum ST_Scale(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom;
 	GSERIALIZED *geom_scale = PG_GETARG_GSERIALIZED_P(1);
 	GSERIALIZED *geom_origin = NULL;
-	LWGEOM *lwg, *lwg_scale, *lwg_origin;
-	LWPOINT *lwpt_scale, *lwpt_origin;
+	LWGEOM *lwg;
+	LWGEOM *lwg_scale;
+	LWGEOM *lwg_origin;
+	LWPOINT *lwpt_scale;
+	LWPOINT *lwpt_origin;
 	POINT4D origin;
 	POINT4D factors;
 	bool translate = false;
@@ -3395,7 +3455,8 @@ Datum LWGEOM_FilterByM(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom_out;
 	LWGEOM *lwgeom_in;
 	LWGEOM *lwgeom_out;
-	double min, max;
+	double min;
+	double max;
 	int returnm;
 	int hasm;
 
@@ -3455,7 +3516,8 @@ Datum boundary(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom1;
 	GSERIALIZED *result;
-	LWGEOM *lwgeom, *lwresult;
+	LWGEOM *lwgeom;
+	LWGEOM *lwresult;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 

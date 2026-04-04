@@ -97,7 +97,8 @@ Datum ST_Intersects(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -148,7 +149,8 @@ Datum ST_Intersects(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -176,8 +178,10 @@ Datum ST_Equals(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
-	GEOSGeometry *g1, *g2;
+	GBOX box1;
+	GBOX box2;
+	GEOSGeometry *g1;
+	GEOSGeometry *g2;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
@@ -235,7 +239,8 @@ Datum touches(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -271,7 +276,8 @@ Datum touches(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -299,7 +305,8 @@ Datum disjoint(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -335,7 +342,8 @@ Datum disjoint(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -367,7 +375,8 @@ Datum overlaps(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -403,7 +412,8 @@ Datum overlaps(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -434,7 +444,8 @@ Datum crosses(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -470,7 +481,8 @@ Datum crosses(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -502,8 +514,10 @@ Datum contains(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GEOSGeometry *g1, *g2;
-	GBOX box1, box2;
+	GEOSGeometry *g1;
+	GEOSGeometry *g2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -583,8 +597,10 @@ Datum within(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GEOSGeometry *g1, *g2;
-	GBOX box1, box2;
+	GEOSGeometry *g1;
+	GEOSGeometry *g2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -663,7 +679,8 @@ Datum containsproperly(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -695,7 +712,8 @@ Datum containsproperly(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -728,7 +746,8 @@ Datum covers(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	POSTGIS_DEBUGF(3, "Covers: type1: %d, type2: %d", gserialized_get_type(geom1), gserialized_get_type(geom2));
@@ -777,7 +796,8 @@ Datum covers(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
@@ -812,7 +832,8 @@ Datum coveredby(PG_FUNCTION_ARGS)
 	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
 	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
 	int8_t result;
-	GBOX box1, box2;
+	GBOX box1;
+	GBOX box2;
 	PrepGeomCache *prep_cache;
 
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
@@ -861,7 +882,8 @@ Datum coveredby(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 
@@ -948,7 +970,8 @@ Datum relate_pattern(PG_FUNCTION_ARGS)
 	else
 #endif
 	{
-		GEOSGeometry *g1, *g2;
+		GEOSGeometry *g1;
+		GEOSGeometry *g2;
 		g1 = POSTGIS2GEOS(geom1);
 		if (!g1) HANDLE_GEOS_ERROR("First argument geometry could not be converted to GEOS");
 		g2 = POSTGIS2GEOS(geom2);
@@ -974,7 +997,8 @@ Datum relate_full(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom1 = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *geom2 = PG_GETARG_GSERIALIZED_P(1);
-	GEOSGeometry *g1, *g2;
+	GEOSGeometry *g1;
+	GEOSGeometry *g2;
 	char *relate_str;
 	text *result;
 	int bnr = GEOSRELATE_BNR_OGC;

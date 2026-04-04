@@ -50,8 +50,10 @@ Datum cache_bbox(PG_FUNCTION_ARGS)
 	TupleDesc   tupdesc;
 	HeapTuple   rettuple;
 	bool        isnull;
-	Datum in, out;
-	int attno, ret;
+	Datum in;
+	Datum out;
+	int attno;
+	int ret;
 
 	/* make sure it's called as a trigger at all */
 	if (!CALLED_AS_TRIGGER(fcinfo))

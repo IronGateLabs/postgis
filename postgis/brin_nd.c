@@ -67,8 +67,11 @@ gidx_brin_inclusion_add_value(__attribute__((__unused__)) BrinDesc *bdesc,
 		BrinValues *column, Datum newval, bool isnull, int max_dims)
 {
 	char gboxmem[GIDX_MAX_SIZE];
-	GIDX *gidx_geom, *gidx_key;
-	int dims_geom, dims_key, i;
+	GIDX *gidx_geom;
+	GIDX *gidx_key;
+	int dims_geom;
+	int dims_key;
+	int i;
 
 	Assert(max_dims <= GIDX_MAX_DIM);
 

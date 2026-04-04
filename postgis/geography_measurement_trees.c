@@ -290,7 +290,8 @@ geography_tree_distance(const GSERIALIZED* g1, const GSERIALIZED* g2, const SPHE
 	CIRC_NODE* circ_tree2 = NULL;
 	LWGEOM* lwgeom1 = NULL;
 	LWGEOM* lwgeom2 = NULL;
-	POINT4D pt1, pt2;
+	POINT4D pt1;
+	POINT4D pt2;
 
 	lwgeom1 = lwgeom_from_gserialized(g1);
 	lwgeom2 = lwgeom_from_gserialized(g2);

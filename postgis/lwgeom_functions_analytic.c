@@ -397,7 +397,8 @@ grid_print(const gridspec *grid)
 PG_FUNCTION_INFO_V1(LWGEOM_snaptogrid_pointoff);
 Datum LWGEOM_snaptogrid_pointoff(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *in_geom, *in_point;
+	GSERIALIZED *in_geom;
+	GSERIALIZED *in_point;
 	LWGEOM *in_lwgeom;
 	LWPOINT *in_lwpoint;
 	GSERIALIZED *out_geom = NULL;
@@ -473,7 +474,9 @@ Datum LWGEOM_snaptogrid_pointoff(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(ST_LineCrossingDirection);
 Datum ST_LineCrossingDirection(PG_FUNCTION_ARGS)
 {
-	int type1, type2, rv;
+	int type1;
+	int type2;
+	int rv;
 	LWLINE *l1 = NULL;
 	LWLINE *l2 = NULL;
 	GSERIALIZED *geom1 = PG_GETARG_GSERIALIZED_P(0);
@@ -517,7 +520,8 @@ Datum LWGEOM_line_substring(PG_FUNCTION_ARGS)
 	double from = PG_GETARG_FLOAT8(1);
 	double to = PG_GETARG_FLOAT8(2);
 	LWGEOM *olwgeom;
-	POINTARRAY *ipa, *opa;
+	POINTARRAY *ipa;
+	POINTARRAY *opa;
 	GSERIALIZED *ret;
 	int type = gserialized_get_type(geom);
 
@@ -564,10 +568,14 @@ Datum LWGEOM_line_substring(PG_FUNCTION_ARGS)
 	else if ( type == MULTILINETYPE )
 	{
 		LWMLINE *iline;
-		uint32_t i = 0, g = 0;
+		uint32_t i = 0;
+		uint32_t g = 0;
 		int homogeneous = LW_TRUE;
 		LWGEOM **geoms = NULL;
-		double length = 0.0, sublength = 0.0, minprop = 0.0, maxprop = 0.0;
+		double length = 0.0;
+		double sublength = 0.0;
+		double minprop = 0.0;
+		double maxprop = 0.0;
 
 		iline = lwgeom_as_lwmline(lwgeom_from_gserialized(geom));
 
@@ -593,7 +601,8 @@ Datum LWGEOM_line_substring(PG_FUNCTION_ARGS)
 		for ( i = 0; i < iline->ngeoms; i++ )
 		{
 			LWLINE *subline = (LWLINE*)iline->geoms[i];
-			double subfrom = 0.0, subto = 0.0;
+			double subfrom = 0.0;
+			double subto = 0.0;
 
 			if ( subline->points && subline->points->npoints > 1 )
 				sublength += ptarray_length_2d(subline->points);

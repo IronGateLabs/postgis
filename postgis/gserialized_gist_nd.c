@@ -159,7 +159,9 @@ gidx_set_unknown(GIDX *a)
 void
 gidx_merge(GIDX **b_union, GIDX *b_new)
 {
-	int i, dims_union, dims_new;
+	int i;
+	int dims_union;
+	int dims_new;
 	Assert(b_union);
 	Assert(*b_union);
 	Assert(b_new);
@@ -247,7 +249,8 @@ gidx_union_volume(GIDX *a, GIDX *b)
 {
 	float result;
 	int i;
-	int ndims_a, ndims_b;
+	int ndims_a;
+	int ndims_b;
 
 	POSTGIS_DEBUG(5, "entered function");
 
@@ -294,7 +297,8 @@ gidx_union_edge(GIDX *a, GIDX *b)
 {
 	float result;
 	int i;
-	int ndims_a, ndims_b;
+	int ndims_a;
+	int ndims_b;
 
 	POSTGIS_DEBUG(5, "entered function");
 
@@ -392,7 +396,9 @@ gidx_inter_volume(GIDX *a, GIDX *b)
 bool
 gidx_overlaps(GIDX *a, GIDX *b)
 {
-	int i, dims_a, dims_b;
+	int i;
+	int dims_a;
+	int dims_b;
 
 	POSTGIS_DEBUG(5, "entered function");
 
@@ -430,7 +436,9 @@ gidx_overlaps(GIDX *a, GIDX *b)
 bool
 gidx_contains(GIDX *a, GIDX *b)
 {
-	uint32_t i, dims_a, dims_b;
+	uint32_t i;
+	uint32_t dims_a;
+	uint32_t dims_b;
 
 	if (!a || !b)
 		return false;
@@ -466,7 +474,9 @@ gidx_contains(GIDX *a, GIDX *b)
 bool
 gidx_equals(GIDX *a, GIDX *b)
 {
-	uint32_t i, dims_a, dims_b;
+	uint32_t i;
+	uint32_t dims_a;
+	uint32_t dims_b;
 
 	if (!a && !b)
 		return true;
@@ -568,7 +578,8 @@ gserialized_datum_predicate_geom_gidx(Datum gs1, GIDX *gidx2, gidx_predicate pre
 static double
 gidx_distance(const GIDX *a, const GIDX *b, int m_is_time)
 {
-	int ndims, i;
+	int ndims;
+	int i;
 	double sum = 0;
 
 	/* Base computation on least available dimensions */
@@ -666,7 +677,8 @@ Datum gserialized_distance_nd(PG_FUNCTION_ARGS)
 	/* Can only add the M term if both objects have M */
 	if (lwgeom_has_m(lw1) && lwgeom_has_m(lw2))
 	{
-		double m1 = 0, m2 = 0;
+		double m1 = 0;
+		double m2 = 0;
 		int usebox = false;
 		/* Un-sqrt the distance so we can add extra terms */
 		distance = distance * distance;
@@ -703,7 +715,8 @@ Datum gserialized_distance_nd(PG_FUNCTION_ARGS)
 
 		if (usebox)
 		{
-			GBOX b1, b2;
+			GBOX b1;
+			GBOX b2;
 			if (gserialized_get_gbox_p(geom1, &b1) && gserialized_get_gbox_p(geom2, &b2))
 			{
 				double d;
@@ -1177,7 +1190,8 @@ Datum gserialized_gist_penalty(PG_FUNCTION_ARGS)
 	GISTENTRY *origentry = (GISTENTRY *)PG_GETARG_POINTER(0);
 	GISTENTRY *newentry = (GISTENTRY *)PG_GETARG_POINTER(1);
 	float *result = (float *)PG_GETARG_POINTER(2);
-	GIDX *gbox_index_orig, *gbox_index_new;
+	GIDX *gbox_index_orig;
+	GIDX *gbox_index_new;
 
 	gbox_index_orig = (GIDX *)DatumGetPointer(origentry->key);
 	gbox_index_new = (GIDX *)DatumGetPointer(newentry->key);
@@ -1223,8 +1237,10 @@ Datum gserialized_gist_union(PG_FUNCTION_ARGS)
 {
 	GistEntryVector *entryvec = (GistEntryVector *)PG_GETARG_POINTER(0);
 	int *sizep = (int *)PG_GETARG_POINTER(1); /* Size of the return value */
-	int numranges, i;
-	GIDX *box_cur, *box_union;
+	int numranges;
+	int i;
+	GIDX *box_cur;
+	GIDX *box_union;
 
 	POSTGIS_DEBUG(4, "[GIST] 'union' function called");
 
@@ -1491,7 +1507,8 @@ gserialized_gist_picksplit_constructsplit(GIST_SPLITVEC *v,
 			GIDX *LRr = gidx_copy(*union2);
 			GIDX *RLl = gidx_copy(*union2);
 			GIDX *RLr = gidx_copy(*union1);
-			double sizeLR, sizeRL;
+			double sizeLR;
+			double sizeRL;
 
 			gidx_merge(&LRl, (GIDX *)PG_DETOAST_DATUM(v->spl_ldatum));
 			gidx_merge(&LRr, (GIDX *)PG_DETOAST_DATUM(v->spl_rdatum));
@@ -1508,7 +1525,8 @@ gserialized_gist_picksplit_constructsplit(GIST_SPLITVEC *v,
 		}
 		else
 		{
-			float p1 = 0.0, p2 = 0.0;
+			float p1 = 0.0;
+			float p2 = 0.0;
 			GISTENTRY oldUnion, addon;
 
 			gistentryinit(oldUnion,
@@ -1597,7 +1615,9 @@ Datum gserialized_gist_picksplit(PG_FUNCTION_ARGS)
 	int direction = -1;
 	bool all_entries_equal = true;
 	OffsetNumber max_offset;
-	int nbytes, ndims_pageunion, d;
+	int nbytes;
+	int ndims_pageunion;
+	int d;
 	int posmin = entryvec->n;
 
 	POSTGIS_DEBUG(4, "[GIST] 'picksplit' function called");

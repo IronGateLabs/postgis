@@ -54,7 +54,8 @@ static void encode_keys(struct geobuf_agg_context *ctx)
 	TupleDesc tupdesc = get_tuple_desc(ctx);
 	uint32_t natts = (uint32_t) tupdesc->natts;
 	char **keys = palloc(natts * sizeof(*keys));
-	uint32_t i, k = 0;
+	uint32_t i;
+	uint32_t k = 0;
 	bool geom_found = false;
 	for (i = 0; i < natts; i++) {
 		Oid typoid = getBaseType(TupleDescAttr(tupdesc, i)->atttypid);
@@ -98,7 +99,9 @@ static void encode_properties(struct geobuf_agg_context *ctx,
 {
 	uint32_t *properties;
 	Data__Value **values;
-	uint32_t i, k = 0, c = 0;
+	uint32_t i;
+	uint32_t k = 0;
+	uint32_t c = 0;
 	TupleDesc tupdesc = get_tuple_desc(ctx);
 	uint32_t natts = (uint32_t) tupdesc->natts;
 	properties = palloc(sizeof (*properties) * (natts - 1) * 2);
@@ -106,7 +109,8 @@ static void encode_properties(struct geobuf_agg_context *ctx,
 
 	for (i = 0; i < natts; i++) {
 		Data__Value *value;
-		char *type, *string_value;
+		char *type;
+		char *string_value;
 		Datum datum;
 		bool isnull;
 		Oid typoid;
@@ -161,7 +165,8 @@ static void encode_properties(struct geobuf_agg_context *ctx,
 static int64_t *encode_coords(struct geobuf_agg_context *ctx, POINTARRAY *pa,
 	int64_t *coords, int len, int offset)
 {
-	int i, c;
+	int i;
+	int c;
 	POINT4D pt;
 	int64_t sum[] = { 0, 0, 0, 0 };
 
@@ -208,7 +213,8 @@ static Data__Geometry *encode_point(struct geobuf_agg_context *ctx,
 static Data__Geometry *encode_mpoint(struct geobuf_agg_context *ctx,
 	LWMPOINT *lwmpoint)
 {
-	int i, ngeoms;
+	int i;
+	int ngeoms;
 	POINTARRAY *pa;
 	Data__Geometry *geometry;
 
@@ -272,7 +278,9 @@ encode_triangle(struct geobuf_agg_context *ctx, LWTRIANGLE *lwtri)
 static Data__Geometry *encode_mline(struct geobuf_agg_context *ctx,
 	LWMLINE *lwmline)
 {
-	int i, offset, ngeoms;
+	int i;
+	int offset;
+	int ngeoms;
 	POINTARRAY *pa;
 	Data__Geometry *geometry;
 	uint32_t *lengths;
@@ -309,7 +317,10 @@ static Data__Geometry *encode_mline(struct geobuf_agg_context *ctx,
 static Data__Geometry *encode_poly(struct geobuf_agg_context *ctx,
 	LWPOLY *lwpoly)
 {
-	int i, len, nrings, offset;
+	int i;
+	int len;
+	int nrings;
+	int offset;
 	POINTARRAY *pa;
 	Data__Geometry *geometry;
 	uint32_t *lengths;
@@ -347,7 +358,14 @@ static Data__Geometry *encode_poly(struct geobuf_agg_context *ctx,
 static Data__Geometry *encode_mpoly(struct geobuf_agg_context *ctx,
 	LWMPOLY* lwmpoly)
 {
-	int i, j, c, len, offset, n_lengths, ngeoms, nrings;
+	int i;
+	int j;
+	int c;
+	int len;
+	int offset;
+	int n_lengths;
+	int ngeoms;
+	int nrings;
 	POINTARRAY *pa;
 	Data__Geometry *geometry;
 	uint32_t *lengths;
@@ -398,7 +416,8 @@ static Data__Geometry *encode_mpoly(struct geobuf_agg_context *ctx,
 static Data__Geometry *encode_collection(struct geobuf_agg_context *ctx,
 	LWCOLLECTION* lwcollection)
 {
-	int i, ngeoms;
+	int i;
+	int ngeoms;
 	Data__Geometry *geometry, **geometries;
 
 	geometry = galloc(DATA__GEOMETRY__TYPE__GEOMETRYCOLLECTION);
@@ -475,7 +494,8 @@ static void analyze_pa(struct geobuf_agg_context *ctx, POINTARRAY *pa)
 
 static void analyze_geometry(struct geobuf_agg_context *ctx, LWGEOM *lwgeom)
 {
-	uint32_t i, type;
+	uint32_t i;
+	uint32_t type;
 	LWLINE *lwline;
 	LWPOLY *lwpoly;
 	LWCOLLECTION *lwcollection;
@@ -622,7 +642,8 @@ void geobuf_agg_transfn(struct geobuf_agg_context *ctx)
  */
 uint8_t *geobuf_agg_finalfn(struct geobuf_agg_context *ctx)
 {
-	size_t i, len;
+	size_t i;
+	size_t len;
 	Data *data;
 	Data__FeatureCollection *fc;
 	uint8_t *buf;

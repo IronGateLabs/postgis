@@ -441,7 +441,8 @@ Datum ST_ClusterKMeans(PG_FUNCTION_ARGS)
 {
 	WindowObject winobj = PG_WINDOW_OBJECT();
 	kmeans_context *context;
-	int64 curpos, rowcount;
+	int64 curpos;
+	int64 rowcount;
 
 	rowcount = WinGetPartitionRowCount(winobj);
 	context = (kmeans_context *)
@@ -450,8 +451,11 @@ Datum ST_ClusterKMeans(PG_FUNCTION_ARGS)
 
 	if (!context->isdone)
 	{
-		int       i, k, N;
-		bool      isnull, isout;
+		int i;
+		int k;
+		int N;
+		bool isnull;
+		bool isout;
 		double max_radius = 0.0;
 		LWGEOM    **geoms;
 		int       *r;
@@ -615,8 +619,10 @@ coverage_read_partition_into_collection(
 	for (i = 0; i < rowcount; i++)
 	{
 		GSERIALIZED* gser;
-		bool isnull, isout;
-		bool isempty, ispolygonal;
+		bool isnull;
+		bool isout;
+		bool isempty;
+		bool ispolygonal;
 		Datum d;
 
 		/* Read geometry in first argument */

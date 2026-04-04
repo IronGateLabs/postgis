@@ -480,11 +480,15 @@ Datum TWKBFromLWGEOMArray(PG_FUNCTION_ARGS)
 {
 	ArrayType *arr_geoms = NULL;
 	ArrayType *arr_ids = NULL;
-	int num_geoms, num_ids, i = 0;
+	int num_geoms;
+	int num_ids;
+	int i = 0;
 
 	ArrayIterator iter_geoms, iter_ids;
-	bool null_geom, null_id;
-	Datum val_geom, val_id;
+	bool null_geom;
+	bool null_id;
+	Datum val_geom;
+	Datum val_id;
 
 	int is_homogeneous = true;
 	uint32_t subtype = 0;

@@ -380,7 +380,8 @@ gml_is_srs_axis_order_gis_friendly(int32_t srid)
 {
 	char *srtext;
 	char query[256];
-	int is_axis_order_gis_friendly, err;
+	int is_axis_order_gis_friendly;
+	int err;
 
 	if (SPI_OK_CONNECT != SPI_connect ())
 		lwpgerror("gml_is_srs_axis_order_gis_friendly: could not connect to SPI manager");
@@ -616,10 +617,13 @@ static double parse_gml_double(char *d, bool space_before, bool space_after)
 static POINTARRAY* parse_gml_coordinates(xmlNodePtr xnode, bool *hasz)
 {
 	xmlChar *gml_coord, *gml_ts, *gml_cs, *gml_dec;
-	char cs, ts, dec;
+	char cs;
+	char ts;
+	char dec;
 	POINTARRAY *dpa;
 	int gml_dims;
-	char *p, *q;
+	char *p;
+	char *q;
 	bool digit;
 	POINT4D pt = {0};
 
@@ -733,7 +737,9 @@ static POINTARRAY* parse_gml_coord(xmlNodePtr xnode, bool *hasz)
 {
 	xmlNodePtr xyz;
 	POINTARRAY *dpa;
-	bool x,y,z;
+	bool x;
+	bool y;
+	bool z;
 	xmlChar *c;
 	POINT4D p = {0};
 
@@ -787,9 +793,11 @@ static POINTARRAY* parse_gml_coord(xmlNodePtr xnode, bool *hasz)
 static POINTARRAY* parse_gml_pos(xmlNodePtr xnode, bool *hasz)
 {
 	xmlChar *dimension, *gmlpos;
-	int dim, gml_dim;
+	int dim;
+	int gml_dim;
 	POINTARRAY *dpa;
-	char *pos, *p;
+	char *pos;
+	char *p;
 	bool digit;
 	POINT4D pt = {0, 0, 0, 0};
 
@@ -854,8 +862,10 @@ static POINTARRAY* parse_gml_pos(xmlNodePtr xnode, bool *hasz)
 static POINTARRAY* parse_gml_poslist(xmlNodePtr xnode, bool *hasz)
 {
 	xmlChar *dimension, *gmlposlist;
-	char *poslist, *p;
-	int dim, gml_dim;
+	char *poslist;
+	char *p;
+	int dim;
+	int gml_dim;
 	POINTARRAY *dpa;
 	POINT4D pt = {0, 0, 0, 0};
 	bool digit;
@@ -931,7 +941,8 @@ static POINTARRAY* parse_gml_poslist(xmlNodePtr xnode, bool *hasz)
  */
 static POINTARRAY* parse_gml_data(xmlNodePtr xnode, bool *hasz, int *root_srid)
 {
-	POINTARRAY *pa = 0, *tmp_pa = 0;
+	POINTARRAY *pa = 0;
+	POINTARRAY *tmp_pa = 0;
 	xmlNodePtr xa, xb;
 	gmlSrs srs;
 	bool found;
@@ -1241,7 +1252,8 @@ static LWGEOM* parse_gml_linearring(xmlNodePtr xnode, bool *hasz, int *root_srid
 static LWGEOM* parse_gml_polygon(xmlNodePtr xnode, bool *hasz, int *root_srid)
 {
 	gmlSrs srs;
-	int i, ring;
+	int i;
+	int ring;
 	LWGEOM *geom;
 	xmlNodePtr xa, xb;
 	POINTARRAY **ppa = NULL;
@@ -1409,7 +1421,8 @@ static LWGEOM* parse_gml_patch(xmlNodePtr xnode, bool *hasz, int *root_srid)
 	POINTARRAY **ppa=NULL;
 	LWGEOM *geom=NULL;
 	xmlNodePtr xa, xb;
-	int i, ring=0;
+	int i;
+	int ring=0;
 	gmlSrs srs;
 
 	/* PolygonPatch */

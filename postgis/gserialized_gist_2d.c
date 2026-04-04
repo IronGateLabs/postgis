@@ -583,7 +583,10 @@ gserialized_datum_get_box2df_p(Datum gsdatum, BOX2DF *box2df)
 static int
 gserialized_datum_predicate_2d(Datum gs1, Datum gs2, box2df_predicate predicate)
 {
-	BOX2DF b1, b2, *br1=NULL, *br2=NULL;
+	BOX2DF b1;
+	BOX2DF b2;
+	BOX2DF *br1=NULL;
+	BOX2DF *br2=NULL;
 	POSTGIS_DEBUG(3, "entered function");
 
 	if (gserialized_datum_get_box2df_p(gs1, &b1) == LW_SUCCESS) br1 = &b1;
@@ -600,7 +603,8 @@ gserialized_datum_predicate_2d(Datum gs1, Datum gs2, box2df_predicate predicate)
 static int
 gserialized_datum_predicate_box2df_geom_2d(const BOX2DF *br1, Datum gs2, box2df_predicate predicate)
 {
-	BOX2DF b2, *br2=NULL;
+	BOX2DF b2;
+	BOX2DF *br2=NULL;
 	POSTGIS_DEBUG(3, "entered function");
 
 	if (gserialized_datum_get_box2df_p(gs2, &b2) == LW_SUCCESS) br2 = &b2;
@@ -681,7 +685,8 @@ Datum gserialized_overlaps_box2df_box2df_2d(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(gserialized_distance_centroid_2d);
 Datum gserialized_distance_centroid_2d(PG_FUNCTION_ARGS)
 {
-	BOX2DF b1, b2;
+	BOX2DF b1;
+	BOX2DF b2;
 	Datum gs1 = PG_GETARG_DATUM(0);
 	Datum gs2 = PG_GETARG_DATUM(1);
 
@@ -701,7 +706,8 @@ Datum gserialized_distance_centroid_2d(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(gserialized_distance_box_2d);
 Datum gserialized_distance_box_2d(PG_FUNCTION_ARGS)
 {
-	BOX2DF b1, b2;
+	BOX2DF b1;
+	BOX2DF b2;
 	Datum gs1 = PG_GETARG_DATUM(0);
 	Datum gs2 = PG_GETARG_DATUM(1);
 
@@ -1233,19 +1239,27 @@ pack_float(const float value, const uint8_t realm)
 static inline float
 box2df_penalty(const BOX2DF *b1, const BOX2DF *b2)
 {
-	float b1xmin = b1->xmin, b1xmax = b1->xmax;
-	float b1ymin = b1->ymin, b1ymax = b1->ymax;
-	float b2xmin = b2->xmin, b2xmax = b2->xmax;
-	float b2ymin = b2->ymin, b2ymax = b2->ymax;
+	float b1xmin = b1->xmin;
+	float b1xmax = b1->xmax;
+	float b1ymin = b1->ymin;
+	float b1ymax = b1->ymax;
+	float b2xmin = b2->xmin;
+	float b2xmax = b2->xmax;
+	float b2ymin = b2->ymin;
+	float b2ymax = b2->ymax;
 
 	float box_union_xmin = Min(b1xmin, b2xmin), box_union_xmax = Max(b1xmax, b2xmax);
 	float box_union_ymin = Min(b1ymin, b2ymin), box_union_ymax = Max(b1ymax, b2ymax);
 
-	float b1dx = b1xmax - b1xmin, b1dy = b1ymax - b1ymin;
-	float box_union_dx = box_union_xmax - box_union_xmin, box_union_dy = box_union_ymax - box_union_ymin;
+	float b1dx = b1xmax - b1xmin;
+	float b1dy = b1ymax - b1ymin;
+	float box_union_dx = box_union_xmax - box_union_xmin;
+	float box_union_dy = box_union_ymax - box_union_ymin;
 
-	float box_union_area = box_union_dx * box_union_dy, box1area = b1dx * b1dy;
-	float box_union_edge = box_union_dx + box_union_dy, box1edge = b1dx + b1dy;
+	float box_union_area = box_union_dx * box_union_dy;
+	float box1area = b1dx * b1dy;
+	float box_union_edge = box_union_dx + box_union_dy;
+	float box1edge = b1dx + b1dy;
 
 	float area_extension = box_union_area - box1area;
 	float edge_extension = box_union_edge - box1edge;
@@ -1263,10 +1277,13 @@ box2df_penalty(const BOX2DF *b1, const BOX2DF *b2)
 static inline float
 box2df_penalty_single(const BOX2DF *box)
 {
-	float boxxmin = box->xmin, boxxmax = box->xmax;
-	float boxymin = box->ymin, boxymax = box->ymax;
+	float boxxmin = box->xmin;
+	float boxxmax = box->xmax;
+	float boxymin = box->ymin;
+	float boxymax = box->ymax;
 
-	float dx = boxxmax - boxxmin, dy = boxymax - boxymin;
+	float dx = boxxmax - boxxmin;
+	float dy = boxymax - boxymin;
 
 	float area = dx * dy;
 	float edge = dx + dy;
@@ -1291,7 +1308,8 @@ Datum gserialized_gist_penalty_2d(PG_FUNCTION_ARGS)
 	GISTENTRY *origentry = (GISTENTRY*) PG_GETARG_POINTER(0);
 	GISTENTRY *newentry = (GISTENTRY*) PG_GETARG_POINTER(1);
 	float *result = (float*) PG_GETARG_POINTER(2);
-	BOX2DF *b1, *b2;
+	BOX2DF *b1;
+	BOX2DF *b2;
 
 	b1 = (BOX2DF *)DatumGetPointer(origentry->key);
 	b2 = (BOX2DF *)DatumGetPointer(newentry->key);
@@ -1316,8 +1334,10 @@ Datum gserialized_gist_union_2d(PG_FUNCTION_ARGS)
 {
 	GistEntryVector	*entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
 	int *sizep = (int *) PG_GETARG_POINTER(1); /* Size of the return value */
-	int	numranges, i;
-	BOX2DF *box_cur, *box_union;
+	int numranges;
+	int i;
+	BOX2DF *box_cur;
+	BOX2DF *box_union;
 
 	POSTGIS_DEBUG(4, "[GIST] 'union' function called");
 
@@ -1387,7 +1407,8 @@ gserialized_gist_cmp_full_2d(Datum a, Datum b, SortSupport ssup)
 {
 	BOX2DF *b1 = (BOX2DF *)a;
 	BOX2DF *b2 = (BOX2DF *)b;
-	uint64_t hash1, hash2;
+	uint64_t hash1;
+	uint64_t hash2;
 	int cmp;
 
 	cmp = memcmp(b1, b2, sizeof(BOX2DF));
@@ -1785,7 +1806,8 @@ Datum gserialized_gist_picksplit_2d(PG_FUNCTION_ARGS)
 	OffsetNumber i,
 				maxoff;
 	ConsiderSplitContext context;
-	BOX2DF *leftBox, *rightBox;
+	BOX2DF *leftBox;
+	BOX2DF *rightBox;
 	int			dim,
 				commonEntriesCount;
 	SplitInterval *intervalsLower,

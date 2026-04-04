@@ -314,7 +314,8 @@ PGDLLEXPORT Datum gserialized_spgist_choose_2d(PG_FUNCTION_ARGS)
 {
 	spgChooseIn *in = (spgChooseIn *)PG_GETARG_POINTER(0);
 	spgChooseOut *out = (spgChooseOut *)PG_GETARG_POINTER(1);
-	BOX2DF *centroid = (BOX2DF *)DatumGetPointer(in->prefixDatum), *box = (BOX2DF *)DatumGetPointer(in->leafDatum);
+	BOX2DF *centroid = (BOX2DF *)DatumGetPointer(in->prefixDatum);
+	BOX2DF *box = (BOX2DF *)DatumGetPointer(in->leafDatum);
 
 	out->resultType = spgMatchNode;
 	out->result.matchNode.restDatum = PointerGetDatum(box);
@@ -339,7 +340,8 @@ PGDLLEXPORT Datum gserialized_spgist_picksplit_2d(PG_FUNCTION_ARGS)
 	spgPickSplitIn *in = (spgPickSplitIn *)PG_GETARG_POINTER(0);
 	spgPickSplitOut *out = (spgPickSplitOut *)PG_GETARG_POINTER(1);
 	BOX2DF *centroid;
-	int median, i;
+	int median;
+	int i;
 	double *lowXs = palloc(sizeof(double) * in->nTuples);
 	double *highXs = palloc(sizeof(double) * in->nTuples);
 	double *lowYs = palloc(sizeof(double) * in->nTuples);

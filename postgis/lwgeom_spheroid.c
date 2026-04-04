@@ -193,7 +193,8 @@ Datum geometry_distance_spheroid(PG_FUNCTION_ARGS)
 	int type1 = gserialized_get_type(geom1);
 	int type2 = gserialized_get_type(geom2);
 	bool use_spheroid = PG_GETARG_BOOL(3);
-	LWGEOM *lwgeom1, *lwgeom2;
+	LWGEOM *lwgeom1;
+	LWGEOM *lwgeom2;
 	double distance;
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 

@@ -241,7 +241,8 @@ Datum polygon_to_geometry(PG_FUNCTION_ARGS)
 	POINTARRAY **ppa;
 	GSERIALIZED *geom;
 	Point p;
-	int i = 0, unclosed = 0;
+	int i = 0;
+	int unclosed = 0;
 
 	POSTGIS_DEBUG(2, "polygon_to_geometry called");
 

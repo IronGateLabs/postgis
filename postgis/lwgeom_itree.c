@@ -252,10 +252,14 @@ Datum ST_IntersectsIntervalTree(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *g1 = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *g2 = PG_GETARG_GSERIALIZED_P(1);
-	LWGEOM *lwg1, *lwg2;
+	LWGEOM *lwg1;
+	LWGEOM *lwg2;
 	LWPOINT *lwpt;
 	IntervalTree *itree = NULL;
-	bool isPoly1, isPoly2, isPt1, isPt2;
+	bool isPoly1;
+	bool isPoly2;
+	bool isPt1;
+	bool isPt2;
 
 	/* Return false on empty arguments. */
 	if (gserialized_is_empty(g1) || gserialized_is_empty(g2))
