@@ -133,8 +133,6 @@ lwgpu_metal_init(void)
 	if (metal_initialized)
 		return !metal_disabled;
 
-	metal_initialized = 1;
-
 	@autoreleasepool
 	{
 		/* Get the default Metal device */
@@ -142,8 +140,7 @@ lwgpu_metal_init(void)
 		if (!mtl_device)
 		{
 			LWDEBUG(1, "Metal: no GPU device found");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 
 		/* Cache device name */
@@ -158,8 +155,7 @@ lwgpu_metal_init(void)
 		if (!mtl_queue)
 		{
 			LWDEBUG(1, "Metal: failed to create command queue");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 
 		/* Load embedded metallib.
@@ -176,8 +172,7 @@ lwgpu_metal_init(void)
 		{
 			lwnotice("Metal: failed to load metallib: %s",
 				 error ? [[error localizedDescription] UTF8String] : "unknown");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 
 		/* Create pipeline state for rotate_z_uniform kernel */
@@ -185,16 +180,14 @@ lwgpu_metal_init(void)
 		if (!fn)
 		{
 			lwnotice("Metal: kernel 'rotate_z_uniform' not found in metallib");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 		mtl_pipeline_rotate_z = [mtl_device newComputePipelineStateWithFunction:fn error:&error];
 		if (!mtl_pipeline_rotate_z)
 		{
 			lwnotice("Metal: failed to create rotate_z pipeline: %s",
 				 error ? [[error localizedDescription] UTF8String] : "unknown");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 
 		/* Create pipeline state for rotate_z_m_epoch kernel */
@@ -202,16 +195,14 @@ lwgpu_metal_init(void)
 		if (!fn)
 		{
 			lwnotice("Metal: kernel 'rotate_z_m_epoch' not found in metallib");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 		mtl_pipeline_rotate_z_m_epoch = [mtl_device newComputePipelineStateWithFunction:fn error:&error];
 		if (!mtl_pipeline_rotate_z_m_epoch)
 		{
 			lwnotice("Metal: failed to create rotate_z_m_epoch pipeline: %s",
 				 error ? [[error localizedDescription] UTF8String] : "unknown");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 
 		/* Create pipeline state for rad_convert kernel */
@@ -219,22 +210,29 @@ lwgpu_metal_init(void)
 		if (!fn)
 		{
 			lwnotice("Metal: kernel 'rad_convert' not found in metallib");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 		mtl_pipeline_rad_convert = [mtl_device newComputePipelineStateWithFunction:fn error:&error];
 		if (!mtl_pipeline_rad_convert)
 		{
 			lwnotice("Metal: failed to create rad_convert pipeline: %s",
 				 error ? [[error localizedDescription] UTF8String] : "unknown");
-			metal_disabled = 1;
-			return 0;
+			goto fail;
 		}
 
 		LWDEBUGF(1, "Metal: initialized on %s", metal_device_name);
 	}
 
+	/* Only mark initialized after all objects are successfully created */
+	metal_initialized = 1;
 	return 1;
+
+fail:
+	/* Clean up any partially created objects */
+	lwgpu_metal_shutdown();
+	metal_initialized = 1;
+	metal_disabled = 1;
+	return 0;
 }
 
 /**
