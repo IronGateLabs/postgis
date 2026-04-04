@@ -235,6 +235,90 @@ lwgpu_metal_init(void)
 }
 
 /**
+ * Shared Metal compute dispatch helper.
+ *
+ * Handles the common pattern: create data buffer from float array,
+ * create params buffer, encode + dispatch compute kernel, wait for
+ * completion, copy results back.
+ *
+ * @param pipeline  The compute pipeline state for the kernel
+ * @param fdata     Float coordinate data (caller-owned, freed on error)
+ * @param fdata_len Byte length of fdata
+ * @param params    Pointer to kernel parameter struct
+ * @param params_len Byte length of params
+ * @param npoints   Number of points (thread count for dispatch)
+ * @param label     Human-readable kernel name for error messages
+ * @return 1 on success, 0 on failure (sets metal_disabled)
+ */
+static int
+metal_dispatch_kernel(id<MTLComputePipelineState> pipeline,
+		      float *fdata, size_t fdata_len,
+		      void *params, size_t params_len,
+		      uint32_t npoints, const char *label)
+{
+	/* Create Metal buffer for float point data */
+	id<MTLBuffer> data_buf = [mtl_device newBufferWithBytes:fdata
+							length:fdata_len
+						       options:MTLResourceStorageModeShared];
+	if (!data_buf)
+	{
+		lwnotice("Metal: failed to create data buffer for %s", label);
+		metal_disabled = 1;
+		return 0;
+	}
+
+	/* Create constant buffer for kernel parameters */
+	id<MTLBuffer> params_buf = [mtl_device newBufferWithBytes:params
+							  length:params_len
+						         options:MTLResourceStorageModeShared];
+	if (!params_buf)
+	{
+		lwnotice("Metal: failed to create params buffer for %s", label);
+		metal_disabled = 1;
+		return 0;
+	}
+
+	/* Encode and dispatch compute command */
+	id<MTLCommandBuffer> cmd_buf = [mtl_queue commandBuffer];
+	id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
+	if (!cmd_buf || !encoder)
+	{
+		lwnotice("Metal: failed to create command buffer/encoder");
+		metal_disabled = 1;
+		return 0;
+	}
+
+	[encoder setComputePipelineState:pipeline];
+	[encoder setBuffer:data_buf offset:0 atIndex:0];
+	[encoder setBuffer:params_buf offset:0 atIndex:1];
+
+	NSUInteger tg_size = METAL_THREADGROUP_SIZE;
+	if (tg_size > [pipeline maxTotalThreadsPerThreadgroup])
+		tg_size = [pipeline maxTotalThreadsPerThreadgroup];
+
+	[encoder dispatchThreads:MTLSizeMake(npoints, 1, 1)
+	    threadsPerThreadgroup:MTLSizeMake(tg_size, 1, 1)];
+	[encoder endEncoding];
+
+	[cmd_buf commit];
+	[cmd_buf waitUntilCompleted];
+
+	if ([cmd_buf status] == MTLCommandBufferStatusError)
+	{
+		NSError *cb_error = [cmd_buf error];
+		lwnotice("Metal: command buffer error in %s: %s",
+			 label,
+			 cb_error ? [[cb_error localizedDescription] UTF8String] : "unknown");
+		metal_disabled = 1;
+		return 0;
+	}
+
+	/* Copy GPU results back into the caller's float buffer */
+	memcpy(fdata, [data_buf contents], fdata_len);
+	return 1;
+}
+
+/**
  * Uniform-angle Z-rotation on GPU via Metal.
  *
  * @param data    Pointer to interleaved coordinate data
@@ -261,74 +345,23 @@ lwgpu_metal_rotate_z(double *data, size_t stride, uint32_t n, double theta)
 
 		size_t fdata_len = total_doubles * sizeof(float);
 
-		/* Create Metal buffer for float point data */
-		id<MTLBuffer> data_buf = [mtl_device newBufferWithBytes:fdata
-								length:fdata_len
-							       options:MTLResourceStorageModeShared];
-		if (!data_buf)
-		{
-			lwnotice("Metal: failed to create data buffer for rotate_z");
-			free(fdata);
-			metal_disabled = 1;
-			return 0;
-		}
-
-		/* Create constant buffer for kernel parameters */
 		struct RotateZParams params;
 		params.stride = stride_doubles;
 		params.npoints = n;
 		params.cos_t = (float)cos(theta);
 		params.sin_t = (float)sin(theta);
 
-		id<MTLBuffer> params_buf = [mtl_device newBufferWithBytes:&params
-								  length:sizeof(params)
-							         options:MTLResourceStorageModeShared];
-		if (!params_buf)
+		if (!metal_dispatch_kernel(mtl_pipeline_rotate_z,
+					   fdata, fdata_len,
+					   &params, sizeof(params),
+					   n, "rotate_z"))
 		{
-			lwnotice("Metal: failed to create params buffer for rotate_z");
 			free(fdata);
-			metal_disabled = 1;
-			return 0;
-		}
-
-		/* Encode and dispatch compute command */
-		id<MTLCommandBuffer> cmd_buf = [mtl_queue commandBuffer];
-		id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
-		if (!cmd_buf || !encoder)
-		{
-			lwnotice("Metal: failed to create command buffer/encoder");
-			free(fdata);
-			metal_disabled = 1;
-			return 0;
-		}
-
-		[encoder setComputePipelineState:mtl_pipeline_rotate_z];
-		[encoder setBuffer:data_buf offset:0 atIndex:0];
-		[encoder setBuffer:params_buf offset:0 atIndex:1];
-
-		NSUInteger tg_size = METAL_THREADGROUP_SIZE;
-		if (tg_size > [mtl_pipeline_rotate_z maxTotalThreadsPerThreadgroup])
-			tg_size = [mtl_pipeline_rotate_z maxTotalThreadsPerThreadgroup];
-
-		[encoder dispatchThreads:MTLSizeMake(n, 1, 1)
-		    threadsPerThreadgroup:MTLSizeMake(tg_size, 1, 1)];
-		[encoder endEncoding];
-
-		[cmd_buf commit];
-		[cmd_buf waitUntilCompleted];
-
-		if ([cmd_buf status] == MTLCommandBufferStatusError)
-		{
-			NSError *cb_error = [cmd_buf error];
-			lwnotice("Metal: command buffer error in rotate_z: %s",
-				 cb_error ? [[cb_error localizedDescription] UTF8String] : "unknown");
-			free(fdata);
-			metal_disabled = 1;
 			return 0;
 		}
 
 		/* Convert float results back to double */
-		metal_floats_to_doubles(data, [data_buf contents], total_doubles);
+		metal_floats_to_doubles(data, fdata, total_doubles);
 		free(fdata);
 	}
 
@@ -364,71 +397,23 @@ lwgpu_metal_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
 
 		size_t fdata_len = total_doubles * sizeof(float);
 
-		id<MTLBuffer> data_buf = [mtl_device newBufferWithBytes:fdata
-								length:fdata_len
-							       options:MTLResourceStorageModeShared];
-		if (!data_buf)
-		{
-			lwnotice("Metal: failed to create data buffer for rotate_z_m_epoch");
-			free(fdata);
-			metal_disabled = 1;
-			return 0;
-		}
-
 		struct RotateZMEpochParams params;
 		params.stride = stride_doubles;
 		params.npoints = n;
 		params.m_offset = (uint32_t)m_off;
 		params.direction = (int32_t)dir;
 
-		id<MTLBuffer> params_buf = [mtl_device newBufferWithBytes:&params
-								  length:sizeof(params)
-							         options:MTLResourceStorageModeShared];
-		if (!params_buf)
+		if (!metal_dispatch_kernel(mtl_pipeline_rotate_z_m_epoch,
+					   fdata, fdata_len,
+					   &params, sizeof(params),
+					   n, "rotate_z_m_epoch"))
 		{
-			lwnotice("Metal: failed to create params buffer for rotate_z_m_epoch");
 			free(fdata);
-			metal_disabled = 1;
-			return 0;
-		}
-
-		id<MTLCommandBuffer> cmd_buf = [mtl_queue commandBuffer];
-		id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
-		if (!cmd_buf || !encoder)
-		{
-			lwnotice("Metal: failed to create command buffer/encoder");
-			free(fdata);
-			metal_disabled = 1;
-			return 0;
-		}
-
-		[encoder setComputePipelineState:mtl_pipeline_rotate_z_m_epoch];
-		[encoder setBuffer:data_buf offset:0 atIndex:0];
-		[encoder setBuffer:params_buf offset:0 atIndex:1];
-
-		NSUInteger tg_size = METAL_THREADGROUP_SIZE;
-		if (tg_size > [mtl_pipeline_rotate_z_m_epoch maxTotalThreadsPerThreadgroup])
-			tg_size = [mtl_pipeline_rotate_z_m_epoch maxTotalThreadsPerThreadgroup];
-
-		[encoder dispatchThreads:MTLSizeMake(n, 1, 1)
-		    threadsPerThreadgroup:MTLSizeMake(tg_size, 1, 1)];
-		[encoder endEncoding];
-
-		[cmd_buf commit];
-		[cmd_buf waitUntilCompleted];
-
-		if ([cmd_buf status] == MTLCommandBufferStatusError)
-		{
-			NSError *cb_error = [cmd_buf error];
-			lwnotice("Metal: command buffer error in rotate_z_m_epoch: %s",
-				 cb_error ? [[cb_error localizedDescription] UTF8String] : "unknown");
-			free(fdata);
-			metal_disabled = 1;
 			return 0;
 		}
 
 		/* Convert float results back to double */
-		metal_floats_to_doubles(data, [data_buf contents], total_doubles);
+		metal_floats_to_doubles(data, fdata, total_doubles);
 		free(fdata);
 	}
 
