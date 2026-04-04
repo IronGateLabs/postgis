@@ -29,6 +29,44 @@
 #define pa_copy bench_pa_copy
 #define pa_max_diff bench_pa_max_diff
 
+/**
+ * Shared helper: create a PA of given size, rotate via scalar and Metal,
+ * assert results match within tolerance.
+ */
+#ifdef HAVE_METAL
+static void
+verify_metal_rotate_z(uint32_t npoints, double theta, double tolerance, const char *label)
+{
+	POINTARRAY *base;
+	POINTARRAY *scalar_pa;
+	POINTARRAY *metal_pa;
+	double diff;
+	int rc;
+
+	base = make_test_pa(npoints);
+	scalar_pa = pa_copy(base);
+	metal_pa = pa_copy(base);
+
+	/* Scalar reference */
+	ptarray_rotate_z_scalar(scalar_pa, theta);
+
+	/* Metal GPU */
+	rc = lwgpu_metal_rotate_z(
+	    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
+	CU_ASSERT_EQUAL(rc, 1);
+
+	/* Compare */
+	diff = pa_max_diff(scalar_pa, metal_pa);
+	if (diff >= tolerance)
+		fprintf(stderr, "Metal %s(%u) max_diff = %.2e (expected < %.0e)\n", label, npoints, diff, tolerance);
+	CU_ASSERT(diff < tolerance);
+
+	ptarray_free(base);
+	ptarray_free(scalar_pa);
+	ptarray_free(metal_pa);
+}
+#endif
+
 /***********************************************************************
  * test_metal_init
  *
@@ -78,38 +116,12 @@ static void
 test_metal_rotate_z_uniform(void)
 {
 #ifdef HAVE_METAL
-	POINTARRAY *base, *scalar_pa, *metal_pa;
-	double theta = 1.23456;
-	double diff;
-	int rc;
-
 	if (!lwgpu_available())
 	{
 		CU_PASS("Metal GPU not available at runtime");
 		return;
 	}
-
-	base = make_test_pa(1000);
-	scalar_pa = pa_copy(base);
-	metal_pa = pa_copy(base);
-
-	/* Scalar reference */
-	ptarray_rotate_z_scalar(scalar_pa, theta);
-
-	/* Metal GPU */
-	rc = lwgpu_metal_rotate_z(
-	    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
-	CU_ASSERT_EQUAL(rc, 1);
-
-	/* Compare */
-	diff = pa_max_diff(scalar_pa, metal_pa);
-	if (diff >= 1e-10)
-		fprintf(stderr, "Metal rotate_z max_diff = %.2e (expected < 1e-10)\n", diff);
-	CU_ASSERT(diff < 1e-10);
-
-	ptarray_free(base);
-	ptarray_free(scalar_pa);
-	ptarray_free(metal_pa);
+	verify_metal_rotate_z(1000, 1.23456, 1e-10, "rotate_z");
 #else
 	CU_PASS("Metal not available at compile time");
 #endif
@@ -268,7 +280,6 @@ test_metal_small_array(void)
 #ifdef HAVE_METAL
 	uint32_t sizes[] = {1, 2, 3};
 	int si;
-	double theta = 0.789;
 
 	if (!lwgpu_available())
 	{
@@ -277,28 +288,7 @@ test_metal_small_array(void)
 	}
 
 	for (si = 0; si < 3; si++)
-	{
-		POINTARRAY *base = make_test_pa(sizes[si]);
-		POINTARRAY *scalar_pa = pa_copy(base);
-		POINTARRAY *metal_pa = pa_copy(base);
-		double diff;
-		int rc;
-
-		ptarray_rotate_z_scalar(scalar_pa, theta);
-
-		rc = lwgpu_metal_rotate_z(
-		    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
-		CU_ASSERT_EQUAL(rc, 1);
-
-		diff = pa_max_diff(scalar_pa, metal_pa);
-		if (diff >= 1e-10)
-			fprintf(stderr, "Metal small_array(%u) max_diff = %.2e\n", sizes[si], diff);
-		CU_ASSERT(diff < 1e-10);
-
-		ptarray_free(base);
-		ptarray_free(scalar_pa);
-		ptarray_free(metal_pa);
-	}
+		verify_metal_rotate_z(sizes[si], 0.789, 1e-10, "small_array");
 #else
 	CU_PASS("Metal not available at compile time");
 #endif
@@ -313,38 +303,12 @@ static void
 test_metal_large_array(void)
 {
 #ifdef HAVE_METAL
-	POINTARRAY *base, *scalar_pa, *metal_pa;
-	double theta = 2.718;
-	double diff;
-	int rc;
-
 	if (!lwgpu_available())
 	{
 		CU_PASS("Metal GPU not available at runtime");
 		return;
 	}
-
-	base = make_test_pa(100000);
-	scalar_pa = pa_copy(base);
-	metal_pa = pa_copy(base);
-
-	/* Scalar reference */
-	ptarray_rotate_z_scalar(scalar_pa, theta);
-
-	/* Metal GPU */
-	rc = lwgpu_metal_rotate_z(
-	    (double *)metal_pa->serialized_pointlist, ptarray_point_size(metal_pa), metal_pa->npoints, theta);
-	CU_ASSERT_EQUAL(rc, 1);
-
-	/* Compare */
-	diff = pa_max_diff(scalar_pa, metal_pa);
-	if (diff >= 1e-10)
-		fprintf(stderr, "Metal large_array(100000) max_diff = %.2e\n", diff);
-	CU_ASSERT(diff < 1e-10);
-
-	ptarray_free(base);
-	ptarray_free(scalar_pa);
-	ptarray_free(metal_pa);
+	verify_metal_rotate_z(100000, 2.718, 1e-10, "large_array");
 #else
 	CU_PASS("Metal not available at compile time");
 #endif
