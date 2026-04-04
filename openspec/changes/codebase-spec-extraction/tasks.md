@@ -82,7 +82,7 @@ Cross-cutting concerns referenced by predicates and operations.
 
 Geography builds on geometry-types; constructors/editors complete the SQL API surface.
 
-- [ ] **Extract `geography-type` spec**
+- [x] **Extract `geography-type` spec** (completed 2026-04-03)
   - Read `postgis/geography.sql.in` (geography type definition, casts, operators)
   - Read `postgis/geography_inout.c` (geography I/O)
   - Read `postgis/geography_measurement.c` (distance, dwithin, intersects, covers, length, area, perimeter, azimuth, project)
@@ -92,8 +92,9 @@ Geography builds on geometry-types; constructors/editors complete the SQL API su
   - Cross-reference with regression tests: `regress/core/out_geography.sql`, `geography_centroid.sql`, `geography_covers.sql`, `bestsrid.sql`, `regress_lots_of_geographies.sql`, `regress_brin_index_geography.sql`
   - Write `openspec/specs/geography-type/spec.md` with 12-15 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 14 requirements, 45 scenarios (26 tested, 19 untested)
 
-- [ ] **Extract `constructors-editors` spec**
+- [x] **Extract `constructors-editors` spec** (completed 2026-04-03)
   - Read `postgis/lwgeom_functions_basic.c` (ST_MakePoint, ST_MakeLine, ST_MakePolygon, ST_MakeEnvelope, ST_Collect, ST_Multi, ST_Force2D/3DZ/3DM/4D, ST_ForceCollection, ST_ForceCurve, ST_ForceSFS, ST_SetSRID, ST_Reverse, ST_FlipCoordinates, ST_SwapOrdinates, ST_Normalize, ST_Scroll, ST_SnapToGrid, ST_RemoveRepeatedPoints, ST_SetPoint, ST_RemovePoint, ST_AddPoint, ST_WrapX, ST_QuantizeCoordinates, all accessors: ST_X/Y/Z/M, ST_NPoints, ST_NRings, ST_NumGeometries, ST_GeometryN, ST_ExteriorRing, ST_InteriorRingN, ST_PointN, ST_StartPoint, ST_EndPoint, ST_GeometryType, ST_SRID, ST_CoordDim, ST_Dimension, ST_Envelope, ST_Summary, ST_IsEmpty, ST_IsClosed)
   - Read `postgis/lwgeom_dump.c` (ST_Dump, ST_DumpPoints, ST_DumpSegments, ST_DumpRings)
   - Read `postgis/lwgeom_ogc.c` (OGC-compliant accessors)
@@ -101,6 +102,7 @@ Geography builds on geometry-types; constructors/editors complete the SQL API su
   - Cross-reference with regression tests: `regress/core/ctors.sql`, `dump.sql`, `dumppoints.sql`, `dumpsegments.sql`, `empty.sql`, `setpoint.sql`, `removepoint.sql`, `snaptogrid.sql`, `remove_repeated_points.sql`, `remove_irrelevant_points_for_view.sql`, `remove_small_parts.sql`, `reverse.sql`, `scroll.sql`, `swapordinates.sql`, `normalize.sql`, `quantize_coordinates.sql`, `wrapx.sql`, `point_coordinates.sql`, `iscollection.sql`, `isvaliddetail.sql`, `orientation.sql`, `filterm.sql`, `forcecurve.sql`, `summary.sql`, `letters.sql`
   - Write `openspec/specs/constructors-editors/spec.md` with 25-30 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 14 requirements, 55 scenarios (39 tested, 16 untested)
 
 ### Phase 5: Extensions
 
