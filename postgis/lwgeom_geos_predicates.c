@@ -80,6 +80,16 @@ is_point(const GSERIALIZED *g)
 	return type == POINTTYPE || type == MULTIPOINTTYPE;
 }
 
+/*
+ * Check if one geometry is a point and the other a polygon,
+ * suitable for the fast point-in-polygon interval-tree path.
+ */
+static inline uint8_t
+is_point_poly_pair(const GSERIALIZED *g1, const GSERIALIZED *g2)
+{
+	return (is_point(g1) && is_poly(g2)) || (is_point(g2) && is_poly(g1));
+}
+
 PG_FUNCTION_INFO_V1(ST_Intersects);
 Datum
 ST_Intersects(PG_FUNCTION_ARGS)
@@ -102,26 +112,26 @@ ST_Intersects(PG_FUNCTION_ARGS)
 	 * Short-circuit 1: if geom2 bounding box does not overlap
 	 * geom1 bounding box we can return FALSE.
 	 */
-	if (gserialized_get_gbox_p(geom1, &box1) && gserialized_get_gbox_p(geom2, &box2))
+	if (gserialized_get_gbox_p(geom1, &box1) && gserialized_get_gbox_p(geom2, &box2) &&
+	    gbox_overlaps_2d(&box1, &box2) == LW_FALSE)
 	{
-		if (gbox_overlaps_2d(&box1, &box2) == LW_FALSE)
-			PG_RETURN_BOOL(false);
+		PG_RETURN_BOOL(false);
 	}
 
 	/*
 	 * Short-circuit 2: if the geoms are a point and a polygon,
 	 * call the itree_pip_intersects function.
 	 */
-	if ((is_point(geom1) && is_poly(geom2)) || (is_point(geom2) && is_poly(geom1)))
+	if (is_point_poly_pair(geom1, geom2))
 	{
 		SHARED_GSERIALIZED *shared_gpoly = is_poly(geom1) ? shared_geom1 : shared_geom2;
 		SHARED_GSERIALIZED *shared_gpoint = is_point(geom1) ? shared_geom1 : shared_geom2;
 		const GSERIALIZED *gpoint = shared_gserialized_get(shared_gpoint);
 		LWGEOM *lwpt = lwgeom_from_gserialized(gpoint);
 		IntervalTree *itree = GetIntervalTree(fcinfo, shared_gpoly);
-		bool result = itree_pip_intersects(itree, lwpt);
+		bool pip_result = itree_pip_intersects(itree, lwpt);
 		lwgeom_free(lwpt);
-		PG_RETURN_BOOL(result);
+		PG_RETURN_BOOL(pip_result);
 	}
 
 	initGEOS(lwpgnotice, lwgeom_geos_error);
