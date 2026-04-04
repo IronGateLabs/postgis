@@ -116,8 +116,6 @@ typedef struct {
 static void
 compute_stats(double *times, int n, uint32_t npoints, BenchResult *out)
 {
-	/* S5955: i declared here for C89-style consistency with rest of file */
-	int i;
 	double min_val;
 	double max_val;
 
@@ -132,7 +130,7 @@ compute_stats(double *times, int n, uint32_t npoints, BenchResult *out)
 	/* Min/Max */
 	min_val = times[0];
 	max_val = times[0];
-	for (i = 1; i < n; i++)
+	for (int i = 1; i < n; i++)
 	{
 		if (times[i] < min_val) min_val = times[i];
 		if (times[i] > max_val) max_val = times[i];
