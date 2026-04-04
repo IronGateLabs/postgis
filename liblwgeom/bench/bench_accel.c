@@ -18,10 +18,9 @@
 #include "../lwgeom_accel.h"
 #include "../lwgeom_gpu.h"
 
+#include "bench_helpers.h"
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <time.h>
 #include <getopt.h>
 
@@ -49,69 +48,10 @@ now_us(void)
 	return ts.tv_sec * 1e6 + ts.tv_nsec / 1e3;
 }
 
-/*
- * Create a POINTARRAY with n random 4D points (XYZM).
- * X,Y in typical ECEF range (~6M meters), Z small, M = epoch.
- */
-static POINTARRAY *
-make_test_points(int n)
-{
-	POINTARRAY *pa;
-	int i;
-
-	pa = ptarray_construct(1, 1, n); /* has_z=1, has_m=1 */
-
-	for (i = 0; i < n; i++)
-	{
-		POINT4D p;
-		double angle = (double)i / n * 2.0 * M_PI;
-		p.x = 6378137.0 * cos(angle);
-		p.y = 6378137.0 * sin(angle);
-		p.z = 1000.0 * (i % 100);
-		p.m = 2025.0 + (double)i / n; /* Epoch range 2025-2026 */
-		ptarray_set_point4d(pa, i, &p);
-	}
-
-	return pa;
-}
-
-/*
- * Copy a POINTARRAY (deep copy of point data).
- */
-static POINTARRAY *
-pa_copy(const POINTARRAY *src)
-{
-	POINTARRAY *dst = ptarray_construct(
-		FLAGS_GET_Z(src->flags), FLAGS_GET_M(src->flags), src->npoints);
-	memcpy(dst->serialized_pointlist, src->serialized_pointlist,
-	       src->npoints * ptarray_point_size(src));
-	return dst;
-}
-
-/*
- * Compare two POINTARRAYs, return max absolute difference.
- */
-static double
-pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
-{
-	uint32_t i;
-	double max_d = 0.0;
-
-	for (i = 0; i < a->npoints && i < b->npoints; i++)
-	{
-		POINT4D pa_pt, pb_pt;
-		getPoint4d_p(a, i, &pa_pt);
-		getPoint4d_p(b, i, &pb_pt);
-
-		double dx = fabs(pa_pt.x - pb_pt.x);
-		double dy = fabs(pa_pt.y - pb_pt.y);
-		double dz = fabs(pa_pt.z - pb_pt.z);
-		if (dx > max_d) max_d = dx;
-		if (dy > max_d) max_d = dy;
-		if (dz > max_d) max_d = dz;
-	}
-	return max_d;
-}
+/* Convenience aliases for shared helpers */
+#define make_test_points(n) bench_make_test_pa((uint32_t)(n))
+#define pa_copy bench_pa_copy
+#define pa_max_diff bench_pa_max_diff
 
 /*
  * Benchmark: uniform-epoch ECI rotation
@@ -169,8 +109,7 @@ bench_eci_rotate(const char *backend, int npoints, int csv, double *out_throughp
 	if (csv)
 		printf("eci_rotate,%s,%d,%.0f,%.2f\n", backend, npoints, throughput, avg_us);
 	else
-		printf("  %-8s  %10d pts  %12.0f pts/sec  %10.2f us\n",
-		       backend, npoints, throughput, avg_us);
+		printf("  %-8s  %10d pts  %12.0f pts/sec  %10.2f us\n", backend, npoints, throughput, avg_us);
 
 	ptarray_free(pa);
 }
@@ -228,8 +167,7 @@ bench_rad_convert(const char *backend, int npoints, int csv)
 	if (csv)
 		printf("rad_convert,%s,%d,%.0f,%.2f\n", backend, npoints, throughput, avg_us);
 	else
-		printf("  %-8s  %10d pts  %12.0f pts/sec  %10.2f us\n",
-		       backend, npoints, throughput, avg_us);
+		printf("  %-8s  %10d pts  %12.0f pts/sec  %10.2f us\n", backend, npoints, throughput, avg_us);
 
 	ptarray_free(pa);
 }
@@ -264,8 +202,7 @@ validate_backends(void)
 
 		max_diff = pa_max_diff(scalar_pa, simd_pa);
 
-		printf("  %7d pts: max_diff = %.2e %s\n",
-		       n, max_diff, max_diff < 1e-9 ? "PASS" : "FAIL");
+		printf("  %7d pts: max_diff = %.2e %s\n", n, max_diff, max_diff < 1e-9 ? "PASS" : "FAIL");
 
 		if (max_diff >= 1e-9)
 			pass = 0;
@@ -292,8 +229,7 @@ validate_backends(void)
 		}
 
 		max_diff = pa_max_diff(scalar_pa, simd_pa);
-		printf("  %7d pts: max_diff = %.2e %s\n",
-		       n, max_diff, max_diff < 1e-9 ? "PASS" : "FAIL");
+		printf("  %7d pts: max_diff = %.2e %s\n", n, max_diff, max_diff < 1e-9 ? "PASS" : "FAIL");
 
 		if (max_diff >= 1e-9)
 			pass = 0;
@@ -329,31 +265,42 @@ print_usage(void)
 int
 main(int argc, char *argv[])
 {
-	BenchOptions opts = { .operation = "all", .backend = "auto",
-			      .validate = 0, .calibrate = 0, .csv = 0, .help = 0 };
+	BenchOptions opts = {.operation = "all", .backend = "auto", .validate = 0, .calibrate = 0, .csv = 0, .help = 0};
 
-	static struct option long_opts[] = {
-		{"operation",  required_argument, 0, 'o'},
-		{"backend",    required_argument, 0, 'b'},
-		{"validate",   no_argument,       0, 'v'},
-		{"calibrate",  no_argument,       0, 'C'},
-		{"csv",        no_argument,       0, 'c'},
-		{"help",       no_argument,       0, 'h'},
-		{0, 0, 0, 0}
-	};
+	static struct option long_opts[] = {{"operation", required_argument, 0, 'o'},
+					    {"backend", required_argument, 0, 'b'},
+					    {"validate", no_argument, 0, 'v'},
+					    {"calibrate", no_argument, 0, 'C'},
+					    {"csv", no_argument, 0, 'c'},
+					    {"help", no_argument, 0, 'h'},
+					    {0, 0, 0, 0}};
 
 	int opt;
 	while ((opt = getopt_long(argc, argv, "o:b:vCch", long_opts, NULL)) != -1)
 	{
 		switch (opt)
 		{
-		case 'o': snprintf(opts.operation, sizeof(opts.operation), "%s", optarg); break;
-		case 'b': snprintf(opts.backend, sizeof(opts.backend), "%s", optarg); break;
-		case 'v': opts.validate = 1; break;
-		case 'C': opts.calibrate = 1; break;
-		case 'c': opts.csv = 1; break;
-		case 'h': opts.help = 1; break;
-		default: print_usage(); return 1;
+		case 'o':
+			snprintf(opts.operation, sizeof(opts.operation), "%s", optarg);
+			break;
+		case 'b':
+			snprintf(opts.backend, sizeof(opts.backend), "%s", optarg);
+			break;
+		case 'v':
+			opts.validate = 1;
+			break;
+		case 'C':
+			opts.calibrate = 1;
+			break;
+		case 'c':
+			opts.csv = 1;
+			break;
+		case 'h':
+			opts.help = 1;
+			break;
+		default:
+			print_usage();
+			return 1;
 		}
 	}
 
@@ -427,7 +374,8 @@ main(int argc, char *argv[])
 				bench_eci_rotate("simd", POINT_COUNTS[pi], opts.csv, NULL);
 		}
 
-		if (!opts.csv) printf("\n");
+		if (!opts.csv)
+			printf("\n");
 	}
 
 	if (do_rad)
@@ -444,7 +392,8 @@ main(int argc, char *argv[])
 				bench_rad_convert("simd", POINT_COUNTS[pi], opts.csv);
 		}
 
-		if (!opts.csv) printf("\n");
+		if (!opts.csv)
+			printf("\n");
 	}
 
 	/* GPU overhead benchmark */
@@ -467,8 +416,8 @@ main(int argc, char *argv[])
 				double t_start, t_end;
 
 				t_start = now_us();
-				lwgpu_rotate_z_batch((double *)pa->serialized_pointlist,
-						     ptarray_point_size(pa), n, 1.234);
+				lwgpu_rotate_z_batch(
+				    (double *)pa->serialized_pointlist, ptarray_point_size(pa), n, 1.234);
 				t_end = now_us();
 
 				double gpu_us = t_end - t_start;
@@ -477,13 +426,13 @@ main(int argc, char *argv[])
 				if (opts.csv)
 					printf("gpu_overhead,gpu,%d,%.0f,%.2f\n", n, throughput, gpu_us);
 				else
-					printf("  gpu  %10d pts  %12.0f pts/sec  %10.2f us\n",
-					       n, throughput, gpu_us);
+					printf("  gpu  %10d pts  %12.0f pts/sec  %10.2f us\n", n, throughput, gpu_us);
 
 				ptarray_free(pa);
 			}
 		}
-		if (!opts.csv) printf("\n");
+		if (!opts.csv)
+			printf("\n");
 	}
 
 	return 0;
