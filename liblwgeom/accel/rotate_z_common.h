@@ -12,6 +12,7 @@
 #define ROTATE_Z_COMMON_H
 
 #include "../lwgeom_accel.h"
+#include "../lwgeom_log.h"
 #include <math.h>
 
 /**
