@@ -153,7 +153,8 @@ accel_now_us(void)
 {
 #if defined(_WIN32)
 	/* Windows/mingw: use QueryPerformanceCounter */
-	LARGE_INTEGER freq, cnt;
+	LARGE_INTEGER freq;
+	LARGE_INTEGER cnt;
 	QueryPerformanceFrequency(&freq);
 	QueryPerformanceCounter(&cnt);
 	return (double)cnt.QuadPart / freq.QuadPart * 1e6;
