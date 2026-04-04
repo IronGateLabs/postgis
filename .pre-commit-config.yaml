@@ -4,27 +4,26 @@
 # See: https://pre-commit.com
 
 repos:
-  # clang-format: enforces .clang-format style on staged C/H files
-  # BLOCKING - commit will fail if formatting violations are found
-  - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v18.1.8
+  # codespell: catch typos before they reach CI
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
     hooks:
-      - id: clang-format
-        types_or: [c, c++]
-        args: ['--dry-run', '--Werror']
-        exclude: '^(deps/|regress/|doc/)'
+      - id: codespell
+        args: ['--ignore-words=.codespell.ignore']
+        exclude: '^(deps/|extensions/.*/sql/|doc/html/|doc/po/|autom4te\.cache/|build-aux/|configure$|aclocal\.m4$|macros/libtool\.m4$)'
 
-  # cppcheck: static analysis for common C defects
-  # ADVISORY - reports warnings but does not block commits
-  # To make blocking, change --error-exitcode=0 to --error-exitcode=1
-  - repo: https://github.com/pocc/pre-commit-hooks
-    rev: v1.3.5
+  # merge conflict markers
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
     hooks:
-      - id: cppcheck
-        types: [c]
-        args:
-          - '--enable=warning,performance'
-          - '--suppress=missingIncludeSystem'
-          - '--error-exitcode=0'
-          - '--quiet'
-        exclude: '^(deps/|regress/|doc/)'
+      - id: check-merge-conflict
+
+  # NOTE on clang-format: The upstream PostGIS codebase has many
+  # pre-existing formatting variations. Do NOT use a clang-format
+  # pre-commit hook on all files. Instead use: git clang-format
+  # This formats only staged changes, matching the project convention
+  # of separating style commits from logic commits.
+  #
+  # NOTE on shellcheck: Upstream CI/utility scripts have many
+  # pre-existing shellcheck warnings. We only run shellcheck in CI
+  # via the codespell workflow, not as a blocking pre-commit hook.
