@@ -90,8 +90,7 @@ Datum gserialized_spgist_compress_nd(PG_FUNCTION_ARGS);
 
 /* Structure storing the n-dimensional bounding box */
 
-typedef struct
-{
+typedef struct {
 	GIDX *left;
 	GIDX *right;
 } CubeGIDX;
@@ -269,7 +268,8 @@ containND(CubeGIDX *cube_box, GIDX *query)
 
 PG_FUNCTION_INFO_V1(gserialized_spgist_config_nd);
 
-PGDLLEXPORT Datum gserialized_spgist_config_nd(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_config_nd(PG_FUNCTION_ARGS)
 {
 	spgConfigOut *cfg = (spgConfigOut *)PG_GETARG_POINTER(1);
 	Oid boxoid = InvalidOid;
@@ -291,7 +291,8 @@ PGDLLEXPORT Datum gserialized_spgist_config_nd(PG_FUNCTION_ARGS)
 
 PG_FUNCTION_INFO_V1(gserialized_spgist_choose_nd);
 
-PGDLLEXPORT Datum gserialized_spgist_choose_nd(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_choose_nd(PG_FUNCTION_ARGS)
 {
 	spgChooseIn *in = (spgChooseIn *)PG_GETARG_POINTER(0);
 	spgChooseOut *out = (spgChooseOut *)PG_GETARG_POINTER(1);
@@ -316,7 +317,8 @@ PGDLLEXPORT Datum gserialized_spgist_choose_nd(PG_FUNCTION_ARGS)
  */
 PG_FUNCTION_INFO_V1(gserialized_spgist_picksplit_nd);
 
-PGDLLEXPORT Datum gserialized_spgist_picksplit_nd(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_picksplit_nd(PG_FUNCTION_ARGS)
 {
 	spgPickSplitIn *in = (spgPickSplitIn *)PG_GETARG_POINTER(0);
 	spgPickSplitOut *out = (spgPickSplitOut *)PG_GETARG_POINTER(1);
@@ -400,7 +402,8 @@ PGDLLEXPORT Datum gserialized_spgist_picksplit_nd(PG_FUNCTION_ARGS)
  */
 PG_FUNCTION_INFO_V1(gserialized_spgist_inner_consistent_nd);
 
-PGDLLEXPORT Datum gserialized_spgist_inner_consistent_nd(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_inner_consistent_nd(PG_FUNCTION_ARGS)
 {
 	spgInnerConsistentIn *in = (spgInnerConsistentIn *)PG_GETARG_POINTER(0);
 	spgInnerConsistentOut *out = (spgInnerConsistentOut *)PG_GETARG_POINTER(1);
@@ -514,15 +517,7 @@ PGDLLEXPORT Datum gserialized_spgist_inner_consistent_nd(PG_FUNCTION_ARGS)
 	}
 
 	/* Pass to the next level only the values that need to be traversed */
-	out->nodeNumbers = (int *)palloc(sizeof(int) * out->nNodes);
-	out->traversalValues = (void **)palloc(sizeof(void *) * out->nNodes);
-	for (i = 0; i < out->nNodes; i++)
-	{
-		out->nodeNumbers[i] = nodeNumbers[i];
-		out->traversalValues[i] = traversalValues[i];
-	}
-	pfree(nodeNumbers);
-	pfree(traversalValues);
+	spgist_compact_traversal(out, nodeNumbers, traversalValues);
 
 	/* Switch after */
 	MemoryContextSwitchTo(old_ctx);
@@ -535,7 +530,8 @@ PGDLLEXPORT Datum gserialized_spgist_inner_consistent_nd(PG_FUNCTION_ARGS)
  */
 PG_FUNCTION_INFO_V1(gserialized_spgist_leaf_consistent_nd);
 
-PGDLLEXPORT Datum gserialized_spgist_leaf_consistent_nd(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_leaf_consistent_nd(PG_FUNCTION_ARGS)
 {
 	spgLeafConsistentIn *in = (spgLeafConsistentIn *)PG_GETARG_POINTER(0);
 	spgLeafConsistentOut *out = (spgLeafConsistentOut *)PG_GETARG_POINTER(1);
@@ -605,7 +601,8 @@ PGDLLEXPORT Datum gserialized_spgist_leaf_consistent_nd(PG_FUNCTION_ARGS)
 
 PG_FUNCTION_INFO_V1(gserialized_spgist_compress_nd);
 
-PGDLLEXPORT Datum gserialized_spgist_compress_nd(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_compress_nd(PG_FUNCTION_ARGS)
 {
 	char gidxmem[GIDX_MAX_SIZE];
 	GIDX *result = (GIDX *)gidxmem;

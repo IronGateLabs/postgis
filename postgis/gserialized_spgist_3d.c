@@ -77,7 +77,8 @@
 #include <float.h>
 
 PG_FUNCTION_INFO_V1(gserialized_overlaps_3d);
-Datum gserialized_overlaps_3d(PG_FUNCTION_ARGS)
+Datum
+gserialized_overlaps_3d(PG_FUNCTION_ARGS)
 {
 	BOX3D *box1 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(0)));
 	BOX3D *box2 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(1)));
@@ -89,7 +90,8 @@ Datum gserialized_overlaps_3d(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(gserialized_contains_3d);
-Datum gserialized_contains_3d(PG_FUNCTION_ARGS)
+Datum
+gserialized_contains_3d(PG_FUNCTION_ARGS)
 {
 	BOX3D *box1 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(0)));
 	BOX3D *box2 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(1)));
@@ -101,7 +103,8 @@ Datum gserialized_contains_3d(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(gserialized_contained_3d);
-Datum gserialized_contained_3d(PG_FUNCTION_ARGS)
+Datum
+gserialized_contained_3d(PG_FUNCTION_ARGS)
 {
 	BOX3D *box1 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(0)));
 	BOX3D *box2 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(1)));
@@ -113,7 +116,8 @@ Datum gserialized_contained_3d(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(gserialized_same_3d);
-Datum gserialized_same_3d(PG_FUNCTION_ARGS)
+Datum
+gserialized_same_3d(PG_FUNCTION_ARGS)
 {
 	BOX3D *box1 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(0)));
 	BOX3D *box2 = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(1)));
@@ -142,8 +146,7 @@ compareDoubles(const void *a, const void *b)
 	return (x > y) ? 1 : -1;
 }
 
-typedef struct
-{
+typedef struct {
 	BOX3D left;
 	BOX3D right;
 } CubeBox3D;
@@ -369,7 +372,8 @@ overBack6D(CubeBox3D *cube_box, BOX3D *query)
 
 PG_FUNCTION_INFO_V1(gserialized_spgist_config_3d);
 
-PGDLLEXPORT Datum gserialized_spgist_config_3d(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_config_3d(PG_FUNCTION_ARGS)
 {
 	spgConfigOut *cfg = (spgConfigOut *)PG_GETARG_POINTER(1);
 
@@ -393,7 +397,8 @@ PGDLLEXPORT Datum gserialized_spgist_config_3d(PG_FUNCTION_ARGS)
 
 PG_FUNCTION_INFO_V1(gserialized_spgist_choose_3d);
 
-PGDLLEXPORT Datum gserialized_spgist_choose_3d(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_choose_3d(PG_FUNCTION_ARGS)
 {
 	spgChooseIn *in = (spgChooseIn *)PG_GETARG_POINTER(0);
 	spgChooseOut *out = (spgChooseOut *)PG_GETARG_POINTER(1);
@@ -418,7 +423,8 @@ PGDLLEXPORT Datum gserialized_spgist_choose_3d(PG_FUNCTION_ARGS)
  */
 PG_FUNCTION_INFO_V1(gserialized_spgist_picksplit_3d);
 
-PGDLLEXPORT Datum gserialized_spgist_picksplit_3d(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_picksplit_3d(PG_FUNCTION_ARGS)
 {
 	spgPickSplitIn *in = (spgPickSplitIn *)PG_GETARG_POINTER(0);
 	spgPickSplitOut *out = (spgPickSplitOut *)PG_GETARG_POINTER(1);
@@ -436,7 +442,7 @@ PGDLLEXPORT Datum gserialized_spgist_picksplit_3d(PG_FUNCTION_ARGS)
 	/* Calculate median of all 6D coordinates */
 	for (i = 0; i < in->nTuples; i++)
 	{
-		BOX3D* box_in = DatumGetBox3DP(in->datums[i]);
+		BOX3D *box_in = DatumGetBox3DP(in->datums[i]);
 		lowXs[i] = box_in->xmin;
 		highXs[i] = box_in->xmax;
 		lowYs[i] = box_in->ymin;
@@ -483,7 +489,7 @@ PGDLLEXPORT Datum gserialized_spgist_picksplit_3d(PG_FUNCTION_ARGS)
 	 */
 	for (i = 0; i < in->nTuples; i++)
 	{
-		BOX3D* box_in = DatumGetBox3DP(in->datums[i]);
+		BOX3D *box_in = DatumGetBox3DP(in->datums[i]);
 		uint8 octant = getOctant(centroid, box_in);
 
 		out->leafTupleDatums[i] = Box3DPGetDatum(box_in);
@@ -505,7 +511,8 @@ PGDLLEXPORT Datum gserialized_spgist_picksplit_3d(PG_FUNCTION_ARGS)
  */
 PG_FUNCTION_INFO_V1(gserialized_spgist_inner_consistent_3d);
 
-PGDLLEXPORT Datum gserialized_spgist_inner_consistent_3d(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_inner_consistent_3d(PG_FUNCTION_ARGS)
 {
 	spgInnerConsistentIn *in = (spgInnerConsistentIn *)PG_GETARG_POINTER(0);
 	spgInnerConsistentOut *out = (spgInnerConsistentOut *)PG_GETARG_POINTER(1);
@@ -648,15 +655,7 @@ PGDLLEXPORT Datum gserialized_spgist_inner_consistent_3d(PG_FUNCTION_ARGS)
 	}
 
 	/* Pass to the next level only the values that need to be traversed */
-	out->nodeNumbers = (int *)palloc(sizeof(int) * out->nNodes);
-	out->traversalValues = (void **)palloc(sizeof(void *) * out->nNodes);
-	for (i = 0; i < out->nNodes; i++)
-	{
-		out->nodeNumbers[i] = nodeNumbers[i];
-		out->traversalValues[i] = traversalValues[i];
-	}
-	pfree(nodeNumbers);
-	pfree(traversalValues);
+	spgist_compact_traversal(out, nodeNumbers, traversalValues);
 
 	/* Switch after */
 	MemoryContextSwitchTo(old_ctx);
@@ -669,7 +668,8 @@ PGDLLEXPORT Datum gserialized_spgist_inner_consistent_3d(PG_FUNCTION_ARGS)
  */
 PG_FUNCTION_INFO_V1(gserialized_spgist_leaf_consistent_3d);
 
-PGDLLEXPORT Datum gserialized_spgist_leaf_consistent_3d(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_leaf_consistent_3d(PG_FUNCTION_ARGS)
 {
 	spgLeafConsistentIn *in = (spgLeafConsistentIn *)PG_GETARG_POINTER(0);
 	spgLeafConsistentOut *out = (spgLeafConsistentOut *)PG_GETARG_POINTER(1);
@@ -770,7 +770,8 @@ PGDLLEXPORT Datum gserialized_spgist_leaf_consistent_3d(PG_FUNCTION_ARGS)
 
 PG_FUNCTION_INFO_V1(gserialized_spgist_compress_3d);
 
-PGDLLEXPORT Datum gserialized_spgist_compress_3d(PG_FUNCTION_ARGS)
+PGDLLEXPORT Datum
+gserialized_spgist_compress_3d(PG_FUNCTION_ARGS)
 {
 	BOX3D *result = DatumGetBox3DP(DirectFunctionCall1(LWGEOM_to_BOX3D, PG_GETARG_DATUM(0)));
 
