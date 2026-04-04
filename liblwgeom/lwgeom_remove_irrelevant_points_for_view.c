@@ -32,8 +32,10 @@
 // - 0x2 for min <= value <= max
 // - 0x4 for value > max
 // ===============================================================================
-int encodeToBits(double value, double min, double max) {
-    return value < min ? 0x1 : value <= max ? 0x2 : 0x4;
+int
+encodeToBits(double value, double min, double max)
+{
+	return value < min ? 0x1 : value <= max ? 0x2 : 0x4;
 }
 
 // ===============================================================================
@@ -54,7 +56,17 @@ int encodeToBits(double value, double min, double max) {
 // - 0x4 if xs >= xmax (top or bottom), or ys >= ymax (left or right)
 // - 0x0 if no cutting point can be determined (if S and L are parallel or straightPosition is not valid)
 // ===============================================================================
-int encodeToBitsStraight(double xa, double ya, double xb, double yb, double xmin, double ymin, double xmax, double ymax, int straightPosition) {
+int
+encodeToBitsStraight(double xa,
+		     double ya,
+		     double xb,
+		     double yb,
+		     double xmin,
+		     double ymin,
+		     double xmax,
+		     double ymax,
+		     int straightPosition)
+{
 
 	double x;
 	double y;
@@ -63,40 +75,50 @@ int encodeToBitsStraight(double xa, double ya, double xb, double yb, double xmin
 	double d;
 	double c;
 
-	if (straightPosition == 1 || straightPosition == 2) {
+	if (straightPosition == 1 || straightPosition == 2)
+	{
 
 		// top and bottom
-		if (ya == yb) return 0;
+		if (ya == yb)
+			return 0;
 
 		y = straightPosition == 2 ? ymax : ymin;
-		if (ya < y && yb < y) return 0;
-		if (ya > y && yb > y) return 0;
+		if (ya < y && yb < y)
+			return 0;
+		if (ya > y && yb > y)
+			return 0;
 
 		dx = xb - xa;
 		dy = yb - ya;
 		d = dy;
 		c = dx * (y - ya);
-		if (dy < 0) {
+		if (dy < 0)
+		{
 			d = -d;
 			c = -c;
 		}
 		return c < d * (xmin - xa) ? 0x1 : c < d * (xmax - xa) ? 0x2 : 0x4;
 	}
 
-	if (straightPosition == 3 || straightPosition == 4) {
+	if (straightPosition == 3 || straightPosition == 4)
+	{
 
 		// left and right
-		if (xa == xb) return 0;
+		if (xa == xb)
+			return 0;
 
 		x = straightPosition == 4 ? xmax : xmin;
-		if (xa < x && xb < x) return 0;
-		if (xa > x && xb > x) return 0;
+		if (xa < x && xb < x)
+			return 0;
+		if (xa > x && xb > x)
+			return 0;
 
 		dx = xb - xa;
 		dy = yb - ya;
 		d = dx;
 		c = dy * (x - xa);
-		if (dx < 0) {
+		if (dx < 0)
+		{
 			d = -d;
 			c = -c;
 		}
@@ -137,7 +159,9 @@ int encodeToBitsStraight(double xa, double ya, double xb, double yb, double xmin
 //   if the coordinates are used for rendering in a non-cartesian
 //   coordinate system.
 // ===============================================================================
-void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_hint) {
+void
+removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_hint)
+{
 
 	int npoints;
 	int minpoints;
@@ -167,7 +191,7 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 	bool sameX, sameY, same, insideX, insideY, inside, insideAll, skip, clear;
 	int vvx;
 	int vvy;
-	POINT4D p, p0, p1;  // current, previous, next;
+	POINT4D p, p0, p1; // current, previous, next;
 
 	double xa;
 	double ya;
@@ -179,7 +203,8 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 	// point number check
 	npoints = points->npoints;
 	minpoints = closed ? 4 : 2; // min points for each polygon ring or linestring
-	if (npoints < minpoints) {
+	if (npoints < minpoints)
+	{
 		// clear if not expected minimum number of points
 		points->npoints = 0;
 		return;
@@ -191,15 +216,18 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 	ymax = bounds->ymax;
 
 	// get previous point [i-1]
-	if (closed) {
+	if (closed)
+	{
 		getPoint4d_p(points, 0, &p);
 		getPoint4d_p(points, npoints - 1, &p0);
-		if (p.x != p0.x || p.y != p0.y) return; // requirement for polygons: startpoint equals endpoint. Leave untouched of not met.
-		npoints--; // remove double here, and re-add at the end
+		if (p.x != p0.x || p.y != p0.y)
+			return; // requirement for polygons: startpoint equals endpoint. Leave untouched of not met.
+		npoints--;      // remove double here, and re-add at the end
 		getPoint4d_p(points, npoints - 1, &p0);
 	}
-	else {
-		getPoint4d_p(points, 0, &p0);  // for linestrings reuse start point
+	else
+	{
+		getPoint4d_p(points, 0, &p0); // for linestrings reuse start point
 	}
 
 	xx0 = p0.x;
@@ -212,7 +240,8 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 	vxall = 0;
 	vyall = 0;
 	insideAll = false;
-	for (i = 0; i < npoints; i++) {
+	for (i = 0; i < npoints; i++)
+	{
 
 		// get current point [i]
 		getPoint4d_p(points, i, &p);
@@ -223,9 +252,12 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 
 		// get subsequent point [i+1]
 		next = i + 1;
-		if (next == npoints) {
-			if (closed) next = 0; // for polygons, use (new) start point as end point
-			else next = i;  // for linestrings reuse last point as end point
+		if (next == npoints)
+		{
+			if (closed)
+				next = 0; // for polygons, use (new) start point as end point
+			else
+				next = i; // for linestrings reuse last point as end point
 		}
 		getPoint4d_p(points, next, &p1);
 		xx1 = p1.x;
@@ -240,40 +272,51 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 		insideY = vy == 0x02;
 		inside = insideX && insideY;
 
-		skip = sameX && sameY && !inside;	// three consecutive points in same outside quarter, leave out central one
-		skip |= sameX && !insideX;			// three consecutive points in same outside area (left or right), leave out central one
-		skip |= sameY && !insideY;			// three consecutive points in same outside area (top or bottom), leave out central one
+		skip = sameX && sameY &&
+		       !inside; // three consecutive points in same outside quarter, leave out central one
+		skip |=
+		    sameX &&
+		    !insideX; // three consecutive points in same outside area (left or right), leave out central one
+		skip |=
+		    sameY &&
+		    !insideY; // three consecutive points in same outside area (top or bottom), leave out central one
 
 		// check for irrelevant points that would introduce "diagonal"
 		// lines between different outside quadrants which may cross the bounds
-		if (cartesian_hint && !skip && !same && !inside && (vx0 | vy0) != 0x02 && (vx1 | vy1) != 0x02) {
+		if (cartesian_hint && !skip && !same && !inside && (vx0 | vy0) != 0x02 && (vx1 | vy1) != 0x02)
+		{
 
 			vvx = 0;
 			vvy = 0;
-			for (j = 0; j < 2; j++) {
+			for (j = 0; j < 2; j++)
+			{
 				// left, right
 				vvx |= encodeToBitsStraight(xx0, yy0, xx, yy, xmin, ymin, xmax, ymax, j + 1);
 				vvx |= encodeToBitsStraight(xx, yy, xx1, yy1, xmin, ymin, xmax, ymax, j + 1);
 				vvx |= encodeToBitsStraight(xx0, yy0, xx1, yy1, xmin, ymin, xmax, ymax, j + 1);
-				if ((vvx & 0x2) != 0) break;
+				if ((vvx & 0x2) != 0)
+					break;
 
 				// top, bottom
 				vvy |= encodeToBitsStraight(xx0, yy0, xx, yy, xmin, ymin, xmax, ymax, j + 3);
 				vvy |= encodeToBitsStraight(xx, yy, xx1, yy1, xmin, ymin, xmax, ymax, j + 3);
 				vvy |= encodeToBitsStraight(xx0, yy0, xx1, yy1, xmin, ymin, xmax, ymax, j + 3);
-				if ((vvy & 0x2) != 0) break;
+				if ((vvy & 0x2) != 0)
+					break;
 			}
 
-			if (((vvx | vvy) & 0x2) == 0) {
+			if (((vvx | vvy) & 0x2) == 0)
+			{
 				// if no bbox bounds crossed:
-				skip |= vvx == 0x1;		// three cutting points are left outside
-				skip |= vvx == 0x4;		// three cutting points are right outside
-				skip |= vvy == 0x1;		// three cutting points are top outside
-				skip |= vvy == 0x4;		// three cutting points are bottom outside
+				skip |= vvx == 0x1; // three cutting points are left outside
+				skip |= vvx == 0x4; // three cutting points are right outside
+				skip |= vvy == 0x1; // three cutting points are top outside
+				skip |= vvy == 0x4; // three cutting points are bottom outside
 			}
 		}
 
-		if (skip) continue;
+		if (skip)
+			continue;
 
 		// save current point at [w <= i]
 		ptarray_set_point4d(points, w++, &p);
@@ -286,24 +329,27 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 		insideAll |= inside;
 	}
 
-	if (closed && w > 0) {
+	if (closed && w > 0)
+	{
 		// re-add first new point at the end if closed
 		getPoint4d_p(points, 0, &p);
 		ptarray_set_point4d(points, w++, &p);
 	}
 
 	// eval empty cases
-	clear = w < minpoints; 		// too less points
-	clear |= vxall == 0x01;		// completely left outside
-	clear |= vxall == 0x04;		// completely right outside
-	clear |= vyall == 0x01;		// completely top outside
-	clear |= vyall == 0x04;		// completely bottom outside
+	clear = w < minpoints;  // too less points
+	clear |= vxall == 0x01; // completely left outside
+	clear |= vxall == 0x04; // completely right outside
+	clear |= vyall == 0x01; // completely top outside
+	clear |= vyall == 0x04; // completely bottom outside
 
 	// clear if everything is outside and not enclosing
-	if (cartesian_hint && !clear && !insideAll) { // not required if points inside bbox
+	if (cartesian_hint && !clear && !insideAll)
+	{ // not required if points inside bbox
 
 		cutting = false;
-		for (int r = 0; r < w - 1; r++) {
+		for (int r = 0; r < w - 1; r++)
+		{
 
 			getPoint4d_p(points, r, &p);
 			getPoint4d_p(points, r + 1, &p1);
@@ -313,16 +359,19 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 			xb = p1.x;
 			yb = p1.y;
 
-			for (j = 0; j < 4 && !cutting; j++) {
+			for (j = 0; j < 4 && !cutting; j++)
+			{
 				cutting |= encodeToBitsStraight(xa, ya, xb, yb, xmin, ymin, xmax, ymax, j + 1) == 0x2;
 			}
 		}
 
-		if (!cutting && closed) {
+		if (!cutting && closed)
+		{
 			// test if polygon surrounds bbox completely or is fully contained within bbox
 			// using even-odd rule algorithm
 			crossingN = 0;
-			for (int r = 0; r < w - 1; r++) {
+			for (int r = 0; r < w - 1; r++)
+			{
 
 				getPoint4d_p(points, r, &p);
 				getPoint4d_p(points, r + 1, &p1);
@@ -332,24 +381,25 @@ void removePoints(POINTARRAY *points, GBOX *bounds, bool closed, bool cartesian_
 				xb = p1.x;
 				yb = p1.y;
 
-				if (encodeToBitsStraight(xa, ya, xb, yb, xmin, ymin, xmax, ymax, 1) == 0x1) crossingN++;
+				if (encodeToBitsStraight(xa, ya, xb, yb, xmin, ymin, xmax, ymax, 1) == 0x1)
+					crossingN++;
 			}
 			clear |= crossingN % 2 == 0; // not surrounding, we can clear
 		}
 	}
-	if (clear) w = 0;
+	if (clear)
+		w = 0;
 
 	points->npoints = w;
 }
-
 
 /*
  * Filter polygon rings: compact surviving rings, free empty interior
  * rings, and discard the polygon entirely when the exterior ring is
  * empty.  Returns the new ring count.
  */
-static unsigned int
-filter_polygon_rings(LWPOLY *polygon)
+unsigned int
+lwpoly_filter_empty_rings(LWPOLY *polygon)
 {
 	unsigned int i;
 	unsigned int iw = 0;
@@ -374,32 +424,39 @@ filter_polygon_rings(LWPOLY *polygon)
 	return iw;
 }
 
-void lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool cartesian_hint) {
+void
+lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool cartesian_hint)
+{
 
 	unsigned int i;
 	unsigned int j;
 	unsigned int iw;
 	unsigned int jw;
 
-	if (geom->type == LINETYPE) {
+	if (geom->type == LINETYPE)
+	{
 
-		LWLINE* line = (LWLINE*)geom;
+		LWLINE *line = (LWLINE *)geom;
 		removePoints(line->points, bbox, false, cartesian_hint);
 	}
 
-	if (geom->type == MULTILINETYPE) {
+	if (geom->type == MULTILINETYPE)
+	{
 
-		LWMLINE* mline = (LWMLINE*)geom;
+		LWMLINE *mline = (LWMLINE *)geom;
 		iw = 0;
-		for (i=0; i<mline->ngeoms; i++) {
-			LWLINE* line = mline->geoms[i];
+		for (i = 0; i < mline->ngeoms; i++)
+		{
+			LWLINE *line = mline->geoms[i];
 			removePoints(line->points, bbox, false, cartesian_hint);
 
-			if (line->points->npoints) {
+			if (line->points->npoints)
+			{
 				// keep (reduced) line
 				mline->geoms[iw++] = line;
 			}
-			else {
+			else
+			{
 				// discard current line
 				lwfree(line);
 			}
@@ -407,29 +464,34 @@ void lwgeom_remove_irrelevant_points_for_view(LWGEOM *geom, GBOX *bbox, bool car
 		mline->ngeoms = iw;
 	}
 
-	if (geom->type == POLYGONTYPE) {
+	if (geom->type == POLYGONTYPE)
+	{
 
-		LWPOLY* polygon = (LWPOLY*)geom;
-		for (i=0; i<polygon->nrings; i++)
+		LWPOLY *polygon = (LWPOLY *)geom;
+		for (i = 0; i < polygon->nrings; i++)
 			removePoints(polygon->rings[i], bbox, true, cartesian_hint);
-		polygon->nrings = filter_polygon_rings(polygon);
+		polygon->nrings = lwpoly_filter_empty_rings(polygon);
 	}
 
-	if (geom->type == MULTIPOLYGONTYPE) {
+	if (geom->type == MULTIPOLYGONTYPE)
+	{
 
-		LWMPOLY* mpolygon = (LWMPOLY*)geom;
+		LWMPOLY *mpolygon = (LWMPOLY *)geom;
 		jw = 0;
-		for (j=0; j<mpolygon->ngeoms; j++) {
+		for (j = 0; j < mpolygon->ngeoms; j++)
+		{
 
-			LWPOLY* polygon = mpolygon->geoms[j];
-			for (i=0; i<polygon->nrings; i++)
+			LWPOLY *polygon = mpolygon->geoms[j];
+			for (i = 0; i < polygon->nrings; i++)
 				removePoints(polygon->rings[i], bbox, true, cartesian_hint);
-			polygon->nrings = filter_polygon_rings(polygon);
+			polygon->nrings = lwpoly_filter_empty_rings(polygon);
 
-			if (polygon->nrings) {
+			if (polygon->nrings)
+			{
 				mpolygon->geoms[jw++] = polygon;
 			}
-			else {
+			else
+			{
 				/* free and remove polygon from multipolygon */
 				lwfree(polygon);
 			}
