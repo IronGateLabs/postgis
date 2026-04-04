@@ -50,8 +50,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len)
         return 0;
 
     /* Extract WKT from remaining bytes */
-    size_t wkt_len = len - 8;
-    char* pszWKT = static_cast<char*>(malloc(wkt_len + 1));
+    auto wkt_len = len - 8;
+    auto pszWKT = new char[wkt_len + 1];
     memcpy(pszWKT, buf + 8, wkt_len);
     pszWKT[wkt_len] = '\0';
 
@@ -66,6 +66,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len)
             lwgeom_free(lwgeom);
         }
     }
-    free(pszWKT);
+    delete[] pszWKT;
     return 0;
 }

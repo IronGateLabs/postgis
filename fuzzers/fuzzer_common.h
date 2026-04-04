@@ -46,30 +46,33 @@ extern "C"
 }
 
 /* Heap tracking for leak-free cleanup on longjmp */
-static std::set<void*> oSetPointers;
-static jmp_buf jmpBuf;
+static std::set<void*> oSetPointers; // NOSONAR - mutable tracking set
+static jmp_buf jmpBuf; // NOSONAR - required for longjmp error recovery
 
 extern "C"
 {
     static void *
     allocator(size_t size)
     {
+            // NOSONAR: must use malloc to match liblwgeom's C allocator interface
             void *mem = malloc(size);
             oSetPointers.insert(mem);
             return mem;
     }
 
     static void
-    freeor(void *mem)
+    freeor(void *mem) // NOSONAR: void* required by liblwgeom allocator API
     {
             oSetPointers.erase(mem);
+            // NOSONAR: must use free to match liblwgeom's C allocator interface
             free(mem);
     }
 
     static void *
-    reallocator(void *mem, size_t size)
+    reallocator(void *mem, size_t size) // NOSONAR: void* required by liblwgeom allocator API
     {
             oSetPointers.erase(mem);
+            // NOSONAR: must use realloc to match liblwgeom's C allocator interface
             void *ret = realloc(mem, size);
             oSetPointers.insert(ret);
             return ret;
@@ -78,15 +81,15 @@ extern "C"
     static void
     noticereporter(const char *, va_list)
     {
+        /* intentionally empty: suppress liblwgeom notice output during fuzzing */
     }
 
     static void
     errorreporter(const char *, va_list)
     {
-        for(std::set<void*>::iterator oIter = oSetPointers.begin();
-            oIter != oSetPointers.end(); ++oIter)
+        for (auto const &ptr : oSetPointers)
         {
-            free(*oIter);
+            free(ptr); // NOSONAR: matches malloc from allocator()
         }
         oSetPointers.clear();
         longjmp(jmpBuf, 1);
@@ -95,11 +98,13 @@ extern "C"
     static void
     debuglogger(int, const char *, va_list)
     {
+        /* intentionally empty: suppress liblwgeom debug output during fuzzing */
     }
 }
 
 extern "C" int LLVMFuzzerInitialize(int* /*argc*/, char*** /*argv*/)
 {
+	// NOSONAR: must pass C malloc/realloc/free to match liblwgeom handler API
 	lwgeom_set_handlers(malloc, realloc, free, noticereporter, noticereporter);
 	lwgeom_set_debuglogger(debuglogger);
 	return 0;
