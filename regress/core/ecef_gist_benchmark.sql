@@ -15,6 +15,10 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS postgis_ecef_eci;
 RESET client_min_messages;
 
+-- Common literals to reduce duplication
+\set frame_icrf 'ICRF'
+\set epoch_jan01 '2024-01-01 00:00:00+00'
+
 ----------------------------------------------------------------------
 -- 1. ECEF Point Generation (three scales)
 ----------------------------------------------------------------------
@@ -163,8 +167,8 @@ EXPLAIN ANALYZE SELECT count(*) FROM bench_eci_100k
 WHERE ST_3DDWithin(geom,
       (SELECT ST_ECEF_To_ECI(
           ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-          '2024-01-01 00:00:00+00'::timestamptz,
-          'ICRF')),
+          :'epoch_jan01'::timestamptz,
+          :'frame_icrf')),
       500000);
 
 -- 5c. ST_DWithin range query on geography 100K (same 500 km radius)
@@ -185,8 +189,8 @@ EXPLAIN ANALYZE SELECT count(*) FROM bench_eci_100k
 WHERE geom &&& ST_Expand(
       (SELECT ST_ECEF_To_ECI(
           ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
-          '2024-01-01 00:00:00+00'::timestamptz,
-          'ICRF'))::geometry,
+          :'epoch_jan01'::timestamptz,
+          :'frame_icrf'))::geometry,
       1000000);
 
 RESET enable_seqscan;

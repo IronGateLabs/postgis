@@ -6,6 +6,9 @@
 \set ecef_origin 'SRID=4978;POINTZ(6378137 0 0)'
 \set ecef_zero 'SRID=4978;POINTZ(0 0 0)'
 \set geo_origin 'SRID=4326;POINT(0 0)'
+\set ecef_pt_1k_0_0 'SRID=4978;POINTZ(1000 0 0)'
+\set ecef_pt_0_1k_0 'SRID=4978;POINTZ(0 1000 0)'
+\set ecef_line_1k 'SRID=4978;LINESTRINGZ(1000 0 0, 0 1000 0)'
 
 -- postgis_crs_family() function tests
 SELECT 'CF1', postgis_crs_family(4326);
@@ -67,8 +70,8 @@ SELECT 'GUARD5', ST_AsText(ST_BuildArea('SRID=4978;LINESTRINGZ(6378137 0 0, 0 63
 -- Geocentric ST_Distance should use 3D Euclidean
 -- Two points at (1000,0,0) and (0,1000,0): distance = sqrt(2)*1000 = 1414.214
 SELECT 'DIST1', round(ST_Distance(
-  'SRID=4978;POINTZ(1000 0 0)'::geometry,
-  'SRID=4978;POINTZ(0 1000 0)'::geometry)::numeric, 3);
+  :'ecef_pt_1k_0_0'::geometry,
+  :'ecef_pt_0_1k_0'::geometry)::numeric, 3);
 
 -- 3D distance with Z: (0,0,0) to (3,4,0) = 5.0
 SELECT 'DIST2', ST_Distance(
@@ -83,7 +86,7 @@ SELECT 'DIST3', round(ST_Distance(
 -- Geocentric ST_Length should use 3D Euclidean
 -- Line from (1000,0,0) to (0,1000,0): length = sqrt(2)*1000 = 1414.214
 SELECT 'LEN1', round(ST_Length(
-  'SRID=4978;LINESTRINGZ(1000 0 0, 0 1000 0)'::geometry)::numeric, 3);
+  :'ecef_line_1k'::geometry)::numeric, 3);
 
 -- Multi-segment: (0,0,0)->(3,4,0)->(3,4,12) = 5 + 12 = 17
 SELECT 'LEN2', ST_Length(
@@ -119,17 +122,17 @@ SELECT 'DISTZ1', ST_Distance(
 
 -- ST_Distance matches ST_3DDistance for ECEF
 SELECT 'DIST3D1', (ST_Distance(
-  'SRID=4978;POINTZ(1000 0 0)'::geometry,
-  'SRID=4978;POINTZ(0 1000 0)'::geometry) =
+  :'ecef_pt_1k_0_0'::geometry,
+  :'ecef_pt_0_1k_0'::geometry) =
   ST_3DDistance(
-  'SRID=4978;POINTZ(1000 0 0)'::geometry,
-  'SRID=4978;POINTZ(0 1000 0)'::geometry));
+  :'ecef_pt_1k_0_0'::geometry,
+  :'ecef_pt_0_1k_0'::geometry));
 
 -- ST_Length matches ST_3DLength for ECEF
 SELECT 'LEN3D1', (ST_Length(
-  'SRID=4978;LINESTRINGZ(1000 0 0, 0 1000 0)'::geometry) =
+  :'ecef_line_1k'::geometry) =
   ST_3DLength(
-  'SRID=4978;LINESTRINGZ(1000 0 0, 0 1000 0)'::geometry));
+  :'ecef_line_1k'::geometry));
 
 -- ECEF geometry storage: X/Y/Z round-trip exactly
 SELECT 'STORE1', ST_X(geom), ST_Y(geom), ST_Z(geom)

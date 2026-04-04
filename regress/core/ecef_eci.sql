@@ -3,9 +3,13 @@
 
 -- Common test literals to reduce duplication
 \set frame_icrf 'ICRF'
+\set frame_teme 'TEME'
 \set epoch_jun15 '2024-06-15 12:00:00+00'
 \set epoch_jan01 '2024-01-01 00:00:00+00'
 \set epoch_j2000 '2000-01-01 00:00:00+00'
+\set epoch_jan01_noon_utc '2024-01-01 12:00:00 UTC'
+\set epoch_2025_utc '2025-01-01T00:00:00Z'
+\set wkt_pointzm_2024 'POINT ZM (6378137 0 500000 2024)'
 
 --------------------------------------------
 -- 1. SRID Registration Tests
@@ -65,7 +69,7 @@ SELECT 'to_eci_j2000_srid', ST_SRID(ST_ECEF_To_ECI(
 SELECT 'to_eci_teme_srid', ST_SRID(ST_ECEF_To_ECI(
 	ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
 	:'epoch_jun15'::timestamptz,
-	'TEME'));
+	:'frame_teme'));
 
 -- Case insensitivity of frame name
 SELECT 'to_eci_case', ST_SRID(ST_ECEF_To_ECI(
@@ -93,9 +97,9 @@ SELECT 'roundtrip_3d',
 			ST_ECEF_To_ECI(
 				ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
 				:'epoch_jan01'::timestamptz,
-				'TEME'),
+				:'frame_teme'),
 			:'epoch_jan01'::timestamptz,
-			'TEME'), 0.001),
+			:'frame_teme'), 0.001),
 		ST_SnapToGrid(ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978), 0.001));
 
 -- Verify ECI-to-ECEF output SRID is ECEF (4978)
@@ -269,7 +273,7 @@ SELECT 'xform_m_epoch',
 	ST_M(result) = 2024                      -- M preserved
 FROM (
 	SELECT ST_Transform(
-		ST_SetSRID(ST_GeomFromText('POINT ZM (6378137 0 500000 2024)'), 900001),
+		ST_SetSRID(ST_GeomFromText(:'wkt_pointzm_2024'), 900001),
 		4978
 	) AS result
 ) sub;
@@ -282,7 +286,7 @@ SELECT 'xform_m_roundtrip',
 FROM (
 	SELECT ST_Transform(
 		ST_Transform(
-			ST_SetSRID(ST_GeomFromText('POINT ZM (6378137 0 500000 2024)'), 900001),
+			ST_SetSRID(ST_GeomFromText(:'wkt_pointzm_2024'), 900001),
 			4978
 		),
 		900001
@@ -297,7 +301,7 @@ FROM (
 	SELECT ST_Transform(
 		ST_SetSRID(ST_MakePoint(6378137, 0, 500000), 4978),
 		900001,
-		'2024-01-01 12:00:00 UTC'::timestamptz
+		:'epoch_jan01_noon_utc'::timestamptz
 	) AS result
 ) sub;
 
@@ -311,10 +315,10 @@ FROM (
 		ST_Transform(
 			ST_SetSRID(ST_MakePoint(6378137, 0, 500000), 4978),
 			900001,
-			'2024-01-01 12:00:00 UTC'::timestamptz
+			:'epoch_jan01_noon_utc'::timestamptz
 		),
 		4978,
-		'2024-01-01 12:00:00 UTC'::timestamptz
+		:'epoch_jan01_noon_utc'::timestamptz
 	) AS result
 ) sub;
 
@@ -340,7 +344,7 @@ SELECT 'xform_no_epoch_err',
 -- Error: ECI-to-ECI direct not supported
 SELECT 'xform_eci_to_eci_err',
 	ST_Transform(
-		ST_SetSRID(ST_GeomFromText('POINT ZM (6378137 0 500000 2024)'), 900001),
+		ST_SetSRID(ST_GeomFromText(:'wkt_pointzm_2024'), 900001),
 		900002
 	) IS NULL;
 
@@ -349,7 +353,7 @@ SELECT 'xform_non_eci_epoch_err',
 	ST_Transform(
 		ST_SetSRID(ST_MakePoint(0, 0, 0), 4326),
 		4978,
-		'2024-01-01 12:00:00 UTC'::timestamptz
+		:'epoch_jan01_noon_utc'::timestamptz
 	) IS NULL;
 
 -- Error: Invalid epoch in M coordinate (negative year)
@@ -366,7 +370,7 @@ FROM (
 	SELECT ST_Transform(
 		ST_SetSRID(ST_MakePoint(6378137, 0, 500000), 4978),
 		900002,
-		'2024-01-01 12:00:00 UTC'::timestamptz
+		:'epoch_jan01_noon_utc'::timestamptz
 	) AS result
 ) sub;
 
@@ -377,7 +381,7 @@ FROM (
 	SELECT ST_Transform(
 		ST_SetSRID(ST_MakePoint(6378137, 0, 500000), 4978),
 		900003,
-		'2024-01-01 12:00:00 UTC'::timestamptz
+		:'epoch_jan01_noon_utc'::timestamptz
 	) AS result
 ) sub;
 
@@ -531,9 +535,9 @@ SELECT 'accel_roundtrip',
 						ST_MakePoint(6378137, 0, 0, 2025.0),
 						900001),
 					4978,
-					'2025-01-01T00:00:00Z'::timestamptz),
+					:'epoch_2025_utc'::timestamptz),
 				900001,
-				'2025-01-01T00:00:00Z'::timestamptz),
+				:'epoch_2025_utc'::timestamptz),
 			0.01)
 	) ~* 'POINT';
 
@@ -544,7 +548,7 @@ SELECT 'accel_small_batch',
 	ST_X(ST_Transform(
 		ST_SetSRID(ST_MakePoint(6378137, 0, 0, 2025.0), 900001),
 		4978,
-		'2025-01-01T00:00:00Z'::timestamptz
+		:'epoch_2025_utc'::timestamptz
 	)) IS NOT NULL;
 
 -- 8.4 Test postgis_accel_features() output format contains expected keys
