@@ -23,13 +23,17 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
+          # Install PostgreSQL dev headers for whichever version is available.
+          # ubuntu-latest may have pgdg repo; avoid postgresql-server-dev-all
+          # which conflicts with pgdg's postgresql-common version.
+          PG_VER=$(pg_config --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "16")
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             autoconf \
             automake \
             libtool \
             pkg-config \
-            postgresql-server-dev-all \
+            postgresql-server-dev-${PG_VER} \
             libgeos-dev \
             libproj-dev \
             libgdal-dev \
