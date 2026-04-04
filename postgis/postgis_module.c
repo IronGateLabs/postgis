@@ -30,6 +30,8 @@
 #include "utils/guc.h"
 #include "libpq/pqsignal.h"
 
+#include <limits.h>
+
 #include "../postgis_config.h"
 
 #include "lwgeom_log.h"
