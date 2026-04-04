@@ -24,12 +24,12 @@ Each extracted capability SHALL be placed in its own directory under `openspec/s
 - **AND** supplementary files, if any, SHALL be referenced from `spec.md`
 
 ### Requirement: Spec document structure
-Every extracted `spec.md` SHALL follow the three-section structure established by existing specs: Purpose, Requirements, and Scenarios within Requirements.
+Every extracted `spec.md` SHALL follow the two-section structure established by existing specs: `## Purpose` followed by `## ADDED Requirements` (containing `### Requirement:` headings with `#### Scenario:` sub-sections).
 
 #### Scenario: Purpose section present and concise
 - **GIVEN** any extracted `spec.md`
 - **WHEN** the document is parsed
-- **THEN** it SHALL begin with a `## Purpose` heading followed by 1-3 paragraphs describing the capability scope
+- **THEN** it SHALL begin with a `## Purpose` heading followed by 1-3 paragraphs describing the capability scope, then a `## ADDED Requirements` heading
 
 #### Scenario: Requirements use SHALL language
 - **GIVEN** any extracted `spec.md`

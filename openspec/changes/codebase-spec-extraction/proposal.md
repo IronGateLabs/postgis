@@ -12,9 +12,8 @@ This is a **documentation and analysis task only** -- no C code, SQL code, or bu
 
 ### Phase 1: Core geometry types and serialization
 Analyze and specify the LWGEOM type system (`liblwgeom/liblwgeom.h.in`, `liblwgeom/lwgeom.c`), GSERIALIZED on-disk format (`liblwgeom/gserialized*.c`), and serialization codecs (WKB, WKT, EWKB, EWKT, GeoJSON, KML, GML, SVG). Produce specs:
-- `lwgeom-type-system` -- type hierarchy, flags (Z/M/SRID/geodetic), memory layout
+- `geometry-types` -- type hierarchy, flags (Z/M/SRID/geodetic), memory layout, and all serialization codecs (WKB/WKT/EWKB/EWKT/GeoJSON/KML/GML/SVG/TWKB round-trip behavior)
 - `gserialized-format` -- on-disk wire format, version 1 vs 2, bounding box encoding
-- `geometry-serialization` -- WKB/WKT/EWKB/EWKT/GeoJSON/KML/GML round-trip behavior
 
 ### Phase 2: Spatial operations
 Analyze the most-used spatial functions and their dispatch logic. Source files: `postgis/lwgeom_functions_basic.c`, `postgis/lwgeom_geos.c`, `postgis/lwgeom_functions_analytic.c`, `postgis/geography_measurement.c`. Produce specs:

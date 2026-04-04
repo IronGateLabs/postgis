@@ -31,7 +31,7 @@ The constant `NUMTYPES` (16) SHALL be defined as one more than the highest type 
 - **WHEN** the type constants are compiled from `liblwgeom.h`
 - **THEN** each constant SHALL have a unique integer value from 1 to 15
 - **AND** NUMTYPES SHALL equal 16
-- Validated by: liblwgeom/cunit/cu_libgeom.c (type constant tests)
+- Validated by: liblwgeom/cunit/cu_gserialized1.c (type and flag constant tests)
 
 #### Scenario: Type constant used for dispatch in WKB output
 - **WHEN** a geometry is serialized to WKB via `lwgeom_to_wkb_buf()`
@@ -57,7 +57,7 @@ Concrete types (LWPOINT, LWLINE, LWPOLY, LWCOLLECTION, etc.) SHALL embed this he
 - **WHEN** the LWPOINT is cast to LWGEOM via `lwpoint_as_lwgeom()`
 - **THEN** `lwgeom->type` SHALL equal POINTTYPE (1)
 - **AND** `lwgeom->srid` SHALL equal 4326
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 #### Scenario: LWCOLLECTION structure layout
 - **GIVEN** an LWCOLLECTION with `type` = COLLECTIONTYPE (7), containing 3 sub-geometries
@@ -70,7 +70,7 @@ Concrete types (LWPOINT, LWLINE, LWPOLY, LWCOLLECTION, etc.) SHALL embed this he
 - **GIVEN** any concrete geometry type (LWPOINT, LWLINE, LWPOLY, LWMPOINT, LWMLINE, LWMPOLY, LWCOLLECTION, LWTRIANGLE, LWCIRCSTRING, LWCOMPOUND, LWCURVEPOLY, LWMCURVE, LWMSURFACE, LWPSURFACE, LWTIN)
 - **WHEN** cast to LWGEOM pointer
 - **THEN** the `bbox`, `srid`, `flags`, and `type` fields SHALL be readable at the same memory offsets as defined in the LWGEOM struct
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 ### Requirement: Dimensionality flags
 The flags byte SHALL encode dimensionality using the following bit positions:
@@ -125,7 +125,7 @@ The flags byte SHALL also encode:
 - **WHEN** `lwgeom_add_bbox()` is called
 - **THEN** `FLAGS_GET_BBOX(flags)` SHALL return 1
 - **AND** `lwgeom->bbox` SHALL be non-NULL with xmin=0, xmax=1, ymin=0, ymax=1
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 #### Scenario: Geodetic flag set for geography input
 - **GIVEN** a geometry parsed as geography type
@@ -138,7 +138,7 @@ The flags byte SHALL also encode:
 - **WHEN** `lwgeom_drop_bbox()` is called
 - **THEN** `FLAGS_GET_BBOX(flags)` SHALL return 0
 - **AND** `lwgeom->bbox` SHALL be NULL
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 ### Requirement: POINTARRAY coordinate storage
 Coordinates SHALL be stored in a POINTARRAY structure containing:
@@ -157,19 +157,19 @@ Individual coordinate structs are:
 - **GIVEN** a POINTARRAY with 2D flags and 3 points
 - **WHEN** the serialized data is examined
 - **THEN** the serialized_pointlist SHALL contain exactly 48 bytes (3 * 16)
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 #### Scenario: 4D point array stores 32 bytes per point
 - **GIVEN** a POINTARRAY with XYZM flags and 2 points
 - **WHEN** the serialized data is examined
 - **THEN** the serialized_pointlist SHALL contain exactly 64 bytes (2 * 32)
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 #### Scenario: POINTARRAY flags match parent geometry
 - **GIVEN** a 3DZ LWLINE with a POINTARRAY
 - **WHEN** the POINTARRAY flags are examined
 - **THEN** `FLAGS_GET_Z(pa->flags)` SHALL return 1 and `FLAGS_GET_M(pa->flags)` SHALL return 0, matching the parent LWLINE
-- Validated by: liblwgeom/cunit/cu_libgeom.c
+- Validated by: liblwgeom/cunit/cu_gserialized1.c
 
 ### Requirement: SRID handling
 Every LWGEOM SHALL carry an SRID in the `srid` field. The following SRID constants are defined:
@@ -178,7 +178,9 @@ Every LWGEOM SHALL carry an SRID in the `srid` field. The following SRID constan
 - `SRID_MAXIMUM`: maximum allowed SRID (21-bit, value 2097152 less a reserved range)
 - `SRID_USER_MAXIMUM`: maximum user-assignable SRID (SRID_MAXIMUM minus 1000 reserved values)
 
-The function `clamp_srid()` SHALL validate SRID values and raise an error if the value exceeds SRID_MAXIMUM.
+The function `clamp_srid()` SHALL remap out-of-range SRID values and emit a notice (not an error):
+- Negative SRIDs (other than SRID_UNKNOWN) are converted to SRID_UNKNOWN (0) with a notice: "SRID value %d converted to the officially unknown SRID value %d"
+- SRIDs greater than SRID_MAXIMUM are remapped into the reserved range above SRID_USER_MAXIMUM using modular arithmetic, with a notice: "SRID value %d > SRID_MAXIMUM converted to %d"
 
 #### Scenario: SRID preserved through WKT round-trip
 - **GIVEN** a geometry `SRID=4326;POINT(1 2)`
@@ -193,11 +195,12 @@ The function `clamp_srid()` SHALL validate SRID values and raise an error if the
 - **AND** `SRID_IS_UNKNOWN(srid)` SHALL return true
 - Validated by: regress/core/wkt.sql
 
-#### Scenario: Out-of-range SRID raises error
+#### Scenario: Out-of-range SRID remapped with notice
 - **GIVEN** an attempt to set SRID to a value greater than SRID_MAXIMUM
 - **WHEN** `clamp_srid()` is called
-- **THEN** an error SHALL be raised
-- Validated by: regress/core/typmod.sql
+- **THEN** the SRID SHALL be remapped into the reserved range above SRID_USER_MAXIMUM
+- **AND** a notice SHALL be emitted: "SRID value %d > SRID_MAXIMUM converted to %d"
+- Status: untested -- no existing regression test covers clamp_srid() for out-of-range values
 
 ### Requirement: Empty geometry representation
 Every geometry type SHALL support an empty state. For simple types (LWPOINT, LWLINE, LWTRIANGLE, LWCIRCSTRING), empty means the POINTARRAY has `npoints = 0`. For LWPOLY, empty means `nrings = 0`. For collection types, empty means `ngeoms = 0`.
@@ -418,7 +421,7 @@ The SVG codec SHALL produce SVG path data via `ST_AsSVG()`. Points produce `cx="
 - **GIVEN** a geometry `POINT(1 2)`
 - **WHEN** serialized via `ST_AsSVG()`
 - **THEN** the output SHALL contain `cx="1" cy="-2"` (Y negated)
-- Validated by: regress/core/out_svg.sql (if exists)
+- Validated by: regress/core/out_geometry.sql
 
 #### Scenario: SVG line output
 - **GIVEN** a geometry `LINESTRING(0 0, 1 1, 2 0)`
@@ -585,4 +588,4 @@ All 15 geometry types in all dimension variants (2D, 3DZ, 3DM, 4D), with and wit
 - X3D output (`ST_AsX3D`): low priority, deferred
 - FlatGeobuf (`ST_AsFlatGeobuf`, `ST_FromFlatGeobuf`): table-level format, deferred
 
-**Test coverage:** 39 scenarios total; 30 validated by existing regression tests, 9 flagged as untested.
+**Test coverage:** 66 scenarios total; 57 validated by existing regression tests, 9 flagged as untested.

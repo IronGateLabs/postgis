@@ -57,7 +57,7 @@ Cross-references between specs use the directory name (e.g., "See the `geography
 
 #### `geometry-types/` -- LWGEOM Type System and Serialization Codecs
 
-**Scope:** The LWGEOM type hierarchy (16 geometry types), POINTARRAY storage, flags byte (Z/M/SRID/Geodetic/Solid), dimension handling, and all serialization round-trip codecs (WKB, WKT, EWKB, EWKT, GeoJSON, KML, GML, SVG, TWKB, Encoded Polyline).
+**Scope:** The LWGEOM type hierarchy (15 geometry types, POINTTYPE=1 through TINTYPE=15), POINTARRAY storage, flags byte (Z/M/SRID/Geodetic/Solid), dimension handling, and all serialization round-trip codecs (WKB, WKT, EWKB, EWKT, GeoJSON, KML, GML, SVG, TWKB, Encoded Polyline).
 
 **Source files to analyze:**
 - `liblwgeom/liblwgeom.h.in` -- type definitions: LWGEOM, LWPOINT, LWLINE, LWPOLY, LWTRIANGLE, LWCIRCSTRING, LWMPOINT, LWMLINE, LWMPOLY, LWCOLLECTION, LWPSURFACE, LWTIN, POINTARRAY, GBOX, POINT2D/3DZ/3DM/4D. Type constants: POINTTYPE (1) through TINTYPE (15). Flags: LWFLAG_Z, LWFLAG_M, LWFLAG_BBOX, LWFLAG_GEODETIC, LWFLAG_READONLY, LWFLAG_SOLID.

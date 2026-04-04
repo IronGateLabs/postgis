@@ -62,10 +62,11 @@ Negative SRIDs are supported via sign extension: the read operation performs `(s
 - **AND** `g->srid[2]` SHALL be `(32632 & 0x000000FF)` = 120
 - Validated by: liblwgeom/cunit/cu_gserialized1.c
 
-#### Scenario: Negative SRID preserved through sign extension
-- **GIVEN** a GSERIALIZED with a negative SRID set via `gserialized_set_srid(g, -1)`
-- **WHEN** `gserialized_get_srid(g)` is called
-- **THEN** the returned SRID SHALL be -1 (via sign extension of the 21-bit value)
+#### Scenario: Negative SRID converted to SRID_UNKNOWN by clamp_srid
+- **GIVEN** a negative SRID value such as -1
+- **WHEN** `gserialized_set_srid()` is called (which internally calls `clamp_srid()`)
+- **THEN** the SRID SHALL be converted to SRID_UNKNOWN (0)
+- **AND** a notice SHALL be emitted: "SRID value -1 converted to the officially unknown SRID value 0"
 - Status: untested -- no regression test for negative SRID serialization
 
 ### Requirement: Version 1 gflags encoding
@@ -350,4 +351,4 @@ Alignment is achieved by:
 - GiST/SP-GiST index operator use of GSERIALIZED: see `spatial-indexing` spec
 - Geography type semantics: see `geography-type` spec
 
-**Test coverage:** 30 scenarios total; 22 validated by existing regression or CUnit tests, 8 flagged as untested.
+**Test coverage:** 35 scenarios total; 30 validated by existing regression or CUnit tests, 5 flagged as untested.
