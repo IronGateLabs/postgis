@@ -56,7 +56,7 @@ These specs cover the most-used SQL API functions. They depend on Phase 1 for ty
 
 Cross-cutting concerns referenced by predicates and operations.
 
-- [ ] **Extract `coordinate-transforms` spec**
+- [x] **Extract `coordinate-transforms` spec** (completed 2026-04-03)
   - Read `postgis/lwgeom_transform.c` (PG-level ST_Transform, pipeline transforms, PROJ context management, PJ caching)
   - Read `liblwgeom/lwgeom_transform.c` (lwgeom_transform_from_str, lwproj_from_PJ, CRS family detection, source_is_latlong)
   - Read `liblwgeom/liblwgeom.h.in` (LWPROJ struct, LW_CRS_FAMILY enum, SRID macros)
@@ -64,8 +64,9 @@ Cross-cutting concerns referenced by predicates and operations.
   - Cross-reference with regression tests: `regress/core/regress_proj_basic.sql`, `regress_proj_adhoc.sql`, `regress_proj_pipeline.sql`, `regress_proj_cache_overflow.sql`, `regress_proj_4890.sql`, `regress_crs_family.sql`, `regress_management.sql`
   - Write `openspec/specs/coordinate-transforms/spec.md` with 10-14 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 11 requirements, 37 scenarios (19 tested, 18 untested)
 
-- [ ] **Extract `spatial-indexing` spec**
+- [x] **Extract `spatial-indexing` spec** (completed 2026-04-03)
   - Read `postgis/gserialized_gist_2d.c` (GiST 2D: BOX2DF, consistent, union, compress, penalty, picksplit, same, distance)
   - Read `postgis/gserialized_gist_nd.c` (GiST nD: GIDX, N-dimensional bounding box ops)
   - Read `postgis/gserialized_spgist_2d.c`, `gserialized_spgist_3d.c`, `gserialized_spgist_nd.c` (SP-GiST quad-tree)
@@ -75,6 +76,7 @@ Cross-cutting concerns referenced by predicates and operations.
   - Cross-reference with regression tests: `regress/core/regress_index.sql`, `regress_index_nulls.sql`, `regress_gist_index_nd.sql`, `regress_spgist_index_2d.sql`, `regress_spgist_index_3d.sql`, `regress_spgist_index_nd.sql`, `regress_brin_index.sql`, `regress_brin_index_3d.sql`, `regress_brin_index_geography.sql`, `regress_selectivity.sql`, `estimatedextent.sql`, `knn_recheck.sql`, `temporal_knn.sql`
   - Write `openspec/specs/spatial-indexing/spec.md` with 15-18 requirements
   - Validate every scenario has a test reference or is flagged untested
+  - **Result:** 10 requirements, 34 scenarios (18 tested, 16 untested)
 
 ### Phase 4: Advanced Types
 
