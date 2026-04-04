@@ -359,18 +359,17 @@ filter_polygon_rings(LWPOLY *polygon)
 		if (polygon->rings[i]->npoints)
 		{
 			polygon->rings[iw++] = polygon->rings[i];
+			continue;
 		}
-		else
+
+		if (!i)
 		{
-			if (!i)
-			{
-				unsigned int k;
-				for (k = 0; k < polygon->nrings; k++)
-					lwfree(polygon->rings[k]);
-				return 0;
-			}
-			lwfree(polygon->rings[i]);
+			unsigned int k;
+			for (k = 0; k < polygon->nrings; k++)
+				lwfree(polygon->rings[k]);
+			return 0;
 		}
+		lwfree(polygon->rings[i]);
 	}
 	return iw;
 }

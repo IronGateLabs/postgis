@@ -90,20 +90,19 @@ filter_polygon_rings(LWPOLY *polygon)
 		{
 			/* keep (reduced) ring */
 			polygon->rings[iw++] = polygon->rings[i];
+			continue;
 		}
-		else
+
+		if (!i)
 		{
-			if (!i)
-			{
-				/* exterior ring too small, free and skip all rings */
-				unsigned int k;
-				for (k = 0; k < polygon->nrings; k++)
-					lwfree(polygon->rings[k]);
-				return 0;
-			}
-			/* free and remove current interior ring */
-			lwfree(polygon->rings[i]);
+			/* exterior ring too small, free and skip all rings */
+			unsigned int k;
+			for (k = 0; k < polygon->nrings; k++)
+				lwfree(polygon->rings[k]);
+			return 0;
 		}
+		/* free and remove current interior ring */
+		lwfree(polygon->rings[i]);
 	}
 	return iw;
 }
