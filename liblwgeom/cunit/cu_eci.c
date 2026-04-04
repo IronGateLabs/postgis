@@ -84,8 +84,7 @@ static void test_era_one_sidereal_day(void)
 static void test_era_range(void)
 {
 	/* ERA should always be in [0, 2*pi) */
-	int i;
-	for (i = 0; i < 100; i++)
+	for (int i = 0; i < 100; i++)
 	{
 		double jd = 2451545.0 + i * 37.7; /* arbitrary dates */
 		double era = lweci_earth_rotation_angle(jd);
@@ -98,8 +97,7 @@ static void test_era_monotonic(void)
 {
 	/* ERA should increase monotonically (mod 2*pi) */
 	double prev_raw = 0;
-	int i;
-	for (i = 0; i < 10; i++)
+	for (int i = 0; i < 10; i++)
 	{
 		double jd = 2451545.0 + i * 0.1; /* every 0.1 days */
 		double Du = jd - 2451545.0;
@@ -167,7 +165,8 @@ static void test_eci_ecef_roundtrip(void)
 	/* ECI -> ECEF -> ECI should return to original */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2024.5;
 
 	geom = lwgeom_from_wkt("POINT Z (5000000 3000000 4000000)", LW_PARSER_CHECK_NONE);
@@ -194,7 +193,8 @@ static void test_eci_ecef_roundtrip_linestring(void)
 	/* Test roundtrip with linestring geometry */
 	LWGEOM *geom;
 	LWLINE *line;
-	POINT4D p_orig[2], p_final[2];
+	POINT4D p_orig[2];
+	POINT4D p_final[2];
 	double epoch = 2020.0;
 	int i;
 
@@ -248,7 +248,8 @@ static void test_eci_different_epochs_differ(void)
 	/* Same point at different epochs should produce different ECEF coordinates */
 	LWGEOM *geom1, *geom2;
 	LWPOINT *pt1, *pt2;
-	POINT4D p1, p2;
+	POINT4D p1;
+	POINT4D p2;
 
 	geom1 = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
 	geom2 = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
@@ -306,7 +307,8 @@ static void test_eci_polygon(void)
 	/* Test polygon roundtrip */
 	LWGEOM *geom;
 	LWPOLY *poly;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2023.0;
 
 	geom = lwgeom_from_wkt(
@@ -553,7 +555,8 @@ static void test_eci_2d_geometry(void)
 	/* 2D geometry (no Z) should still rotate X/Y correctly */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2024.0;
 
 	geom = lwgeom_from_wkt("POINT (6378137 0)", LW_PARSER_CHECK_NONE);
@@ -578,7 +581,8 @@ static void test_eci_geometrycollection(void)
 	/* GeometryCollection roundtrip (exercises COLLECTIONTYPE branch) */
 	LWGEOM *geom;
 	LWCOLLECTION *col;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2023.0;
 
 	geom = lwgeom_from_wkt(
@@ -609,7 +613,8 @@ static void test_eci_multipolygon(void)
 	LWGEOM *geom;
 	LWCOLLECTION *col;
 	LWPOLY *poly;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2022.0;
 
 	geom = lwgeom_from_wkt(
@@ -641,7 +646,8 @@ static void test_eci_multilinestring(void)
 	LWGEOM *geom;
 	LWCOLLECTION *col;
 	LWLINE *line;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2025.0;
 
 	geom = lwgeom_from_wkt(
@@ -671,7 +677,8 @@ static void test_eci_triangle(void)
 {
 	/* Triangle roundtrip (exercises TRIANGLETYPE branch) */
 	LWGEOM *geom;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2024.0;
 	LWLINE *tri;
 
@@ -699,7 +706,8 @@ static void test_eci_circularstring(void)
 	/* CircularString roundtrip (exercises CIRCSTRINGTYPE branch) */
 	LWGEOM *geom;
 	LWLINE *cs;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2024.0;
 
 	geom = lwgeom_from_wkt(
@@ -726,7 +734,8 @@ static void test_eci_extreme_epoch_far_future(void)
 	/* Test with far-future epoch: year 9999 */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double radius;
 
 	geom = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
@@ -754,7 +763,8 @@ static void test_eci_extreme_epoch_far_past(void)
 	/* Test with far-past epoch: year 1000 */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 
 	geom = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
@@ -777,7 +787,8 @@ static void test_eci_large_pointarray(void)
 	/* Test with a large LineString (1000 points) for stress/performance */
 	LWGEOM *geom;
 	LWLINE *line;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2024.0;
 	int i;
 	char wkt[65536];
@@ -829,7 +840,8 @@ static void test_eci_eop_roundtrip(void)
 	/* ECEF -> ECI (EOP) -> ECEF (EOP) should return to original */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p_orig, p_final;
+	POINT4D p_orig;
+	POINT4D p_final;
 	double epoch = 2024.5;
 	double dut1 = 0.035;   /* UT1-UTC in seconds */
 	double xp = 0.1234;    /* polar motion x in arcsec */
@@ -859,7 +871,8 @@ static void test_eci_eop_dut1_effect(void)
 	/* dut1 correction should produce a different result from non-EOP */
 	LWGEOM *geom_eop, *geom_plain;
 	LWPOINT *pt_eop, *pt_plain;
-	POINT4D p_eop, p_plain;
+	POINT4D p_eop;
+	POINT4D p_plain;
 	double epoch = 2024.0;
 	double dut1 = 0.5;    /* large dut1 for visible effect */
 	double xp = 0.0;
@@ -892,7 +905,8 @@ static void test_eci_eop_polar_motion(void)
 	/* Polar motion (xp, yp) should affect X, Y, and Z coordinates */
 	LWGEOM *geom_pm, *geom_nopm;
 	LWPOINT *pt_pm, *pt_nopm;
-	POINT4D p_pm, p_nopm;
+	POINT4D p_pm;
+	POINT4D p_nopm;
 	double epoch = 2024.0;
 	double dut1 = 0.0;
 	double xp = 0.2;   /* arcsec */
@@ -931,7 +945,8 @@ static void test_eci_eop_zero_params_matches_plain(void)
 	/* EOP with dut1=0, xp=0, yp=0 should match the non-EOP result */
 	LWGEOM *geom_eop, *geom_plain;
 	LWPOINT *pt_eop, *pt_plain;
-	POINT4D p_eop, p_plain;
+	POINT4D p_eop;
+	POINT4D p_plain;
 	double epoch = 2024.0;
 
 	geom_eop = lwgeom_from_wkt("POINT Z (5000000 3000000 4000000)", LW_PARSER_CHECK_NONE);

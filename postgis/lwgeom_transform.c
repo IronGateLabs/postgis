@@ -78,7 +78,8 @@ Datum transform(PG_FUNCTION_ARGS)
 	GSERIALIZED* result=NULL;
 	LWGEOM* lwgeom;
 	LWPROJ *pj;
-	int32 srid_to, srid_from;
+	int32 srid_to;
+	int32 srid_from;
 
 	srid_to = PG_GETARG_INT32(1);
 	if (srid_to == SRID_UNKNOWN)
@@ -199,10 +200,12 @@ Datum transform_epoch(PG_FUNCTION_ARGS)
 	GSERIALIZED *geom;
 	GSERIALIZED *result = NULL;
 	LWGEOM *lwgeom;
-	int32 srid_to, srid_from;
+	int32 srid_to;
+	int32 srid_from;
 	TimestampTz ts;
 	double epoch;
-	LW_CRS_FAMILY from_family, to_family;
+	LW_CRS_FAMILY from_family;
+	LW_CRS_FAMILY to_family;
 	int rv;
 
 	srid_to = PG_GETARG_INT32(1);

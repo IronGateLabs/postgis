@@ -60,7 +60,8 @@ ptarray_rotate_z_avx2(POINTARRAY *pa, double theta)
 		__m256d y_new = _mm256_fmadd_pd(x, neg_sin_v, _mm256_mul_pd(y, cos_v));
 
 		/* Scatter results back to interleaved layout */
-		double xr[4], yr[4];
+		double xr[4];
+		double yr[4];
 		_mm256_storeu_pd(xr, x_new);
 		_mm256_storeu_pd(yr, y_new);
 
@@ -74,7 +75,8 @@ ptarray_rotate_z_avx2(POINTARRAY *pa, double theta)
 	for (; i < npoints; i++)
 	{
 		double *p = pts + i * stride;
-		double x = p[0], y = p[1];
+		double x = p[0];
+		double y = p[1];
 		p[0] = x * cos_t + y * sin_t;
 		p[1] = -x * sin_t + y * cos_t;
 	}
@@ -116,7 +118,8 @@ ptarray_rotate_z_m_epoch_avx2(POINTARRAY *pa, int direction)
 	for (i = 0; i < simd_end; i += 4)
 	{
 		double *p0 = pts + i * stride;
-		double cos_v[4], sin_v[4];
+		double cos_v[4];
+		double sin_v[4];
 		int j;
 
 		/* Per-point ERA computation (scalar - trig not vectorizable) */
@@ -124,7 +127,9 @@ ptarray_rotate_z_m_epoch_avx2(POINTARRAY *pa, int direction)
 		{
 			double *p = p0 + j * stride;
 			double epoch = p[m_offset];
-			double jd, era, theta;
+			double jd;
+			double era;
+			double theta;
 
 			if (epoch < 1000.0 || epoch > 3000.0)
 			{
@@ -156,7 +161,8 @@ ptarray_rotate_z_m_epoch_avx2(POINTARRAY *pa, int direction)
 		__m256d y_new = _mm256_fmadd_pd(x, neg_sv, _mm256_mul_pd(y, cv));
 
 		/* Scatter */
-		double xr[4], yr[4];
+		double xr[4];
+		double yr[4];
 		_mm256_storeu_pd(xr, x_new);
 		_mm256_storeu_pd(yr, y_new);
 
@@ -171,8 +177,13 @@ ptarray_rotate_z_m_epoch_avx2(POINTARRAY *pa, int direction)
 	{
 		double *p = pts + i * stride;
 		double epoch = p[m_offset];
-		double jd, era, theta, cos_t, sin_t;
-		double x, y;
+		double jd;
+		double era;
+		double theta;
+		double cos_t;
+		double sin_t;
+		double x;
+		double y;
 
 		if (epoch < 1000.0 || epoch > 3000.0)
 		{

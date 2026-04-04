@@ -237,7 +237,9 @@ Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
 	int32_t srid_from;
 	int32_t srid_to;
 	double epoch;
-	double dut1, xp, yp;
+	double dut1;
+	double xp;
+	double yp;
 
 	geom_in = PG_GETARG_GSERIALIZED_P_COPY(0);
 	ts = PG_GETARG_TIMESTAMPTZ(1);
@@ -293,7 +295,9 @@ Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
 	int32_t srid_from;
 	int32_t srid_expected;
 	double epoch;
-	double dut1, xp, yp;
+	double dut1;
+	double xp;
+	double yp;
 
 	geom_in = PG_GETARG_GSERIALIZED_P_COPY(0);
 	ts = PG_GETARG_TIMESTAMPTZ(1);

@@ -253,7 +253,8 @@ static void test_ecef_transform_london(void)
 	 */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p, p_orig;
+	POINT4D p;
+	POINT4D p_orig;
 
 	geom = lwgeom_from_wkt("POINT Z (-0.1278 51.5074 11)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
@@ -503,7 +504,8 @@ static void test_ecef_transform_high_altitude(void)
 	 */
 	LWGEOM *geom;
 	LWPOINT *pt;
-	POINT4D p, p_orig;
+	POINT4D p;
+	POINT4D p_orig;
 
 	geom = lwgeom_from_wkt("POINT Z (0 0 20200000)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);

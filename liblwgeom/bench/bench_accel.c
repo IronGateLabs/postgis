@@ -99,7 +99,8 @@ pa_max_diff(const POINTARRAY *a, const POINTARRAY *b)
 
 	for (i = 0; i < a->npoints && i < b->npoints; i++)
 	{
-		POINT4D pa_pt, pb_pt;
+		POINT4D pa_pt;
+		POINT4D pb_pt;
 		getPoint4d_p(a, i, &pa_pt);
 		getPoint4d_p(b, i, &pb_pt);
 
@@ -122,7 +123,9 @@ bench_eci_rotate(const char *backend, int npoints, int csv, double *out_throughp
 	POINTARRAY *pa;
 	double theta = 1.23456; /* Fixed rotation angle */
 	int iter;
-	double t_start, t_end, total_us;
+	double t_start;
+	double t_end;
+	double total_us;
 
 	pa = make_test_points(npoints);
 
@@ -184,7 +187,9 @@ bench_rad_convert(const char *backend, int npoints, int csv)
 	POINTARRAY *pa;
 	double scale = M_PI / 180.0;
 	int iter;
-	double t_start, t_end, total_us;
+	double t_start;
+	double t_end;
+	double total_us;
 
 	pa = make_test_points(npoints);
 
@@ -240,7 +245,8 @@ bench_rad_convert(const char *backend, int npoints, int csv)
 static int
 validate_backends(void)
 {
-	int pi, pass = 1;
+	int pi;
+	int pass = 1;
 	double theta = 1.23456;
 
 	printf("\n=== Validation: SIMD vs Scalar ===\n\n");
@@ -464,7 +470,8 @@ main(int argc, char *argv[])
 			{
 				int n = POINT_COUNTS[pi];
 				POINTARRAY *pa = make_test_points(n);
-				double t_start, t_end;
+				double t_start;
+				double t_end;
 
 				t_start = now_us();
 				lwgpu_rotate_z_batch((double *)pa->serialized_pointlist,

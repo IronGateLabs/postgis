@@ -45,7 +45,8 @@ ptarray_rad_convert_avx2(POINTARRAY *pa, double scale)
 		y = _mm256_mul_pd(y, scale_v);
 
 		/* Scatter */
-		double xr[4], yr[4];
+		double xr[4];
+		double yr[4];
 		_mm256_storeu_pd(xr, x);
 		_mm256_storeu_pd(yr, y);
 

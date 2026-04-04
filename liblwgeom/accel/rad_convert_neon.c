@@ -34,7 +34,8 @@ ptarray_rad_convert_neon(POINTARRAY *pa, double scale)
 		float64x2_t x = vmulq_f64(vld1q_f64(xv), scale_v);
 		float64x2_t y = vmulq_f64(vld1q_f64(yv), scale_v);
 
-		double xr[2], yr[2];
+		double xr[2];
+		double yr[2];
 		vst1q_f64(xr, x);
 		vst1q_f64(yr, y);
 

@@ -50,7 +50,8 @@ ptarray_rotate_z_neon(POINTARRAY *pa, double theta)
 		/* y_new = x * (-sin) + y * cos */
 		float64x2_t y_new = vfmaq_f64(vmulq_f64(y, cos_v), x, neg_sin_v);
 
-		double xr[2], yr[2];
+		double xr[2];
+		double yr[2];
 		vst1q_f64(xr, x_new);
 		vst1q_f64(yr, y_new);
 
@@ -62,7 +63,8 @@ ptarray_rotate_z_neon(POINTARRAY *pa, double theta)
 	if (i < npoints)
 	{
 		double *p = pts + i * stride;
-		double x = p[0], y = p[1];
+		double x = p[0];
+		double y = p[1];
 		p[0] = x * cos_t + y * sin_t;
 		p[1] = -x * sin_t + y * cos_t;
 	}
@@ -97,14 +99,17 @@ ptarray_rotate_z_m_epoch_neon(POINTARRAY *pa, int direction)
 	for (i = 0; i < simd_end; i += 2)
 	{
 		double *p0 = pts + i * stride;
-		double cos_v[2], sin_v[2];
+		double cos_v[2];
+		double sin_v[2];
 		int j;
 
 		for (j = 0; j < 2; j++)
 		{
 			double *p = p0 + j * stride;
 			double epoch = p[m_offset];
-			double jd, era, th;
+			double jd;
+			double era;
+			double th;
 
 			if (epoch < 1000.0 || epoch > 3000.0)
 			{
@@ -132,7 +137,8 @@ ptarray_rotate_z_m_epoch_neon(POINTARRAY *pa, int direction)
 		float64x2_t x_new = vfmaq_f64(vmulq_f64(y, sv), x, cv);
 		float64x2_t y_new = vfmaq_f64(vmulq_f64(y, cv), x, neg_sv);
 
-		double xr[2], yr[2];
+		double xr[2];
+		double yr[2];
 		vst1q_f64(xr, x_new);
 		vst1q_f64(yr, y_new);
 
@@ -145,7 +151,13 @@ ptarray_rotate_z_m_epoch_neon(POINTARRAY *pa, int direction)
 	{
 		double *p = pts + i * stride;
 		double epoch = p[m_offset];
-		double jd, era, theta, cos_t, sin_t, x, y;
+		double jd;
+		double era;
+		double theta;
+		double cos_t;
+		double sin_t;
+		double x;
+		double y;
 
 		if (epoch < 1000.0 || epoch > 3000.0)
 		{

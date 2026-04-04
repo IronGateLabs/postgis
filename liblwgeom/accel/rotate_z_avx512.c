@@ -52,7 +52,8 @@ ptarray_rotate_z_avx512(POINTARRAY *pa, double theta)
 		__m512d y_new = _mm512_fmadd_pd(x, neg_sin_v, _mm512_mul_pd(y, cos_v));
 
 		/* Scatter back */
-		double xr[8], yr[8];
+		double xr[8];
+		double yr[8];
 		_mm512_storeu_pd(xr, x_new);
 		_mm512_storeu_pd(yr, y_new);
 
@@ -68,7 +69,8 @@ ptarray_rotate_z_avx512(POINTARRAY *pa, double theta)
 	for (; i < npoints; i++)
 	{
 		double *p = pts + i * stride;
-		double x = p[0], y = p[1];
+		double x = p[0];
+		double y = p[1];
 		p[0] = x * cos_t + y * sin_t;
 		p[1] = -x * sin_t + y * cos_t;
 	}

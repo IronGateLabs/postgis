@@ -145,7 +145,8 @@ batch_flush(void)
 		for (i = 0; i < batch.npoints; i++)
 		{
 			double *p = batch.data + i * stride_d;
-			double x = p[0], y = p[1];
+			double x = p[0];
+			double y = p[1];
 			p[0] = x * cos_t + y * sin_t;
 			p[1] = -x * sin_t + y * cos_t;
 		}
