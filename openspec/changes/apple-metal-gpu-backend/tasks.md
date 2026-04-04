@@ -55,10 +55,17 @@
 - [x] 5.8 Add CUnit test for Metal fallback: verify that when Metal dispatch returns 0 (simulated failure), the caller falls back to NEON without error
 - [x] 5.9 Guard Metal tests in test Makefiles with `ifeq (@HAVE_METAL@,yes)` conditionals
 
-## 6. Documentation
+## 6. Dispatch Tuning (Post-Benchmark)
 
-- [x] 6.1 Update `configure` summary section documentation to include the `Metal GPU (xcrun)` line
-- [x] 6.2 Update `postgis.gpu_backend` GUC documentation to include `'metal'` as a valid value
-- [x] 6.3 Add macOS build instructions noting Xcode Command Line Tools requirement for Metal support
-- [x] 6.4 Document Metal dispatch threshold behavior and auto-calibration in the acceleration configuration section
-- [x] 6.5 Add Metal backend to `postgis_accel_features()` output documentation
+- [x] 6.1 Add `effective_gpu_threshold()` in `lwgeom_accel.c` with 5x multiplier for Metal backend
+- [x] 6.2 Skip Metal dispatch for `rotate_z_uniform` in `gpu_aware_rotate_z()` -- NEON always faster
+- [x] 6.3 Apply per-backend threshold in `gpu_aware_rotate_z_m_epoch()` via `effective_gpu_threshold()`
+- [x] 6.4 Add benchmark results section to `design.md` with Apple A18 Pro data and recommendations
+
+## 7. Documentation
+
+- [x] 7.1 Update `configure` summary section documentation to include the `Metal GPU (xcrun)` line
+- [x] 7.2 Update `postgis.gpu_backend` GUC documentation to include `'metal'` as a valid value
+- [x] 7.3 Add macOS build instructions noting Xcode Command Line Tools requirement for Metal support
+- [x] 7.4 Document Metal dispatch threshold behavior and auto-calibration in the acceleration configuration section
+- [x] 7.5 Add Metal backend to `postgis_accel_features()` output documentation

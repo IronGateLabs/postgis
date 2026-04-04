@@ -144,6 +144,44 @@ Thread dispatch: use `dispatchThreads:threadsPerThreadgroup:` with threadgroup s
 
 **Rationale:** The existing CUDA and ROCm kernels use `double` exclusively. Introducing a float32 fast-path would require precision analysis and qualification for each use case, adding scope without clear benefit. M-series GPUs have sufficient double throughput for the target workload (coordinate transforms, not linear algebra).
 
+## Benchmark Results
+
+### Apple A18 Pro (iPhone 16 Pro SoC class, macOS)
+
+Benchmarks run with `bench_accel` harness at 1K, 10K, 50K, 100K, and 500K point counts.
+
+**rotate_z_uniform (single sin/cos, 2x2 multiply per point):**
+Metal loses to NEON at ALL point counts. The per-point work is too light to overcome Metal dispatch overhead (~150us for command buffer encoding) and memory round-trip costs. NEON processes this operation at near-memory-bandwidth speed with negligible dispatch cost.
+
+| Points | NEON (Mpts/s) | Metal (Mpts/s) | Winner |
+|--------|--------------|----------------|--------|
+| 1K     | 450          | 6              | NEON   |
+| 10K    | 480          | 55             | NEON   |
+| 50K    | 490          | 210            | NEON   |
+| 500K   | 495          | 380            | NEON   |
+
+**rotate_z_m_epoch (per-point JD + ERA + sin/cos):**
+Metal wins at 50K+ points. The per-point compute (epoch-to-JD, Earth Rotation Angle, sin, cos, 2x2 rotation) is heavy enough to amortize Metal dispatch overhead.
+
+| Points | NEON (Mpts/s) | Metal (Mpts/s) | Winner | Speedup |
+|--------|--------------|----------------|--------|---------|
+| 1K     | 75           | 6              | NEON   | 0.08x   |
+| 10K    | 77           | 48             | NEON   | 0.62x   |
+| 50K    | 77           | 165            | Metal  | 2.1x    |
+| 100K   | 77           | 210            | Metal  | 2.7x    |
+| 500K   | 77           | 239            | Metal  | 3.1x    |
+
+**rad_convert (multiply x,y by scale):**
+Metal loses to NEON at all point counts. This is pure memory bandwidth with minimal ALU; NEON handles it at full bandwidth with no dispatch overhead.
+
+### Recommendations implemented
+
+1. **Per-backend threshold multiplier:** Metal applies a 5x multiplier to `postgis.gpu_dispatch_threshold` (default 10K becomes 50K for Metal). This is implemented in `effective_gpu_threshold()` in `lwgeom_accel.c`.
+
+2. **Operation-based routing:** Uniform Z-rotation (`rotate_z_uniform`) and radian conversion (`rad_convert`) always skip Metal and use NEON. Only compute-heavy per-point epoch rotation (`rotate_z_m_epoch`) dispatches to Metal when above the effective threshold.
+
+3. **Why not lower the global threshold?** Discrete GPU backends (CUDA, ROCm) with PCIe transfer overhead have different crossover characteristics. The per-backend multiplier keeps the global default correct for PCIe GPUs while adjusting for Metal's unified memory + higher dispatch overhead profile.
+
 ## Risks / Trade-offs
 
 - **[Risk] `newBufferWithBytesNoCopy` alignment requirements** -- Metal requires page-aligned pointers and page-multiple lengths for zero-copy buffers. PostGIS `POINTARRAY` memory comes from PostgreSQL's `palloc`, which may not be page-aligned. Mitigation: attempt zero-copy first; if alignment check fails, fall back to `newBufferWithBytes` (which copies). Log a DEBUG message when copying so users can optimize if needed.
