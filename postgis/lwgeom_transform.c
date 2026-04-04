@@ -429,11 +429,12 @@ postgis_proj_compiled_version(PG_FUNCTION_ARGS)
 {
 	static char ver[64];
 	text *result;
-	sprintf(ver,
-		"%d.%d.%d",
-		(POSTGIS_PROJ_VERSION / 10000),
-		((POSTGIS_PROJ_VERSION % 10000) / 100),
-		(POSTGIS_PROJ_VERSION % 100));
+	snprintf(ver,
+		 sizeof(ver),
+		 "%d.%d.%d",
+		 POSTGIS_PROJ_VERSION / 10000,
+		 (POSTGIS_PROJ_VERSION % 10000) / 100,
+		 POSTGIS_PROJ_VERSION % 100);
 
 	result = cstring_to_text(ver);
 	PG_RETURN_POINTER(result);
