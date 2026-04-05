@@ -36,11 +36,11 @@ jobs:
         # latest uses bleeding-edge PG/GEOS; topology crash in
         # droptopogeometrycolumn is an upstream bug (zero topology
         # changes in our fork). Allow failures so it doesn't block CI.
-        - { tag: latest, mode: tests, continue-on-error: true }
-        - { tag: latest, mode: garden, continue-on-error: true }
+        - { tag: latest, mode: tests, continue_on_error: true }
+        - { tag: latest, mode: garden, continue_on_error: true }
 
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.ci.continue-on-error || false }}
+    continue-on-error: ${{ matrix.ci.continue_on_error || false }}
     steps:
 
     # - name: 'Install Docker'
