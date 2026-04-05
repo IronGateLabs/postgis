@@ -27,6 +27,11 @@ jobs:
           # ubuntu-latest may have pgdg repo; avoid postgresql-server-dev-all
           # which conflicts with pgdg's postgresql-common version.
           PG_VER=$(pg_config --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "16")
+          # Install clang for PostgreSQL LLVM bitcode compilation
+          CLANG_VER=$(dpkg -l 'clang-*' 2>/dev/null | grep '^ii' | head -1 | awk '{print $2}' | grep -oP '\d+' || echo "")
+          if [ -z "$CLANG_VER" ]; then
+            sudo apt-get install -y --no-install-recommends clang llvm-dev
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             autoconf \
