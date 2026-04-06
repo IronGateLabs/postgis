@@ -33,14 +33,15 @@ jobs:
         #- { tag: pg13-geos39-gdal31-proj71, mode: usan_gcc }
         #- { tag: pg14-clang-geos39-gdal31-proj71, mode: usan_clang }
         # Run tests with different dependency combinations
-        # latest uses bleeding-edge PG/GEOS; topology crash in
-        # droptopogeometrycolumn is an upstream bug (zero topology
-        # changes in our fork). Allow failures so it doesn't block CI.
-        # Investigation confirmed: crash occurs in toTopoGeom -> lwt_AddLine
-        # which calls GEOS via liblwgeom/lwgeom_geos.c (unmodified).
-        # Our changes only touch postgis/lwgeom_geos.c (CRS checks) and
-        # postgis/lwgeom_geos_predicates.c (formatting/refactoring),
-        # neither of which is in the topology GEOS call path.
+        # latest (PG 19devel + GEOS 3.15.0dev): topology crash in
+        # droptopogeometrycolumn is a PG 19devel bug in the new RI
+        # fast-path trigger code (ri_FastPathTeardown assert failure
+        # on RelationDecrementReferenceCount). Same GEOS 3.15.0dev
+        # passes on PG 18 (pg18-geosmain job). Workaround: make
+        # topology FK constraints DEFERRABLE INITIALLY DEFERRED so
+        # per-row RI fast-path triggers do not fire during SPI ops.
+        # Keep continue_on_error until PG upstream fixes the bug or
+        # the latest Docker image picks up the deferred-constraint fix.
         - { tag: latest, mode: tests, continue_on_error: true }
         - { tag: latest, mode: garden, continue_on_error: true }
 
