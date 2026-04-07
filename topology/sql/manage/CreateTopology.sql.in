@@ -114,6 +114,12 @@ BEGIN
         geom GEOMETRY(point%3$s, %2$L),
         CONSTRAINT node_primary_key
           PRIMARY KEY(node_id),
+        -- WORKAROUND: FK constraints are DEFERRABLE INITIALLY DEFERRED to
+        -- avoid a PG 19devel crash in ri_FastPathTeardown when multiple
+        -- FK triggers fire under nested SPI (e.g. toTopoGeom).
+        -- See: IronGateLabs/postgis#12, IronGateLabs/postgres#1
+        -- TODO: Revert to immediate once PG fixes the RI fast-path bug,
+        -- or keep deferred for topology batch performance benefit.
         CONSTRAINT face_exists
           FOREIGN KEY(containing_face)
           REFERENCES %1$I.face(face_id)
@@ -147,6 +153,7 @@ BEGIN
         right_face %6$s NOT NULL,
         geom GEOMETRY(linestring%3$s, %2$L) NOT NULL,
 
+        -- WORKAROUND: See comment on node.face_exists above re: PG 19devel
         CONSTRAINT start_node_exists
           FOREIGN KEY(start_node)
           REFERENCES %1$I.node(node_id)
