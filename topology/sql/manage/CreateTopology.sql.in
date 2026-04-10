@@ -117,7 +117,6 @@ BEGIN
         CONSTRAINT face_exists
           FOREIGN KEY(containing_face)
           REFERENCES %1$I.face(face_id)
-          DEFERRABLE INITIALLY DEFERRED
       );
 
       -- Node standard view description
@@ -149,23 +148,19 @@ BEGIN
 
         CONSTRAINT start_node_exists
           FOREIGN KEY(start_node)
-          REFERENCES %1$I.node(node_id)
-          DEFERRABLE INITIALLY DEFERRED,
+          REFERENCES %1$I.node(node_id),
 
         CONSTRAINT end_node_exists
           FOREIGN KEY(end_node)
-          REFERENCES %1$I.node(node_id)
-          DEFERRABLE INITIALLY DEFERRED,
+          REFERENCES %1$I.node(node_id),
 
         CONSTRAINT left_face_exists
           FOREIGN KEY(left_face)
-          REFERENCES %1$I.face(face_id)
-          DEFERRABLE INITIALLY DEFERRED,
+          REFERENCES %1$I.face(face_id),
 
         CONSTRAINT right_face_exists
           FOREIGN KEY(right_face)
-          REFERENCES %1$I.face(face_id)
-          DEFERRABLE INITIALLY DEFERRED,
+          REFERENCES %1$I.face(face_id),
 
         CONSTRAINT next_left_edge_exists
           FOREIGN KEY(abs_next_left_edge)
