@@ -12,6 +12,29 @@ jobs:
   sonarcloud:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
+    # TEMPORARY: SonarCloud currently rejects CI-driven analysis with the
+    # error "You are running CI analysis while Automatic Analysis is
+    # enabled. Please consider disabling one or the other."
+    #
+    # SonarCloud does not support both modes simultaneously. Because this
+    # project is C/C++ and benefits significantly from build-wrapper-based
+    # deep analysis (which Automatic Analysis cannot provide), the intended
+    # long-term configuration is:
+    #
+    #   - CI-driven analysis: ENABLED (this workflow)
+    #   - SonarCloud Automatic Analysis: DISABLED (set in the SonarCloud
+    #     web UI at https://sonarcloud.io/project/configuration?id=IronGateLabs_postgis
+    #     under Administration -> Analysis Method)
+    #
+    # Until the web-UI change is made, the Automatic Analysis check
+    # ("SonarCloud Code Analysis") runs in parallel and passes, so PRs
+    # still get SonarCloud coverage -- just not the deeper C/C++ analysis
+    # this workflow provides.
+    #
+    # continue-on-error is set to true so the workflow failure does not
+    # block PR merges during the transition. Remove once Automatic
+    # Analysis is disabled in the SonarCloud web UI.
+    continue-on-error: true
     env:
       BUILD_WRAPPER_OUT_DIR: build-wrapper-output
     steps:
