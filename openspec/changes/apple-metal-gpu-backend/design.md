@@ -105,28 +105,33 @@ Initialization is lazy: triggered on first GPU dispatch or explicit `lwgpu_init(
 
 **Rationale:** The CUDA backend uses the same pattern: `cuda_initialized` flag, `cuda_device` buffer, init on first call. Metal's Objective-C objects are cached between dispatches to avoid re-creating the pipeline state (~1ms overhead per creation).
 
-### Decision 5: Kernel design -- three compute shaders
+### Decision 5: Kernel design -- three compute shaders (revised)
 
-**Choice:** Three kernel functions in `gpu_metal_kernels.metal`:
+**Choice:** Three kernel functions in `gpu_metal_kernels.metal`. All kernel I/O uses `float` (not `double`) because MSL has no fp64 compute type (see Decision 8). The host-side bridge in `gpu_metal.m` converts `double*` input buffers to `float*` before dispatch, and back to `double*` after.
 
 1. **`rotate_z_uniform`** -- Uniform-angle Z-rotation:
-   - Inputs: `device double *data`, `uint stride_doubles`, `uint npoints`, `double cos_t`, `double sin_t`
-   - Each thread processes one point: reads `data[idx * stride + 0]` (x) and `data[idx * stride + 1]` (y), applies 2x2 rotation, writes back in-place
-   - `cos_t` and `sin_t` are computed once on the CPU and passed as kernel arguments (same as CUDA backend)
+   - Buffer 0: `device float *data` (interleaved coordinates)
+   - Buffer 1: `constant RotateZParams &params` containing `uint stride`, `uint npoints`, `float cos_t`, `float sin_t`
+   - `cos_t` and `sin_t` are computed once on the CPU in double precision and narrowed to float at the boundary
+   - Each thread processes one point: reads x/y from its stride offset, applies the 2x2 rotation, writes back in-place
 
-2. **`rotate_z_m_epoch`** -- Per-point M-epoch Z-rotation:
-   - Inputs: `device double *data`, `uint stride_doubles`, `uint npoints`, `uint m_offset`, `int direction`
-   - Each thread reads `data[idx * stride + m_offset]` (epoch M), computes Julian Date and Earth Rotation Angle, then applies Z-rotation
-   - ERA computation (`gpu_epoch_to_jd`, `gpu_earth_rotation_angle`) is inlined in MSL using the same formulas as `gpu_cuda.cu`
+2. **`rotate_z_m_epoch`** -- Per-point M-epoch Z-rotation, host-precomputed thetas:
+   - Buffer 0: `device float *data` (interleaved coordinates)
+   - Buffer 1: `constant RotateZMEpochParams &params` containing `uint stride`, `uint npoints` (no `m_offset`, no `direction`)
+   - Buffer 2: `device const float *thetas` (N pre-reduced rotation angles, one per point)
+   - The host computes each point's ERA in double (via `metal_epoch_to_jd` + `metal_earth_rotation_angle`, mirroring `lweci_*` in `liblwgeom/lwgeom_eci.c`), applies the direction sign, reduces modulo 2*pi, and narrows to float ONCE
+   - Each GPU thread reads its `theta` from `thetas[id]` and applies `cos(theta)` / `sin(theta)` to the point -- no ERA computation in MSL
+   - **Why host-precomputed:** an earlier version of this kernel computed ERA from per-point float epoch inline in MSL and produced ~900 km of error at Earth scale because the double-to-float conversion of the raw epoch value (precision ~1.22e-4 year at 2025) propagated through the ERA formula into ~0.14 rad of rotation error. Moving the ERA computation to the host preserves double precision until the final reduced theta (in `[0, 2*pi)`), where float32 ULP is ~7e-7 and positional error is sub-meter. This is the only Metal kernel that requires a third input buffer.
 
 3. **`rad_convert`** -- Bulk radian/degree conversion:
-   - Inputs: `device double *data`, `uint stride_doubles`, `uint npoints`, `double scale`
-   - Each thread multiplies `data[idx * stride + 0]` (x) and `data[idx * stride + 1]` (y) by `scale`
-   - This is a simple bandwidth-bound kernel; Metal's memory bandwidth (~200 GB/s on M2 Pro) provides throughput well above NEON
+   - Buffer 0: `device float *data` (interleaved coordinates)
+   - Buffer 1: `constant RadConvertParams &params` containing `uint stride`, `uint npoints`, `float scale`
+   - Each thread multiplies the x and y coordinates by `scale`
+   - This is a simple bandwidth-bound kernel; NEON is actually faster on Apple Silicon due to the lower dispatch overhead, so this kernel is built and tested but not dispatched by the production routing in `lwgeom_accel.c`. It is retained as a reference implementation for future dispatch decisions.
 
-Thread dispatch: use `dispatchThreads:threadsPerThreadgroup:` with threadgroup size of 256 (matching CUDA/ROCm `threads = 256`). Metal handles incomplete threadgroups automatically via `dispatchThreads` (non-uniform dispatch).
+Thread dispatch: use `dispatchThreads:threadsPerThreadgroup:` with threadgroup size of 256 (matching CUDA/ROCm `threads = 256`), clamped to each pipeline's `maxTotalThreadsPerThreadgroup`. Metal handles incomplete threadgroups automatically via `dispatchThreads` (non-uniform dispatch).
 
-**Rationale:** The three kernels exactly match the operations already implemented in CUDA (`gpu_cuda.cu` lines 42-73) and ROCm (`gpu_rocm.hip`). The ERA computation formulas (`2451545.0 + (decimal_year - 2000.0) * 365.25` for JD, `2.0 * M_PI * (0.7790572732640 + 1.00273781191135448 * Du)` for ERA) must be identical across all backends for numerical consistency.
+**Rationale:** The `rotate_z_uniform` and `rad_convert` kernels match the operations already implemented in CUDA (`gpu_cuda.cu`) and ROCm (`gpu_rocm.hip`), differing only in float vs double precision. The `rotate_z_m_epoch` kernel is the deliberate outlier: because the float32 precision of the raw epoch value is insufficient (see the paragraph above), the kernel cannot compute ERA inline the way CUDA and ROCm do. The host-precomputed-thetas pattern is Metal-specific and reflects the MSL no-fp64 constraint. The ERA formulas used host-side in `metal_earth_rotation_angle()` (`JD = 2451545.0 + (decimal_year - 2000.0) * 365.25`, `ERA = 2*pi*(0.7790572732640 + 1.00273781191135448 * Du)`) remain identical to the scalar reference in `liblwgeom/lwgeom_eci.c` so that Metal's pre-reduced thetas match the scalar path within double-precision rounding.
 
 ### Decision 6: Dispatch threshold -- lower default for Metal
 

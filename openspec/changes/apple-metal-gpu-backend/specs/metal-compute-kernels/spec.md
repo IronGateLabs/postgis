@@ -52,33 +52,50 @@ The system SHALL provide a Metal compute kernel that performs uniform-angle Z-ax
 - **WHEN** points have Z and/or M coordinates (stride > 2 floats)
 - **THEN** the kernel SHALL only modify floats at offset 0 (x) and offset 1 (y) within each point's stride, leaving Z, M, and any padding bytes unchanged
 
-### Requirement: rotate_z_m_epoch Metal compute kernel
-The system SHALL provide a Metal compute kernel that performs per-point M-epoch Z-axis rotation, where each point's M coordinate determines its rotation angle.
+### Requirement: rotate_z_m_epoch Metal compute kernel (host-precomputed thetas)
+The system SHALL provide a Metal compute kernel that applies per-point Z-axis rotation using rotation angles pre-computed on the host. The Earth Rotation Angle (ERA) from each point's M-epoch SHALL be computed on the CPU in double precision, reduced modulo 2*pi, multiplied by the direction sign, and narrowed to float. The kernel SHALL accept these pre-reduced thetas as a second input buffer and SHALL NOT compute ERA from epoch in MSL.
 
-#### Scenario: Per-point ERA computation
-- **GIVEN** an array of N points with interleaved x,y,z,m doubles
-- **WHEN** the `rotate_z_m_epoch` kernel executes with `m_offset` and `direction` parameters
-- **THEN** for each point index `idx`, the kernel SHALL:
-  1. Read epoch from `data[idx * stride_doubles + m_offset]`
-  2. Compute Julian Date: `jd = 2451545.0 + (epoch - 2000.0) * 365.25`
-  3. Compute Earth Rotation Angle: `era = 2.0 * PI * (0.7790572732640 + 1.00273781191135448 * (jd - 2451545.0))`
-  4. Normalize ERA to `[0, 2*PI)` via `fmod`
-  5. Compute `theta = direction * era`
-  6. Apply Z-rotation: `x_new = x * cos(theta) + y * sin(theta)`, `y_new = -x * sin(theta) + y * cos(theta)`
-  7. Write `x_new`, `y_new` back in-place
+**Why the kernel does not compute ERA from epoch:** an earlier iteration of this kernel read each point's M-epoch as float and computed ERA in MSL. This produced ~900 km of positional error at Earth scale because float32 ULP at 2025 (decimal year) is ~1.22e-4 year, which after `(epoch - 2000) * 365.25 * 2*pi * 1.00274` becomes ~0.14 rad of ERA error. The precision was lost at the double-to-float conversion of the raw epoch value, BEFORE the kernel ran -- no amount of in-kernel work could recover it. Moving the ERA computation to the host (where doubles are used natively) keeps the precision loss bounded to the float32 ULP of the REDUCED theta (in [0, 2*pi), ULP ~7e-7), which corresponds to sub-meter positional error at Earth scale.
 
-#### Scenario: ERA computation within FP32_ONLY precision contract
-- **GIVEN** the same epoch value (e.g., 2024.5)
-- **WHEN** the Metal kernel computes ERA (in float) and the CUDA `gpu_earth_rotation_angle` function (`gpu_cuda.cu`, FP64_NATIVE) computes ERA (in double)
-- **THEN** the ERA values SHALL differ by at most `~2e-7` radians (1 float ULP of a value near 2π), corresponding to approximately 1 meter of positional error at Earth radius after rotation
-- **AND** the formulas SHALL be identical (both use the IERS 2010 linear approximation); only the arithmetic precision differs
-- **AND** this scenario SHALL NOT require bit-identical ERA values, because the precision contract is FP32_ONLY
+#### Scenario: Host precomputes per-point thetas
+- **GIVEN** an array of N points with interleaved x,y,z,m doubles, and a direction parameter (-1 or +1)
+- **WHEN** `lwgpu_metal_rotate_z_m_epoch()` is called on the host
+- **THEN** the host SHALL, for each point index `i`, execute the following in double precision:
+  1. Read epoch from `data[i * stride_doubles + m_offset]` as a `double`
+  2. Compute Julian Date: `jd = 2451545.0 + (epoch - 2000.0) * 365.25` (double)
+  3. Compute Earth Rotation Angle: `era = 2.0 * PI * (0.7790572732640 + 1.00273781191135448 * (jd - 2451545.0))` (double)
+  4. Reduce to `[0, 2*PI)` via `fmod(era, 2.0 * PI)` and wrap-if-negative (double)
+  5. Compute `theta = direction * era` (double)
+  6. Narrow to float: `thetas[i] = (float)theta`
+- **AND** the helper functions used for steps 2–4 (`metal_epoch_to_jd`, `metal_earth_rotation_angle`) SHALL mirror the scalar reference implementations in `liblwgeom/lwgeom_eci.c` (`lweci_epoch_to_jd`, `lweci_earth_rotation_angle`) so that the host-computed thetas are bit-identical to the scalar path within double-precision rounding
 
-#### Scenario: Direction parameter
-- **WHEN** `direction = -1` (ECI to ECEF conversion)
-- **THEN** the rotation angle SHALL be `-era` (negative rotation)
-- **WHEN** `direction = +1` (ECEF to ECI conversion)
-- **THEN** the rotation angle SHALL be `+era` (positive rotation)
+#### Scenario: Kernel reads pre-reduced thetas from a separate buffer
+- **GIVEN** the coordinate data buffer at `[[buffer(0)]]`, the params struct at `[[buffer(1)]]`, and a per-point theta array (N floats) at `[[buffer(2)]]`
+- **WHEN** the `rotate_z_m_epoch` kernel executes for a thread with `id = thread_position_in_grid`
+- **THEN** the kernel SHALL:
+  1. Bounds-check: if `id >= params.npoints` return immediately
+  2. Read `theta = thetas[id]` (already direction-adjusted and reduced to `[0, 2*PI)`)
+  3. Compute `cos_t = cos(theta)` and `sin_t = sin(theta)` (float, accurate to ~1 ULP because theta is small)
+  4. Read `x = data[id * stride + 0]` and `y = data[id * stride + 1]`
+  5. Write `data[id * stride + 0] = x * cos_t + y * sin_t`
+  6. Write `data[id * stride + 1] = -x * sin_t + y * cos_t`
+- **AND** the kernel SHALL NOT read any epoch value, call any ERA or JD helper, or perform any modular reduction -- all precision-sensitive work happened on the host before dispatch
+
+#### Scenario: rotate_z_m_epoch params struct is minimal
+- **WHEN** the `RotateZMEpochParams` constant buffer is declared in both `gpu_metal_kernels.metal` and `gpu_metal.m`
+- **THEN** it SHALL contain exactly two fields: `uint stride` and `uint npoints`
+- **AND** it SHALL NOT contain `m_offset` or `direction` fields, because the host has already resolved both before passing the pre-computed thetas
+
+#### Scenario: ERA numerical equivalence to scalar reference
+- **GIVEN** the same input POINTARRAY
+- **WHEN** `lwgpu_metal_rotate_z_m_epoch()` (Metal path, host precomputed + GPU rotate) and `ptarray_rotate_z_m_epoch_scalar()` (scalar fp64) both process independent copies
+- **THEN** the maximum absolute difference between outputs SHALL satisfy the FP32_ONLY absolute error bound: `< max_coord * 1e-6` (approximately 6 meters for Earth-scale ECEF input)
+- **AND** the expected error source SHALL be the float32 ULP of the REDUCED theta (~7e-7 rad) compounded across the cos/sin/multiply-add, NOT the double-to-float conversion of the raw epoch value
+
+#### Scenario: Direction parameter applied host-side
+- **WHEN** `direction = -1` (ECI to ECEF conversion) and `direction = +1` (ECEF to ECI conversion) are passed to `lwgpu_metal_rotate_z_m_epoch()`
+- **THEN** the host SHALL apply the direction sign to the reduced ERA before narrowing to float: `theta = direction * era`
+- **AND** the kernel SHALL receive the already-signed theta and apply it as-is -- the kernel SHALL NOT multiply by direction itself
 
 #### Scenario: M coordinate preserved
 - **WHEN** the kernel modifies x and y coordinates
@@ -127,6 +144,8 @@ The Metal compute kernels SHALL follow consistent coding conventions compatible 
 - **THEN** they SHALL use `uint idx [[thread_position_in_grid]]` as the thread index parameter
 
 #### Scenario: Constants passed as kernel arguments
-- **WHEN** scalar parameters (`cos_t`, `sin_t`, `scale`, `stride`, `npoints`, `m_offset`, `direction`) are passed to kernels
+- **WHEN** scalar parameters are passed to kernels
 - **THEN** they SHALL be passed via a constant buffer struct bound at `[[buffer(1)]]`, not as individual function arguments, to comply with Metal's argument table layout
-- **AND** floating-point scalars SHALL be declared as `float` in the params structs (not `double`), matching the FP32_ONLY precision class; integer fields (`stride`, `npoints`, `m_offset`, `direction`) SHALL be declared as `uint` or `int` as appropriate for their range
+- **AND** floating-point scalars (`cos_t`, `sin_t`, `scale`) SHALL be declared as `float` in the params structs (not `double`), matching the FP32_ONLY precision class
+- **AND** integer fields (`stride`, `npoints`) SHALL be declared as `uint`
+- **AND** the `rotate_z_m_epoch` params struct SHALL contain ONLY `stride` and `npoints` (no `m_offset`, no `direction`) because both are resolved host-side before dispatch. Per-point thetas are passed in a separate data buffer at `[[buffer(2)]]`, NOT via the constant params buffer
