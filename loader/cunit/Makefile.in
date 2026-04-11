@@ -98,8 +98,17 @@ $(LOADER_OBJS):
 all: cu_tester
 
 # Build and run the unit tester
+#
+# Invoke via libtool --mode=execute so the libtool wrapper script (used on
+# mingw/MSYS2 where libtool may produce a #!/bin/sh wrapper around
+# .libs/cu_tester.exe instead of a direct binary) is resolved correctly.
+# Running `./cu_tester` directly on mingw was flaky -- sometimes libtool
+# produced a direct binary and the invocation worked, sometimes it produced
+# a wrapper script that failed with exit 127 during shell-in-shell
+# invocation, producing non-deterministic CI failures. This matches the
+# pattern already used by liblwgeom/cunit and postgis/cunit.
 check: cu_tester
-	@./cu_tester
+	@$(LIBTOOL) --mode=execute ./cu_tester
 
 endif
 
