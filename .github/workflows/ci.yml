@@ -32,12 +32,18 @@ jobs:
         #- { tag: pg13-geos39-gdal31-proj71, mode: coverage }
         #- { tag: pg13-geos39-gdal31-proj71, mode: usan_gcc }
         #- { tag: pg14-clang-geos39-gdal31-proj71, mode: usan_clang }
-        # Run tests with different dependency combinations
-        # latest uses bleeding-edge PG/GEOS; topology crash in
-        # droptopogeometrycolumn is an upstream bug (zero topology
-        # changes in our fork). Allow failures so it doesn't block CI.
-        - { tag: latest, mode: tests, continue_on_error: true }
-        - { tag: latest, mode: garden, continue_on_error: true }
+        # Run tests with different dependency combinations.
+        # "latest" uses bleeding-edge PG/GEOS master. The topology
+        # crash in droptopogeometrycolumn that previously required
+        # continue_on_error was an upstream PG bug in
+        # ri_FastPathTeardown (nested C-level SPI + immediate FK
+        # constraints hit rd_refcnt > 0 assertion), resolved upstream
+        # by PostgreSQL commit 34a3078629 "Fix RI fast-path crash
+        # under nested C-level SPI" (Amit Langote, 2026-04-10).
+        # See openspec change remove-topology-fk-workaround for the
+        # full investigation and verification.
+        - { tag: latest, mode: tests }
+        - { tag: latest, mode: garden }
 
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.ci.continue_on_error || false }}
