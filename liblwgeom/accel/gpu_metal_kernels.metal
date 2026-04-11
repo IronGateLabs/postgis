@@ -64,8 +64,6 @@ struct RotateZMEpochParams
 {
 	uint stride;
 	uint npoints;
-	uint m_offset;
-	int  direction;
 };
 
 struct RadConvertParams
@@ -76,41 +74,31 @@ struct RadConvertParams
 };
 
 /*
- * Inline helper: compute Earth Rotation Angle (reduced to [0, 2*PI))
- * from a decimal-year epoch.
+ * WHY there is no ERA computation in this file
+ * ---------------------------------------------
+ * An earlier version of this kernel computed the Earth Rotation Angle
+ * inline on the GPU from each point's M-epoch (decimal year). That
+ * produced ~900m to ~900km of positional error because float32 cannot
+ * represent modern-year epochs precisely enough:
  *
- * Implementation notes (float32 precision):
+ *   float32 ULP at 2025       ~= 1.22e-4 year
+ *   Du error from 1 ULP       ~= 0.022 days
+ *   ERA error (* 2*pi * 1.00) ~= 0.138 rad
+ *   Position error (* 6.4e6)  ~= 880,000 m  (!)
  *
- * 1. We compute Du (days since J2000) directly from the epoch via
- *    Du = (epoch - 2000) * 365.25, WITHOUT going through an
- *    intermediate Julian Date value. JD = 2451545 + Du is around
- *    2.45e6, and float32 at that magnitude has ULP ~0.25. Computing
- *    JD and then subtracting 2451545 back out loses precision
- *    unnecessarily. Going straight from epoch to Du keeps the value
- *    small (~9000 for modern epochs) where float32 precision is fine.
+ * The precision is lost at the double->float boundary BEFORE the
+ * kernel sees the value -- fmod'ing after the fact does nothing.
  *
- * 2. We reduce the raw ERA modulo 2*PI BEFORE returning. For modern
- *    epochs the raw ERA is tens of thousands of radians (thousands of
- *    full rotations). Metal's cos()/sin() on such large arguments
- *    perform internal range reduction in float arithmetic, which
- *    accumulates catastrophic error -- enough to produce ~1000x
- *    worse results than the float32 ULP would suggest. fmod'ing to
- *    [0, 2*PI) first keeps cos/sin in the regime where they are
- *    accurate to ~1 ULP.
+ * Fix: the host (gpu_metal.m) now precomputes per-point theta in
+ * double precision using lweci_epoch_to_jd / lweci_earth_rotation_angle,
+ * applies the direction sign, reduces modulo 2*pi, and only then
+ * narrows to float. The kernel receives ready-to-use float thetas
+ * via a separate input buffer at [[buffer(2)]].
  *
- * This correction restores rotate_z_m_epoch correctness; prior to
- * the fix, test_metal_rotate_z_m_epoch showed 8.95e+05 meters of
- * error (895 km -- random-noise from cos/sin on huge arguments)
- * instead of the ~1 m expected from float32 ULP at Earth scale.
+ * After reduction, theta is in [0, 2*pi) where float32 ULP is ~7e-7.
+ * That gives sub-meter absolute error at Earth scale after rotation --
+ * matching the FP32_ONLY precision contract (~1-2 m worst case).
  */
-static inline float
-gpu_earth_rotation_angle(float epoch)
-{
-	float Du = (epoch - 2000.0f) * 365.25f;
-	float era = 2.0f * M_PI_F * (0.7790572732640f + 1.00273781191135448f * Du);
-	float two_pi = 2.0f * M_PI_F;
-	return fmod(era, two_pi);
-}
 
 /**
  * Uniform-angle Z-rotation kernel.
@@ -133,20 +121,28 @@ kernel void rotate_z_uniform(device float          *data    [[buffer(0)]],
 
 /**
  * Per-point M-epoch Z-rotation kernel.
- * Each thread reads its epoch from the M coordinate, computes the
- * Earth Rotation Angle, and applies Z-rotation.
+ *
+ * The host (gpu_metal.m) precomputes per-point rotation angles in
+ * double precision from each point's M-epoch (including direction
+ * sign and mod-2*pi reduction), then narrows to float. Each thread
+ * reads its pre-reduced theta from the thetas buffer and applies
+ * a Z-rotation to the corresponding point.
+ *
+ * The thetas buffer contains `params.npoints` floats, one per point.
+ * Because theta is pre-reduced to [-2*pi, 2*pi), cos()/sin() operate
+ * in their accurate regime (~1 ULP) rather than the catastrophic
+ * large-argument regime that ruined the earlier inline-ERA version.
  */
 kernel void rotate_z_m_epoch(device float                *data   [[buffer(0)]],
                              constant RotateZMEpochParams &params [[buffer(1)]],
+                             device const float          *thetas [[buffer(2)]],
                              uint id [[thread_position_in_grid]])
 {
 	if (id >= params.npoints)
 		return;
 
 	uint base = id * params.stride;
-	float epoch = data[base + params.m_offset];
-	float era = gpu_earth_rotation_angle(epoch);
-	float theta = era * float(params.direction);
+	float theta = thetas[id];
 
 	float cos_t = cos(theta);
 	float sin_t = sin(theta);

@@ -44,8 +44,6 @@ struct RotateZMEpochParams
 {
 	uint32_t stride;
 	uint32_t npoints;
-	uint32_t m_offset;
-	int32_t  direction;
 };
 
 /*
@@ -354,10 +352,46 @@ lwgpu_metal_rotate_z(double *data, size_t stride, uint32_t n, double theta)
 	return 1;
 }
 
+/*
+ * Host-side ERA helpers (inlined from lwgeom_eci.c to avoid pulling
+ * liblwgeom.h into the Objective-C translation unit). Both functions
+ * operate in double precision; the caller narrows to float AFTER the
+ * mod-2*pi reduction so that only the reduced angle (which fits
+ * comfortably in float32) crosses the host/GPU boundary.
+ */
+static inline double
+metal_epoch_to_jd(double decimal_year)
+{
+	return 2451545.0 + (decimal_year - 2000.0) * 365.25;
+}
+
+static inline double
+metal_earth_rotation_angle(double jd)
+{
+	double Du = jd - 2451545.0;
+	double era = 2.0 * M_PI * (0.7790572732640 + 1.00273781191135448 * Du);
+	era = fmod(era, 2.0 * M_PI);
+	if (era < 0.0)
+		era += 2.0 * M_PI;
+	return era;
+}
+
 /**
  * Per-point M-epoch Z-rotation on GPU via Metal.
  *
- * @param data     Pointer to interleaved xyzm data
+ * CRITICAL precision fix: per-point theta is computed HERE in double
+ * precision (via metal_epoch_to_jd + metal_earth_rotation_angle +
+ * mod-2*pi reduction + direction sign), and ONLY THEN narrowed to
+ * float before crossing the host/GPU boundary. This avoids the
+ * double->float conversion of the raw epoch value, which loses
+ * ~1e-4 year of precision -> ~900 km of positional error at Earth
+ * radius after the kernel applies the ERA formula (see
+ * gpu_metal_kernels.metal for the precision analysis).
+ *
+ * The kernel (rotate_z_m_epoch) now receives pre-reduced float
+ * thetas in a separate input buffer at [[buffer(2)]].
+ *
+ * @param data     Pointer to interleaved xyzm data (doubles)
  * @param stride   Byte stride between consecutive points
  * @param n        Number of points
  * @param m_off    Offset of M coordinate in doubles from point start
@@ -376,30 +410,112 @@ lwgpu_metal_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
 		uint32_t stride_doubles = (uint32_t)(stride / sizeof(double));
 		size_t total_doubles = (size_t)n * stride_doubles;
 
-		/* Convert double -> float for Metal */
+		/* Convert double coordinate data -> float for Metal */
 		float *fdata = metal_doubles_to_floats(data, total_doubles);
 		if (!fdata)
 			return 0;
-
 		size_t fdata_len = total_doubles * sizeof(float);
 
-		struct RotateZMEpochParams params;
-		params.stride = stride_doubles;
-		params.npoints = n;
-		params.m_offset = (uint32_t)m_off;
-		params.direction = (int32_t)dir;
-
-		if (!metal_dispatch_kernel(mtl_pipeline_rotate_z_m_epoch,
-					   fdata, fdata_len,
-					   &params, sizeof(params),
-					   n, "rotate_z_m_epoch"))
+		/*
+		 * Pre-compute per-point thetas in double precision from the
+		 * original (double) epoch values, then narrow each reduced
+		 * angle to float. Float32 at a mod-2*pi value (in [0, 2*pi))
+		 * has ULP ~7e-7, giving sub-meter positional error after
+		 * rotation at Earth scale -- well within the FP32_ONLY
+		 * precision contract.
+		 */
+		float *thetas = malloc((size_t)n * sizeof(float));
+		if (!thetas)
 		{
 			free(fdata);
 			return 0;
 		}
+		for (uint32_t p = 0; p < n; p++)
+		{
+			double epoch = data[(size_t)p * stride_doubles + m_off];
+			double jd = metal_epoch_to_jd(epoch);
+			double era = metal_earth_rotation_angle(jd);
+			double theta = (double)dir * era;
+			thetas[p] = (float)theta;
+		}
+		size_t thetas_len = (size_t)n * sizeof(float);
+
+		struct RotateZMEpochParams params;
+		params.stride = stride_doubles;
+		params.npoints = n;
+
+		/*
+		 * Inline 3-buffer dispatch (data, params, thetas). The shared
+		 * metal_dispatch_kernel() helper only supports the 2-buffer
+		 * pattern used by rotate_z_uniform; this 3-buffer dispatch is
+		 * specific to rotate_z_m_epoch.
+		 */
+		id<MTLBuffer> data_buf = [mtl_device newBufferWithBytes:fdata
+								 length:fdata_len
+								options:MTLResourceStorageModeShared];
+		id<MTLBuffer> params_buf = [mtl_device newBufferWithBytes:&params
+								   length:sizeof(params)
+								  options:MTLResourceStorageModeShared];
+		id<MTLBuffer> thetas_buf = [mtl_device newBufferWithBytes:thetas
+								   length:thetas_len
+								  options:MTLResourceStorageModeShared];
+		if (!data_buf || !params_buf || !thetas_buf)
+		{
+			lwnotice("Metal: failed to create buffer for rotate_z_m_epoch");
+			metal_disabled = 1;
+			free(thetas);
+			free(fdata);
+			return 0;
+		}
+
+		id<MTLCommandBuffer> cmd_buf = [mtl_queue commandBuffer];
+		id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
+		if (!cmd_buf || !encoder)
+		{
+			lwnotice("Metal: failed to create command buffer/encoder for "
+				 "rotate_z_m_epoch");
+			metal_disabled = 1;
+			free(thetas);
+			free(fdata);
+			return 0;
+		}
+
+		[encoder setComputePipelineState:mtl_pipeline_rotate_z_m_epoch];
+		[encoder setBuffer:data_buf offset:0 atIndex:0];
+		[encoder setBuffer:params_buf offset:0 atIndex:1];
+		[encoder setBuffer:thetas_buf offset:0 atIndex:2];
+
+		NSUInteger tg_size = METAL_THREADGROUP_SIZE;
+		NSUInteger max_tg =
+		    [mtl_pipeline_rotate_z_m_epoch maxTotalThreadsPerThreadgroup];
+		if (tg_size > max_tg)
+			tg_size = max_tg;
+
+		[encoder dispatchThreads:MTLSizeMake(n, 1, 1)
+		    threadsPerThreadgroup:MTLSizeMake(tg_size, 1, 1)];
+		[encoder endEncoding];
+
+		[cmd_buf commit];
+		[cmd_buf waitUntilCompleted];
+
+		if ([cmd_buf status] == MTLCommandBufferStatusError)
+		{
+			NSError *cb_error = [cmd_buf error];
+			lwnotice("Metal: command buffer error in rotate_z_m_epoch: %s",
+				 cb_error ? [[cb_error localizedDescription] UTF8String]
+					  : "unknown");
+			metal_disabled = 1;
+			free(thetas);
+			free(fdata);
+			return 0;
+		}
+
+		/* Copy GPU results back into the caller's float buffer */
+		memcpy(fdata, [data_buf contents], fdata_len);
 
 		/* Convert float results back to double */
 		metal_floats_to_doubles(data, fdata, total_doubles);
+		free(thetas);
 		free(fdata);
 	}
 
