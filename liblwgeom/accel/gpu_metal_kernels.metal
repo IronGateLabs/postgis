@@ -6,12 +6,42 @@
  * Metal Shading Language compute kernels for batch coordinate
  * transforms on Apple Silicon GPUs.
  *
- * NOTE: Metal does not support double precision. All computation
- * uses float (32-bit). The host side (gpu_metal.m) converts
- * double -> float before dispatch and float -> double after.
- * This trades precision (~7 decimal digits vs ~15) for GPU
- * acceleration. For coordinate transforms the precision loss
- * is sub-millimeter at Earth scale.
+ * PRECISION CONTRACT (FP32_ONLY backend class)
+ * ---------------------------------------------
+ * Apple Silicon GPU shader cores have NO 64-bit floating-point
+ * ALUs. This is a hardware constraint, not a software choice.
+ * Metal Shading Language does not expose `double` as a compute
+ * type in any version, on any Apple GPU generation (M1-M4, all
+ * A-series). All kernel arithmetic is 32-bit float.
+ *
+ * The host-side bridge (gpu_metal.m) converts the caller's
+ * double* buffer to float* before dispatch, and back to double*
+ * after. Expected absolute error at Earth-scale ECEF coordinates
+ * (magnitudes ~6.4e6 m):
+ *
+ *   1 ULP of float32 at 6.4e6  =  6.4e6 * 2^-23  ~=  0.76 m
+ *   After rotation (cos+sin+mul+add)             ~=  1-2 m
+ *
+ * Earlier iterations of this file claimed "sub-millimeter at
+ * Earth scale". That claim was wrong by three orders of magnitude
+ * and has been corrected. See:
+ *   - openspec/changes/apple-metal-gpu-backend/design.md Decision 8 & 9
+ *   - openspec/changes/apple-metal-gpu-backend/specs/metal-compute-kernels/spec.md
+ *     (FP32_ONLY precision class and scale-relative error bounds)
+ *
+ * Dispatch is GATED per-operation in lwgeom_accel.c so the
+ * precision tradeoff is only taken where it is acceptable:
+ *
+ *   - rotate_z_uniform   : always SKIPPED (NEON is faster anyway)
+ *   - rad_convert        : always SKIPPED (NEON is faster anyway)
+ *   - rotate_z_m_epoch   : dispatched at 50K+ points (5x the
+ *                          PCIe-GPU threshold) when the compute
+ *                          cost amortizes Metal launch overhead
+ *
+ * Users needing sub-meter precision on Apple Silicon should
+ * either rely on NEON (always used for rotate_z_uniform and
+ * rad_convert) or set postgis.gpu_dispatch_threshold = 0 to
+ * disable all GPU dispatch.
  *
  **********************************************************************/
 
