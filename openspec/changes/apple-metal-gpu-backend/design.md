@@ -15,19 +15,21 @@ Each backend follows an identical pattern: `lwgpu_<backend>_init()`, `lwgpu_<bac
 
 **Goals:**
 - Add an Apple Metal GPU compute backend to `lwgeom_gpu.h` that follows the existing CUDA/ROCm/oneAPI pattern
-- Exploit unified memory (zero-copy buffer sharing) to lower the GPU dispatch threshold on Apple Silicon
+- Exploit unified memory (zero-copy buffer sharing) to reduce dispatch overhead on Apple Silicon
 - Compile Metal shaders at build time (`.metal` -> `.air` -> `.metallib`) using Xcode toolchain
 - Detect Metal availability via `configure.ac` on `darwin*` hosts only; all other platforms unaffected
 - Provide `rotate_z_uniform`, `rotate_z_m_epoch`, and `rad_convert` Metal compute kernels
 - Fall back silently to NEON SIMD if Metal initialization fails or device is unavailable
-- Maintain bit-identical results (within double-precision tolerance) across Metal, NEON, and scalar paths
+- **Produce bounded-error results on Metal with a documented, user-visible precision contract.** Metal is the `FP32_ONLY` precision class (see Decision 9 below). Absolute error on Earth-scale ECEF coordinates (~6.4e6 m) is bounded to ≤2 m. Bit-identical equivalence to scalar/NEON/CUDA is **explicitly not a goal for Metal** because Apple GPU hardware cannot represent fp64.
+- Gate Metal dispatch per operation so the float32 precision tradeoff is only taken when it is acceptable for the operation's domain
 
 **Non-Goals:**
 - Supporting Metal on iOS, iPadOS, or visionOS (macOS only)
 - Implementing spatial index operations (R-tree, GiST) on Metal
-- Adding float32 fast-path kernels (coordinate transforms require double precision for geodetic accuracy)
 - Supporting Vulkan compute as a cross-platform alternative
 - Modifying PG-Strom integration (PG-Strom is CUDA-only)
+- Implementing software double-precision emulation on Metal (double-single / df64 arithmetic). Possible future change if sub-meter precision on Apple GPUs becomes a requirement; not in scope here.
+- Retrofitting existing CUDA/ROCm/oneAPI backends with precision classification annotations. They are all `FP64_NATIVE` by construction; the classification is introduced solely to document the Metal tradeoff.
 
 ## Decisions
 
@@ -138,11 +140,59 @@ Thread dispatch: use `dispatchThreads:threadsPerThreadgroup:` with threadgroup s
 
 **Rationale:** GPU errors must never crash the PostgreSQL backend. The CUDA backend already returns 0 on failure (e.g., `cudaMalloc` failure triggers `goto cleanup` returning 0). Metal follows the same convention. The NOTICE log helps debugging without disrupting query execution.
 
-### Decision 8: Double precision on Metal
+### Decision 8: Float32 precision on Metal (revised)
 
-**Choice:** Use `double` (64-bit) throughout all Metal kernels. Metal Shading Language supports `double` natively on Apple Silicon GPUs (M1+). While double throughput is lower than float on Apple GPUs (typically 1/2 to 1/4 the float rate), geodetic coordinate transforms require double precision (float32 introduces ~1 meter error at planetary scale). The performance gap vs NEON is still favorable at high point counts due to massive parallelism.
+**Original (incorrect) position:** An earlier draft of this design specified `double` (64-bit) throughout all Metal kernels, claiming "Metal Shading Language supports `double` natively on Apple Silicon GPUs (M1+)". **That claim is factually wrong.** Apple GPU shader cores have no fp64 floating-point ALUs in any generation (M1 through M4, all A-series), and MSL does not expose `double` as a compute type in any version. The original rationale was based on a misreading of Apple documentation and has been superseded.
 
-**Rationale:** The existing CUDA and ROCm kernels use `double` exclusively. Introducing a float32 fast-path would require precision analysis and qualification for each use case, adding scope without clear benefit. M-series GPUs have sufficient double throughput for the target workload (coordinate transforms, not linear algebra).
+**Choice:** Use `float` (32-bit) throughout all Metal kernels. The host-side bridge (`gpu_metal.m`) converts `double*` input buffers to `float*` before dispatch and back to `double*` after. The kernel params structs pass `float` scalars (`cos_t`, `sin_t`, `scale`). The kernel source uses `device float *data` as the buffer type.
+
+**Precision cost:** At Earth-scale ECEF coordinates (magnitudes ~6.4e6 meters), 1 ULP of float32 is `6.4e6 × 2⁻²³ ≈ 0.76 meters`. After a compute-heavy operation (cos + sin + multiply + add), accumulated error is on the order of 1–2 ULPs, i.e. **approximately 1–1.5 meters absolute** at Earth scale. Relative error is bounded at ~2.3e-7.
+
+**Rationale:**
+1. There is no alternative. Metal on Apple Silicon is float-only at the hardware level. We either ship float32 or we ship nothing for Apple GPU acceleration.
+2. Dispatch gating (see Decision 6 and the `effective_gpu_threshold()` + operation-based routing in `lwgeom_accel.c`) ensures Metal is only invoked for operations and point counts where the float32 precision is acceptable given the throughput gain.
+3. The precision contract is formalized in the `metal-compute-kernels` capability spec, not buried in code comments, so users can reason about it.
+4. Future precision-sensitive Metal operations can either (a) opt out of Metal dispatch entirely, or (b) use a precision-preserving technique such as local origin translation or double-single (df64) arithmetic, as a separate follow-up change.
+
+**Implementation invariants:**
+- Every `double` value entering a Metal kernel is converted to `float` at the C/Obj-C boundary, not inside MSL.
+- Every `float` value exiting a Metal kernel is converted back to `double` at the C/Obj-C boundary.
+- Params struct layouts in the kernel source use `float` for scalar math and `uint`/`int` for indices and stride.
+- Host-side tests (`cu_metal.c`) use scale-relative tolerances (`max_coord × 1e-6`) reflecting the float32 contract, NOT the 1e-10 or 1e-15 tolerances appropriate for fp64 backends.
+
+**Alternatives considered:**
+- **(A) Skip Metal entirely.** Rejected — forgoes Apple Silicon GPU acceleration with no mitigation for users who would accept the precision tradeoff.
+- **(B) Double-single (df64) arithmetic emulation in the kernel.** Represent each double as `(hi, lo)` pair of floats, implement add/multiply/sin/cos as compensated sequences. Viable for restoring ~fp64 precision at ~4x slowdown vs raw float32. Rejected for this change as out of scope; listed as future work if demand arises.
+- **(C) Local origin translation.** Subtract a reference point before dispatch, translate back after. Cheap and effective when input points are spatially clustered, but requires bookkeeping in the dispatch layer and does not help for globally-distributed inputs. Deferred as a potential optimization for specific operations.
+
+### Decision 9: GPU backend precision classification (new)
+
+**Choice:** Introduce a two-class precision model for GPU backends:
+
+- **`FP64_NATIVE`** — Hardware has fp64 ALUs. Kernels compute in double precision. Output is bit-identical to the scalar reference within fp64 rounding. No scale-dependent precision loss. This class includes: **NEON**, **scalar**, **CUDA**, **ROCm/HIP**, **oneAPI** (on fp64-capable devices), and any future fp64-capable backend.
+- **`FP32_ONLY`** — Hardware has only fp32 ALUs, or the API does not expose fp64 compute. Kernels compute in single precision. Output has bounded absolute error proportional to input magnitude. Scale-dependent precision loss is documented per-backend. This class includes: **Metal** (all Apple Silicon), and potentially future mobile/embedded GPU backends with similar constraints.
+
+The classification is not represented by a runtime enum in the current implementation — it lives in the spec and design documentation because it affects dispatch policy, not runtime code. A future change may promote it to a runtime attribute on each backend if a generic safety guard is needed.
+
+**Rationale:** Introducing this classification:
+1. **Names the problem.** Instead of burying the Metal float32 tradeoff in a comment inside the kernel source, the distinction is visible in the GPU abstraction's design contract.
+2. **Guides dispatch policy.** The dispatch layer treats `FP64_NATIVE` backends as drop-in replacements for the scalar reference (any operation is safe) and `FP32_ONLY` backends as opt-in per operation (each addition requires precision review).
+3. **Reviewable contract.** When a future reviewer asks "what precision does this backend guarantee?", the answer is the backend's precision class plus the per-class contract in the spec, not a case-by-case archaeology exercise.
+4. **Extensible.** If a future backend needs a third class (e.g., "configurable precision" for backends that expose both fp32 and fp64 via a runtime flag), the classification can be extended without restructuring the docs.
+
+**Per-class contracts:**
+
+| Class        | Absolute error bound                                | Equivalence to scalar       | Dispatch policy                        |
+|--------------|-----------------------------------------------------|-----------------------------|----------------------------------------|
+| FP64_NATIVE  | ≤ fp64 ULP of each operand (typically ≪ 1 mm)       | Bit-identical within rounding | Safe for all operations; gated by throughput threshold only |
+| FP32_ONLY    | ≤ `max_coord × 1e-6` (~6 m at Earth scale, ~1 m typical) | NOT bit-identical             | Opt-in per operation; requires precision review before adding |
+
+**Test tolerance invariant:** Regression and CUnit tests that compare a backend's output to the scalar reference SHALL use a tolerance appropriate to the backend's precision class. `FP64_NATIVE` tests use `1e-10` (or tighter) absolute tolerance. `FP32_ONLY` tests use `max_coord × 1e-6` scale-relative tolerance. This invariant is checked manually during code review; the build system does not enforce it mechanically.
+
+**Alternatives considered:**
+- **(A) No classification; document Metal as a one-off exception.** Rejected — creates a footgun for future backends. The next person adding a "mobile GPU" backend (e.g., a hypothetical WebGPU path, or an embedded Vulkan compute variant on devices with no fp64) would have no framework to articulate the same tradeoff.
+- **(B) Runtime enum with per-backend precision query function.** Overkill for the current need. Defer until a generic safety guard actually needs it.
+- **(C) Three-class model (`FP64_NATIVE`, `FP32_ONLY`, `MIXED`).** Premature. The two-class model covers all current and near-term backends. Add the third class when a real use case appears.
 
 ## Benchmark Results
 
@@ -186,7 +236,9 @@ Metal loses to NEON at all point counts. This is pure memory bandwidth with mini
 
 - **[Risk] `newBufferWithBytesNoCopy` alignment requirements** -- Metal requires page-aligned pointers and page-multiple lengths for zero-copy buffers. PostGIS `POINTARRAY` memory comes from PostgreSQL's `palloc`, which may not be page-aligned. Mitigation: attempt zero-copy first; if alignment check fails, fall back to `newBufferWithBytes` (which copies). Log a DEBUG message when copying so users can optimize if needed.
 
-- **[Risk] Metal double-precision throughput variability** -- Different M-series generations have different double throughput. M1 has lower double performance than M3/M4. The auto-calibration threshold handles this, but early M1 hardware may see the threshold pushed high enough that Metal provides little benefit over NEON. Mitigation: auto-calibration adapts per-device; document expected performance tiers in the benchmark results.
+- **[Risk] Float32 precision at Earth scale** -- Metal kernels operate in 32-bit float because Apple GPU shader cores have no fp64 hardware. At Earth-scale ECEF coordinates (6.4×10⁶ m), 1 ULP of float32 is ~0.76 m, so rotation output has ~1–2 m absolute error. This is acceptable for satellite ephemeris, astronomy, and coarse-resolution mapping but NOT acceptable for surveying, property boundaries, or other sub-meter-precision applications. **Mitigation (already implemented):** operation-based dispatch gating in `lwgeom_accel.c` — `rotate_z_uniform` and `rad_convert` always skip Metal (NEON is faster anyway, so there is no throughput reason to take the precision loss); only `rotate_z_m_epoch` dispatches to Metal, and only at 50K+ points where the compute cost amortizes dispatch overhead. **Mitigation (user-facing):** precision contract documented in `proposal.md` and formalized as the `FP32_ONLY` backend class in Decision 9. Users needing stricter guarantees can set `postgis.gpu_dispatch_threshold = 0` to disable all GPU dispatch.
+
+- **[Risk] Metal throughput variability across generations** -- Different M-series generations have different float throughput and memory bandwidth. M1 has lower sustained float throughput than M3/M4. The auto-calibration threshold handles this, but early M1 hardware may see the threshold pushed high enough that Metal provides little benefit over NEON. Mitigation: auto-calibration adapts per-device; document expected performance tiers in the benchmark results.
 
 - **[Risk] Xcode Command Line Tools required** -- Building with Metal support requires `xcrun metal` and `xcrun metallib`, which come from Xcode Command Line Tools (~1.5 GB). Mitigation: Metal is optional (`--without-metal`); detection is auto with graceful skip. Document the dependency clearly.
 

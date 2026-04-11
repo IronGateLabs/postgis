@@ -35,19 +35,19 @@
 ## 4. Metal Compute Kernels -- gpu_metal_kernels.metal
 
 - [x] 4.1 Create `liblwgeom/accel/gpu_metal_kernels.metal` with Metal Shading Language header and `#include <metal_stdlib>`
-- [x] 4.2 Define `RotateZParams` constant struct: `uint stride_doubles`, `uint npoints`, `double cos_t`, `double sin_t`
+- [x] 4.2 Define `RotateZParams` constant struct: `uint stride`, `uint npoints`, `float cos_t`, `float sin_t` (float, not double — see design.md Decision 8 for the FP32_ONLY precision rationale)
 - [x] 4.3 Implement `rotate_z_uniform` kernel: read params from `[[buffer(1)]]`, compute point index from `thread_position_in_grid`, bounds check, read x/y at stride offset, apply 2x2 rotation with `cos_t`/`sin_t`, write back in-place
-- [x] 4.4 Define `RotateZMEpochParams` constant struct: `uint stride_doubles`, `uint npoints`, `uint m_offset`, `int direction`
+- [x] 4.4 Define `RotateZMEpochParams` constant struct: `uint stride`, `uint npoints`, `uint m_offset`, `int direction` (all integer/stride fields; per-point epoch is read from the buffer as `float`)
 - [x] 4.5 Implement inline `gpu_epoch_to_jd()` and `gpu_earth_rotation_angle()` functions using identical formulas to `gpu_cuda.cu` (JD: `2451545.0 + (epoch - 2000.0) * 365.25`, ERA: `2.0 * M_PI * (0.7790572732640 + 1.00273781191135448 * Du)`)
 - [x] 4.6 Implement `rotate_z_m_epoch` kernel: read epoch from M offset, compute JD/ERA, apply Z-rotation per-thread
-- [x] 4.7 Define `RadConvertParams` constant struct: `uint stride_doubles`, `uint npoints`, `double scale`
+- [x] 4.7 Define `RadConvertParams` constant struct: `uint stride`, `uint npoints`, `float scale` (float, not double — FP32_ONLY precision class)
 - [x] 4.8 Implement `rad_convert` kernel: multiply x and y by scale factor, write back in-place
 
 ## 5. Testing and Benchmarking
 
 - [x] 5.1 Add Metal backend to the existing `liblwgeom/bench/bench_accel.c` benchmark harness: detect Metal availability, run `rotate_z` and `rad_convert` benchmarks at 1K, 10K, 100K, 1M, 10M point counts
 - [x] 5.2 Add Metal vs NEON comparison output to the benchmark CSV and text-mode chart
-- [x] 5.3 Add `--validate` mode for Metal: compare Metal output against scalar reference for all three kernels, fail if max absolute difference > 1e-10
+- [x] 5.3 Add `--validate` mode for Metal: compare Metal output against scalar reference for all three kernels, fail if max absolute difference > `max_coord * 1e-6` (scale-relative tolerance reflecting the FP32_ONLY precision contract; for Earth-scale ECEF this is approximately 6 meters worst-case, typically 1–2 meters). Do NOT use the 1e-10 tolerance that would be appropriate for an FP64_NATIVE backend — that tolerance is physically impossible for float32 kernels operating on 6.4e6-scale coordinates (1 ULP is ~0.8 meters).
 - [x] 5.4 Add CUnit test for Metal initialization: verify `lwgpu_metal_init()` succeeds on macOS with Metal, returns 0 on non-Metal systems
 - [x] 5.5 Add CUnit test for Metal Z-rotation correctness: generate known-answer test vectors, compare Metal output to scalar
 - [x] 5.6 Add CUnit test for Metal M-epoch rotation correctness: verify ERA computation matches CPU implementation

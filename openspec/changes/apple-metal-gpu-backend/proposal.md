@@ -112,8 +112,45 @@ All Metal code is strictly conditional:
 - **Core libraries**: `liblwgeom/lwgeom_gpu.h` gains `LW_GPU_METAL` enum value and Metal function declarations; `liblwgeom/lwgeom_gpu.c` gains Metal dispatch branches; new `liblwgeom/accel/gpu_metal.m` and `liblwgeom/accel/gpu_metal_kernels.metal`
 - **Dependencies**: Optional: Xcode Command Line Tools (provides Metal compiler, Metal framework headers). Only on macOS.
 - **CI**: macOS CI runners can test the Metal backend; other platforms unaffected
-- **Regression**: All existing tests must produce bit-identical results regardless of whether Metal, NEON, or scalar path is used
+- **Precision contract**: See *Precision Contract* below. Metal is the only backend that is NOT bit-identical to scalar/NEON — it uses float32 because Apple GPU shader cores physically lack fp64 ALUs. CUDA, ROCm, and oneAPI all use fp64 and match scalar exactly.
 - **Configure summary output**: New line `Metal (xcrun):        ${HAVE_METAL}` in the acceleration section
+
+## Precision Contract
+
+**Apple Silicon GPU shader cores have no 64-bit floating-point ALUs.** This is a hardware constraint, not a software choice. Metal Shading Language does not expose `double` as a compute type in any version, on any Apple GPU generation (M1, M2, M3, M4, A-series). All compute on Apple GPUs is 32-bit float.
+
+### Backend precision classification
+
+To make this visible in the GPU abstraction, this change introduces a two-class precision model for GPU backends:
+
+- **`FP64_NATIVE`** — CUDA, ROCm, oneAPI, NEON, scalar. Hardware supports fp64 compute. Output is bit-identical to the scalar reference within fp64 rounding. Dispatch is safe for all operations regardless of precision requirements.
+- **`FP32_ONLY`** — Metal. Hardware does not support fp64 compute. Kernels operate in float32. Output has bounded absolute error proportional to input magnitude. Dispatch is restricted to operations where the precision cost is acceptable for the application domain.
+
+### Measured Metal precision
+
+For Earth-scale ECEF coordinates (magnitudes up to `~6.4e6` meters):
+
+| Operation                   | Worst-case absolute error | Relative error |
+|-----------------------------|---------------------------|----------------|
+| `rotate_z_uniform`          | ~1.5 m                    | ~2.3e-7        |
+| `rotate_z_m_epoch`          | ~1.5 m                    | ~2.3e-7        |
+| `rad_convert`               | ~0.8 m                    | ~1.2e-7        |
+
+These values are consistent with `max_coord × 2⁻²³` (1 ULP of float32) compounded across a small number of float ops. The absolute error is **approximately 1 meter at Earth scale** — NOT sub-millimeter as an earlier iteration of this spec incorrectly claimed.
+
+### Dispatch gating (user-facing safety)
+
+Because Metal is `FP32_ONLY`, dispatch is **not automatic** for all operations. The dispatch rules in `lwgeom_accel.c` implement operation-based routing:
+
+1. **`rotate_z_uniform`** — Metal dispatch is **always skipped** for this operation. NEON is faster anyway on Apple Silicon (confirmed by benchmarks), so there is no throughput motivation, and the precision loss is avoided entirely.
+2. **`rotate_z_m_epoch`** — Metal dispatch is gated by a **5x threshold multiplier** (default 50K points vs 10K for PCIe GPUs). This operation is the primary Metal use case because the per-point compute (Julian Date + Earth Rotation Angle + sin/cos) amortizes Metal dispatch overhead. Intended for satellite tracking, astronomy, and other applications where ~1m precision at Earth radius is acceptable.
+3. **`rad_convert`** — Metal dispatch is **always skipped**. Like `rotate_z_uniform`, NEON is faster and the precision loss is unnecessary.
+
+### What this means for users
+
+- Applications needing **sub-meter precision** at Earth scale (property boundaries, surveying, civil engineering) will see no Metal dispatch for the currently-implemented operations, and should expect NEON or scalar throughput. The `postgis.gpu_dispatch_threshold` GUC can be set to 0 to disable all GPU dispatch if stricter guarantees are needed.
+- Applications tolerating **meter-level precision** at Earth scale (satellite ephemeris conversion, large-scale thematic mapping, coarse-resolution remote sensing) see Metal dispatch for `rotate_z_m_epoch` at 50K+ points, with measured 2.4x speedup over NEON at 500K points.
+- Future Metal-dispatched operations will be added ONLY when the precision contract is either acceptable for the operation's domain, OR when a precision-preserving implementation (e.g., local origin translation, double-single arithmetic) is provided.
 
 ## Capabilities
 
@@ -124,8 +161,13 @@ All Metal code is strictly conditional:
 - `gpu-transform-dispatch`: GPU dispatch layer gains a fourth backend (Metal) with auto-detection on macOS and GUC-selectable override
 - `simd-transform-acceleration`: On Apple Silicon, the acceleration stack now has two tiers -- NEON SIMD for small arrays and Metal GPU for large arrays -- with auto-calibrated threshold selection
 
+## Resolved Questions
+
+1. **Double precision on Metal** — *Resolved*: Metal Shading Language does not expose `double` as a compute type, and Apple GPU shader cores have no fp64 hardware. This is a fixed hardware constraint confirmed by inspecting Apple's Metal documentation and the MSL specification. The original version of this proposal incorrectly claimed MSL supports `double` on M1+; it does not. Kernels use `float` (32-bit) throughout, and the precision tradeoff is documented in the *Precision Contract* section above. Dispatch is gated per-operation so the tradeoff is only taken when it is acceptable.
+2. **Threshold tuning** — *Resolved*: The `effective_gpu_threshold()` helper in `lwgeom_accel.c` applies a 5x multiplier for Metal (default 10K → 50K for Metal). Benchmarks on A18 Pro confirmed this as the correct crossover point for `rotate_z_m_epoch`. Auto-calibration at `lwaccel_calibrate_gpu()` remains the authoritative mechanism for per-device tuning.
+3. **Embedded vs external metallib** — *Resolved*: Embedded as a C byte array via `xxd -i` at build time. This eliminates runtime file-path resolution and matches the CUDA backend's approach of compiling kernels into the object file.
+
 ## Open Questions
 
-1. **Double precision on Metal**: Metal GPU cores natively support `float` (32-bit) but `double` (64-bit) support varies by generation. M1/M2 have limited double throughput. Should we provide a `float` fast-path with precision analysis, or require `double` throughout for correctness? Coordinate transforms need full double precision for geodetic accuracy, so a float-only path may not be viable.
-2. **Threshold tuning**: The unified memory advantage (no PCIe copies) suggests Metal's crossover point vs NEON could be lower than CUDA's crossover vs AVX. The auto-calibration in `lwaccel_calibrate_gpu()` should handle this, but the initial default threshold may need to be different for Metal.
-3. **Embedded vs external metallib**: Should the compiled `.metallib` be embedded as a C byte array in the binary (simpler deployment, no file path issues) or installed as a separate file (easier to update shaders without recompiling)?
+1. **Future Metal-eligible operations** — Which future batch transforms qualify for Metal dispatch under the `FP32_ONLY` precision contract? Candidates include `ptarray_affine_batch` (if the transformation matrix does not amplify precision loss), spatial projection pre/post passes for certain CRS pairs, and geodetic-to-geocentric conversion. Each new operation needs its own precision analysis before being added to the Metal dispatch path.
+2. **Optional double-single precision emulation** — If users eventually need sub-meter precision on Apple Silicon without falling back to NEON throughput, a double-single (df64) emulation path could be added as a future change. Estimated 4x slowdown vs raw float32 but still competitive with NEON at very large point counts. Out of scope for this change.
