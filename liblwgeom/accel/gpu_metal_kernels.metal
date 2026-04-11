@@ -76,22 +76,40 @@ struct RadConvertParams
 };
 
 /*
- * Inline helper: convert decimal-year epoch to Julian Date.
+ * Inline helper: compute Earth Rotation Angle (reduced to [0, 2*PI))
+ * from a decimal-year epoch.
+ *
+ * Implementation notes (float32 precision):
+ *
+ * 1. We compute Du (days since J2000) directly from the epoch via
+ *    Du = (epoch - 2000) * 365.25, WITHOUT going through an
+ *    intermediate Julian Date value. JD = 2451545 + Du is around
+ *    2.45e6, and float32 at that magnitude has ULP ~0.25. Computing
+ *    JD and then subtracting 2451545 back out loses precision
+ *    unnecessarily. Going straight from epoch to Du keeps the value
+ *    small (~9000 for modern epochs) where float32 precision is fine.
+ *
+ * 2. We reduce the raw ERA modulo 2*PI BEFORE returning. For modern
+ *    epochs the raw ERA is tens of thousands of radians (thousands of
+ *    full rotations). Metal's cos()/sin() on such large arguments
+ *    perform internal range reduction in float arithmetic, which
+ *    accumulates catastrophic error -- enough to produce ~1000x
+ *    worse results than the float32 ULP would suggest. fmod'ing to
+ *    [0, 2*PI) first keeps cos/sin in the regime where they are
+ *    accurate to ~1 ULP.
+ *
+ * This correction restores rotate_z_m_epoch correctness; prior to
+ * the fix, test_metal_rotate_z_m_epoch showed 8.95e+05 meters of
+ * error (895 km -- random-noise from cos/sin on huge arguments)
+ * instead of the ~1 m expected from float32 ULP at Earth scale.
  */
 static inline float
-gpu_epoch_to_jd(float epoch)
+gpu_earth_rotation_angle(float epoch)
 {
-	return 2451545.0f + (epoch - 2000.0f) * 365.25f;
-}
-
-/*
- * Inline helper: compute Earth Rotation Angle from Julian Date.
- */
-static inline float
-gpu_earth_rotation_angle(float jd)
-{
-	float Du = jd - 2451545.0f;
-	return 2.0f * M_PI_F * (0.7790572732640f + 1.00273781191135448f * Du);
+	float Du = (epoch - 2000.0f) * 365.25f;
+	float era = 2.0f * M_PI_F * (0.7790572732640f + 1.00273781191135448f * Du);
+	float two_pi = 2.0f * M_PI_F;
+	return fmod(era, two_pi);
 }
 
 /**
@@ -127,8 +145,7 @@ kernel void rotate_z_m_epoch(device float                *data   [[buffer(0)]],
 
 	uint base = id * params.stride;
 	float epoch = data[base + params.m_offset];
-	float jd = gpu_epoch_to_jd(epoch);
-	float era = gpu_earth_rotation_angle(jd);
+	float era = gpu_earth_rotation_angle(epoch);
 	float theta = era * float(params.direction);
 
 	float cos_t = cos(theta);

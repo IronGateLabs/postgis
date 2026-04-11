@@ -29,6 +29,26 @@
 #define pa_copy bench_pa_copy
 #define pa_max_diff bench_pa_max_diff
 
+/*
+ * Metal is FP32_ONLY (see openspec apple-metal-gpu-backend Decision 9
+ * and specs/metal-compute-kernels/spec.md). Tests cannot use fp64
+ * tolerances when comparing Metal output against scalar fp64 reference.
+ *
+ * Test fixture uses bench_make_test_pa() which generates points on a
+ * circle at Earth radius (6378137.0 meters) via 6378137.0*cos/sin(angle).
+ * Max coordinate magnitude is 6378137.0. Float32 ULP at that scale is
+ * ~0.76 m, compounded to ~1-2 m after rotation (cos+sin+mul+add).
+ *
+ * Scale-relative tolerance: max_coord * 1e-6 = ~6.4 meters absolute.
+ * This provides ~4x headroom over worst observed (~1.5 m) while
+ * still catching catastrophic bugs (wrong rotation angle, wrong
+ * axis, dispatch failure, etc.).
+ *
+ * Do NOT use 1e-10 as a tolerance on Metal output -- it is physically
+ * impossible for float32 kernels operating on Earth-scale coordinates.
+ */
+#define FP32_EARTH_SCALE_TOLERANCE (6378137.0 * 1e-6)
+
 /**
  * Shared helper: create a PA of given size, rotate via scalar and Metal,
  * assert results match within tolerance.
@@ -110,7 +130,8 @@ test_metal_init(void)
  * test_metal_rotate_z_uniform
  *
  * Create a 4D POINTARRAY with known points, apply Z-rotation via
- * Metal, verify results match scalar computation within 1e-10.
+ * Metal, verify results match scalar reference within the FP32_ONLY
+ * scale-relative tolerance (see FP32_EARTH_SCALE_TOLERANCE above).
  */
 static void
 test_metal_rotate_z_uniform(void)
@@ -121,7 +142,7 @@ test_metal_rotate_z_uniform(void)
 		CU_PASS("Metal GPU not available at runtime");
 		return;
 	}
-	verify_metal_rotate_z(1000, 1.23456, 1e-10, "rotate_z");
+	verify_metal_rotate_z(1000, 1.23456, FP32_EARTH_SCALE_TOLERANCE, "rotate_z");
 #else
 	CU_PASS("Metal not available at compile time");
 #endif
@@ -167,11 +188,14 @@ test_metal_rotate_z_m_epoch(void)
 					  direction);
 	CU_ASSERT_EQUAL(rc, 1);
 
-	/* Compare */
+	/* Compare within FP32_ONLY tolerance -- see FP32_EARTH_SCALE_TOLERANCE above */
 	diff = pa_max_diff(scalar_pa, metal_pa);
-	if (diff >= 1e-10)
-		fprintf(stderr, "Metal rotate_z_m_epoch max_diff = %.2e (expected < 1e-10)\n", diff);
-	CU_ASSERT(diff < 1e-10);
+	if (diff >= FP32_EARTH_SCALE_TOLERANCE)
+		fprintf(stderr,
+			"Metal rotate_z_m_epoch max_diff = %.2e (expected < %.2e)\n",
+			diff,
+			FP32_EARTH_SCALE_TOLERANCE);
+	CU_ASSERT(diff < FP32_EARTH_SCALE_TOLERANCE);
 
 	ptarray_free(base);
 	ptarray_free(scalar_pa);
@@ -288,7 +312,7 @@ test_metal_small_array(void)
 	}
 
 	for (si = 0; si < 3; si++)
-		verify_metal_rotate_z(sizes[si], 0.789, 1e-10, "small_array");
+		verify_metal_rotate_z(sizes[si], 0.789, FP32_EARTH_SCALE_TOLERANCE, "small_array");
 #else
 	CU_PASS("Metal not available at compile time");
 #endif
@@ -308,10 +332,49 @@ test_metal_large_array(void)
 		CU_PASS("Metal GPU not available at runtime");
 		return;
 	}
-	verify_metal_rotate_z(100000, 2.718, 1e-10, "large_array");
+	verify_metal_rotate_z(100000, 2.718, FP32_EARTH_SCALE_TOLERANCE, "large_array");
 #else
 	CU_PASS("Metal not available at compile time");
 #endif
+}
+
+/***********************************************************************
+ * Suite init/cleanup -- initialize GPU dispatch so lwgpu_available()
+ * returns true for all tests in this suite.
+ *
+ * Without these callbacks, tests that guard on lwgpu_available() would
+ * silently CU_PASS before test_metal_fallback (which internally calls
+ * lwaccel_get() that initializes the GPU backend as a side effect).
+ * The ordering quirk previously masked test failures by skipping
+ * test_metal_rotate_z_uniform and test_metal_rotate_z_m_epoch.
+ *
+ * These callbacks make Metal initialization explicit and ordering-
+ * independent. If Metal is not available at runtime (e.g., CI host
+ * without a GPU), lwgpu_init() returns 0 and lwgpu_available() stays
+ * false, so each test still hits its CU_PASS short-circuit -- no
+ * spurious failures in headless CI.
+ */
+static int
+metal_suite_init(void)
+{
+#ifdef HAVE_METAL
+	/*
+	 * Return value intentionally ignored: failure is non-fatal for
+	 * the suite, tests handle unavailability via lwgpu_available()
+	 * guards.
+	 */
+	(void)lwgpu_init(LW_GPU_METAL);
+#endif
+	return 0;
+}
+
+static int
+metal_suite_cleanup(void)
+{
+#ifdef HAVE_METAL
+	lwgpu_shutdown();
+#endif
+	return 0;
 }
 
 /***********************************************************************
@@ -320,7 +383,7 @@ test_metal_large_array(void)
 void
 metal_suite_setup(void)
 {
-	CU_pSuite suite = CU_add_suite("metal", NULL, NULL);
+	CU_pSuite suite = CU_add_suite("metal", metal_suite_init, metal_suite_cleanup);
 
 	PG_ADD_TEST(suite, test_metal_init);
 	PG_ADD_TEST(suite, test_metal_rotate_z_uniform);
