@@ -307,6 +307,14 @@ test_optionlist(void)
 	CU_ASSERT_EQUAL(2, sz);
 	ASSERT_STRING_EQUAL("key1=value1", olist[0]);
 	ASSERT_STRING_EQUAL("key2='value2 value3'", olist[1]);
+
+	/* SonarCloud S2259: input token lacking '=' separator previously
+	 * triggered NULL deref at `*val = '\0'` after lwerror returned. */
+	memset(olist, 0, sizeof(olist));
+	strcpy(input, "keywithoutvalue");
+	cu_error_msg_reset();
+	option_list_parse(input, olist);
+	ASSERT_STRING_EQUAL(cu_error_msg, "Option string entry 'keywithoutvalue' lacks separator '='");
 }
 
 static void

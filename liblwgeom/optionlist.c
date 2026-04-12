@@ -122,6 +122,7 @@ option_list_parse(char *input, char **olist)
 		if (!val)
 		{
 			lwerror("Option string entry '%s' lacks separator '%c'", key, kvsep);
+			return;
 		}
 		/* null out the separator */
 		*val = '\0';

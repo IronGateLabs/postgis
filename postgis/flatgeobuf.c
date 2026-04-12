@@ -587,9 +587,9 @@ flatgeobuf_agg_transfn(struct flatgeobuf_agg_ctx *ctx)
 uint8_t *
 flatgeobuf_agg_finalfn(struct flatgeobuf_agg_ctx *ctx)
 {
-	POSTGIS_DEBUGF(3, "called at offset %lld", ctx->ctx->offset);
 	if (ctx == NULL)
-		flatgeobuf_agg_ctx_init(NULL, false);
+		ctx = flatgeobuf_agg_ctx_init(NULL, false);
+	POSTGIS_DEBUGF(3, "called at offset %lld", ctx->ctx->offset);
 	// header only result
 	if (ctx->ctx->features_count == 0)
 	{
