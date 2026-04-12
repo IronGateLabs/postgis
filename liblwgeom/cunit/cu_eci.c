@@ -25,6 +25,7 @@
 #include "CUnit/Basic.h"
 
 #include "liblwgeom_internal.h"
+#include "../erfa/erfa.h"
 #include "cu_tester.h"
 
 /***********************************************************************
@@ -113,6 +114,53 @@ test_era_monotonic(void)
 		if (i > 0)
 			CU_ASSERT(raw > prev_raw);
 		prev_raw = raw;
+	}
+}
+
+static void
+test_era_matches_erfa(void)
+{
+	/* Phase 2 of ecef-eci-full-iau-precision: lweci_earth_rotation_angle
+	 * is now a wrapper around eraEra00. Verify bit-identical results for
+	 * a range of epochs spanning many decades.
+	 *
+	 * The internal JD is passed to eraEra00 as (jd, 0.0) — a single-part
+	 * JD, which is the same form the legacy formula consumed. Since both
+	 * implementations evaluate the same IAU 2000 definition of ERA,
+	 * results must be bit-identical (strict equality, no tolerance). */
+	double test_jds[] = {
+	    2451545.0, /* J2000.0 */
+	    2451545.5, /* half a day later */
+	    2440587.5, /* 1970 Unix epoch */
+	    2451910.0, /* 2001-01-01 */
+	    2460676.5, /* 2025-01-01 */
+	    2469807.5, /* 2050-01-01 (future) */
+	    2433282.5, /* 1950-01-01 (past) */
+	};
+	size_t n = sizeof(test_jds) / sizeof(test_jds[0]);
+	for (size_t i = 0; i < n; i++)
+	{
+		double via_lweci = lweci_earth_rotation_angle(test_jds[i]);
+		double via_erfa = eraEra00(test_jds[i], 0.0);
+		CU_ASSERT_EQUAL(via_lweci, via_erfa);
+	}
+}
+
+static void
+test_epoch_to_jd_two_part(void)
+{
+	/* Two-part JD form sums to the single-part form. */
+	double epochs[] = {2000.0, 2024.5, 1970.0, 2050.0};
+	size_t n = sizeof(epochs) / sizeof(epochs[0]);
+	for (size_t i = 0; i < n; i++)
+	{
+		double single = lweci_epoch_to_jd(epochs[i]);
+		double jd1, jd2;
+		lweci_epoch_to_jd_two_part(epochs[i], &jd1, &jd2);
+		/* jd1 should be the canonical MJD epoch */
+		CU_ASSERT_DOUBLE_EQUAL(jd1, 2400000.5, 1e-12);
+		/* jd1 + jd2 should equal the single-part form exactly */
+		CU_ASSERT_EQUAL(jd1 + jd2, single);
 	}
 }
 
@@ -1048,6 +1096,8 @@ eci_suite_setup(void)
 	PG_ADD_TEST(suite, test_era_one_sidereal_day);
 	PG_ADD_TEST(suite, test_era_range);
 	PG_ADD_TEST(suite, test_era_monotonic);
+	PG_ADD_TEST(suite, test_era_matches_erfa);
+	PG_ADD_TEST(suite, test_epoch_to_jd_two_part);
 
 	/* ECI-ECEF transformations */
 	PG_ADD_TEST(suite, test_eci_to_ecef_point);

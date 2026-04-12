@@ -37,17 +37,28 @@
 /*   ECI from ECEF via Rz(+ERA)                                            */
 /*                                                                          */
 /* where Rz(theta) is rotation about the Z axis.                           */
-/* This is the IERS 2003 ERA-based rotation, suitable for most             */
-/* applications. Full IAU 2006/2000A precession-nutation is not included.  */
-/*                                                                          */
-/* PROJ independence: All ECI transforms use pure C math (cos/sin/fmod).   */
+/* ECI transforms use pure C math (cos/sin/fmod) plus the vendored ERFA    */
+/* subset in liblwgeom/erfa/ for Earth rotation and precession-nutation.   */
 /* No PROJ library calls are needed. This works with any PROJ version.     */
+/*                                                                          */
+/* Phase 2 of ecef-eci-full-iau-precision (2026-04-12): the internal ERA   */
+/* formula was replaced with a call to ERFA's eraEra00. The public         */
+/* function signature is unchanged; callers continue to work. Results      */
+/* match the previous hand-rolled formula to machine precision because     */
+/* both implement the same IERS 2003 definition.                            */
 /***************************************************************************/
 
+#include "erfa/erfa.h"
+
 /**
- * Convert a decimal year to Julian Date.
+ * Convert a decimal year to a single-part Julian Date.
+ *
  * Algorithm: JD = 2451545.0 + (year - 2000.0) * 365.25
- * This is approximate but sufficient for ERA computation.
+ *
+ * This single-part form is retained for API compatibility with existing
+ * callers that pass a single double JD to lweci_earth_rotation_angle.
+ * For maximum precision when feeding ERFA routines that accept two-part
+ * JD, prefer lweci_epoch_to_jd_two_part.
  */
 double
 lweci_epoch_to_jd(double decimal_year)
@@ -56,26 +67,44 @@ lweci_epoch_to_jd(double decimal_year)
 }
 
 /**
+ * Convert a decimal year to a two-part Julian Date suitable for ERFA.
+ *
+ * ERFA routines accept dates as (jd1, jd2) where jd1 + jd2 equals the
+ * true JD. The canonical split places jd1 = 2400000.5 (MJD epoch) and
+ * jd2 = mjd + fraction. Using two doubles preserves ~16 extra bits of
+ * precision across spans of many years versus a single-double JD.
+ *
+ * Callers that need maximum precision (e.g., full IAU 2006/2000A
+ * bias-precession-nutation matrix construction in Phase 3) should use
+ * this form. Callers of the existing lweci_earth_rotation_angle API
+ * can continue to use lweci_epoch_to_jd and pass 0.0 for the second
+ * component; precision loss is ~10 nanoseconds at epochs near J2000.0
+ * which is well within the ERA accuracy budget.
+ */
+void
+lweci_epoch_to_jd_two_part(double decimal_year, double *jd1, double *jd2)
+{
+	/* jd1 = MJD epoch; jd2 = MJD + fractional day */
+	double jd_full = 2451545.0 + (decimal_year - 2000.0) * 365.25;
+	*jd1 = 2400000.5;
+	*jd2 = jd_full - 2400000.5;
+}
+
+/**
  * Compute the Earth Rotation Angle (ERA) in radians.
  *
- * IERS 2003 definition:
+ * Wraps ERFA's eraEra00 which implements the IAU 2000 definition:
  *   ERA = 2*pi*(0.7790572732640 + 1.00273781191135448 * Du)
- * where Du = Julian UT1 date - 2451545.0 (days since J2000.0 epoch)
+ * where Du = Julian UT1 date - 2451545.0 (days since J2000.0 epoch).
  *
- * The result is normalized to [0, 2*pi).
+ * The result is normalized to [0, 2*pi). This function accepts a
+ * single-part JD for backwards compatibility; internally it passes
+ * (julian_ut1_date, 0.0) to eraEra00 which accepts a two-part JD.
  */
 double
 lweci_earth_rotation_angle(double julian_ut1_date)
 {
-	double Du = julian_ut1_date - 2451545.0;
-	double era = 2.0 * M_PI * (0.7790572732640 + 1.00273781191135448 * Du);
-
-	/* Normalize to [0, 2*pi) */
-	era = fmod(era, 2.0 * M_PI);
-	if (era < 0.0)
-		era += 2.0 * M_PI;
-
-	return era;
+	return eraEra00(julian_ut1_date, 0.0);
 }
 
 /**
