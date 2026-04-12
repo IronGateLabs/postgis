@@ -21,7 +21,7 @@ to_eci_case|900001
 roundtrip|t
 roundtrip_3d|t
 to_ecef_srid|4978
-z_preserved|t
+norm_preserved|t
 diff_epochs|t
 ERROR:  ST_ECEFToECI: input geometry must have SRID 4978 (ECEF/WGS 84 geocentric), got 4326
 ERROR:  ST_ECEFToECI: unrecognized ECI frame 'INVALID' (expected ICRF, J2000, or TEME)
@@ -36,7 +36,7 @@ eop_after_range|t
 eop_roundtrip|t
 eop_differs|t
 eop_fallback|t
-eop_z_preserved|t
+eop_norm_preserved|t
 xform_m_epoch|t
 xform_m_roundtrip|t
 xform_explicit_epoch|t

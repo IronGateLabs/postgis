@@ -262,13 +262,14 @@ transform_epoch(PG_FUNCTION_ARGS)
 
 	if (from_family == LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
 	{
-		/* ECI -> ECEF with uniform epoch */
-		rv = lwgeom_transform_eci_to_ecef(lwgeom, epoch);
+		/* ECI -> ECEF with uniform epoch, using the source geometry's
+		 * frame SRID to select the correct IAU 2006/2000A transform. */
+		rv = lwgeom_transform_eci_to_ecef(lwgeom, epoch, srid_from);
 	}
 	else if (from_family != LW_CRS_INERTIAL && to_family == LW_CRS_INERTIAL)
 	{
-		/* ECEF -> ECI with uniform epoch */
-		rv = lwgeom_transform_ecef_to_eci(lwgeom, epoch);
+		/* ECEF -> ECI with uniform epoch, target frame selects matrix. */
+		rv = lwgeom_transform_ecef_to_eci(lwgeom, epoch, srid_to);
 	}
 	else
 	{
