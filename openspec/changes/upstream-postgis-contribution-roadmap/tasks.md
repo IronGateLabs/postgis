@@ -130,22 +130,22 @@ From the 2026-04-11 investigation (see `/Users/e/Development/GitHub/postgis/` se
 - topology-model classified as **VALUABLE** (consolidates with existing `topology-fk-constraints`)
 - raster-core classified as **OPTIONAL** (can defer)
 
-### Per-capability triage sub-tasks
+### Per-capability triage sub-tasks (decided 2026-04-12)
 
-- [ ] T.1 Decide on `geometry-types` (15 types + 9 serialization formats) — agent: ESSENTIAL (Phase 1)
-- [ ] T.2 Decide on `gserialized-format` (on-disk binary encoding) — agent: ESSENTIAL (Phase 1)
-- [ ] T.3 Decide on `spatial-predicates` (13 DE-9IM predicates) — agent: ESSENTIAL (Phase 2 core ops)
-- [ ] T.4 Decide on `spatial-operations` (22+ geometry functions) — agent: ESSENTIAL (Phase 2 core ops)
-- [ ] T.5 Decide on `measurement-functions` (20+ distance/area/length functions) — agent: ESSENTIAL (Phase 2 core ops)
-- [ ] T.6 Decide on `coordinate-transforms` (PROJ integration, SRID management) — agent: ESSENTIAL (Phase 3 infra)
-- [ ] T.7 Decide on `spatial-indexing` (GiST/SP-GiST/BRIN architecture) — agent: ESSENTIAL (Phase 3 infra)
-- [ ] T.8 Decide on `constructors-editors` — agent: VALUABLE (Phase 4a)
-- [ ] T.9 Decide on `geography-type` — agent: VALUABLE (Phase 4a)
-- [ ] T.10 Decide on `extension-lifecycle` — agent: VALUABLE (Phase 4a)
-- [ ] T.11 Decide on `raster-core` — agent: OPTIONAL (can defer)
-- [ ] T.12 Decide on `topology-model` — agent: VALUABLE (consolidates with existing `topology-fk-constraints`, requires a consolidation plan)
-- [ ] T.13 Close PR #10 on GitHub once all 12 sub-tasks are decided (even if some are DEFERred)
-- [ ] T.14 Delete the `feature/codebase-spec-extraction` branch on the fork after PR #10 is closed and any ACCEPT'd capabilities have landed via spawned focused changes
+- [x] T.1 Decide on `geometry-types` — **ACCEPT**: high-quality foundational spec, covers all 15 types and serialization codecs accurately. Action: spawn focused OpenSpec change to ADD capability from PR #10's branch content.
+- [x] T.2 Decide on `gserialized-format` — **ACCEPT**: essential on-disk encoding spec, well-scoped. Action: spawn focused OpenSpec change to ADD capability.
+- [x] T.3 Decide on `spatial-predicates` — **ACCEPT**: clean DE-9IM predicate coverage, no scope issues. Action: spawn focused OpenSpec change to ADD capability.
+- [x] T.4 Decide on `spatial-operations` — **REFINE**: conflates construction operations (ST_Buffer, ST_ConvexHull) with set-theoretic overlay (ST_Union, ST_Intersection). Action: narrow scope to overlay + simplification operations; move buffer/hull functions to constructors-editors or a new spec.
+- [x] T.5 Decide on `measurement-functions` — **ACCEPT**: well-scoped distance/area/length coverage. Action: spawn focused OpenSpec change to ADD capability.
+- [x] T.6 Decide on `coordinate-transforms` — **DEFER**: spec includes epoch-aware ECI/ECEF conversions that overlap the fork's ecef-coordinate-support work. Unblocked by: completing the ECEF/ECI spec consolidation in upstream roadmap Phase 4.
+- [x] T.7 Decide on `spatial-indexing` — **ACCEPT**: GiST/SP-GiST/BRIN architecture well-captured. Action: spawn focused OpenSpec change to ADD capability.
+- [x] T.8 Decide on `constructors-editors` — **ACCEPT**: valuable complement to geometry-types, clean scope. Action: spawn focused OpenSpec change to ADD capability.
+- [x] T.9 Decide on `geography-type` — **ACCEPT**: distinct from geometry-types, covers geodesic dispatch. Action: spawn focused OpenSpec change to ADD capability.
+- [x] T.10 Decide on `extension-lifecycle` — **REFINE**: overlaps existing `extension-packaging` spec on develop. Action: merge extension-lifecycle content into extension-packaging as additional requirements covering upgrade paths, legacy stubs, and before/after hooks; do not create a second extension spec.
+- [x] T.11 Decide on `raster-core` — **DEFER**: raster is not in active development scope. Unblocked by: user decision to invest in raster spec coverage, or upstream raster API changes that force documentation.
+- [x] T.12 Decide on `topology-model` — **REFINE**: overlaps existing `topology-fk-constraints` spec on develop. Action: consolidate by adding topology-model's schema/API requirements into topology-fk-constraints (rename to `topology-model` if scope warrants), preserving FK constraint content as a subsection.
+- [ ] T.13 Close PR #10 on GitHub once ACCEPT'd capabilities have landed via focused changes and REFINE edits are complete
+- [ ] T.14 Delete the `feature/codebase-spec-extraction` branch on the fork after PR #10 is closed and all extracted content has landed
 
 ## Living document maintenance
 
