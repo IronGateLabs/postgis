@@ -115,13 +115,11 @@ lwgeom_rotate_z(LWGEOM *geom, double theta)
 	case POINTTYPE:
 	case LINETYPE:
 	case CIRCSTRINGTYPE:
-	case TRIANGLETYPE:
-	{
+	case TRIANGLETYPE: {
 		LWLINE *g = (LWLINE *)geom;
 		return ptarray_rotate_z(g->points, theta);
 	}
-	case POLYGONTYPE:
-	{
+	case POLYGONTYPE: {
 		LWPOLY *g = (LWPOLY *)geom;
 		for (i = 0; i < g->nrings; i++)
 		{
@@ -139,8 +137,7 @@ lwgeom_rotate_z(LWGEOM *geom, double theta)
 	case MULTICURVETYPE:
 	case MULTISURFACETYPE:
 	case POLYHEDRALSURFACETYPE:
-	case TINTYPE:
-	{
+	case TINTYPE: {
 		LWCOLLECTION *g = (LWCOLLECTION *)geom;
 		for (i = 0; i < g->ngeoms; i++)
 		{
@@ -150,8 +147,7 @@ lwgeom_rotate_z(LWGEOM *geom, double theta)
 		return LW_SUCCESS;
 	}
 	default:
-		lwerror("lwgeom_rotate_z: Cannot handle type '%s'",
-			lwtype_name(geom->type));
+		lwerror("lwgeom_rotate_z: Cannot handle type '%s'", lwtype_name(geom->type));
 		return LW_FAILURE;
 	}
 }
@@ -226,13 +222,11 @@ lwgeom_rotate_z_m_epoch(LWGEOM *geom, int direction)
 	case POINTTYPE:
 	case LINETYPE:
 	case CIRCSTRINGTYPE:
-	case TRIANGLETYPE:
-	{
+	case TRIANGLETYPE: {
 		LWLINE *g = (LWLINE *)geom;
 		return ptarray_rotate_z_m_epoch(g->points, direction);
 	}
-	case POLYGONTYPE:
-	{
+	case POLYGONTYPE: {
 		LWPOLY *g = (LWPOLY *)geom;
 		for (i = 0; i < g->nrings; i++)
 		{
@@ -250,8 +244,7 @@ lwgeom_rotate_z_m_epoch(LWGEOM *geom, int direction)
 	case MULTICURVETYPE:
 	case MULTISURFACETYPE:
 	case POLYHEDRALSURFACETYPE:
-	case TINTYPE:
-	{
+	case TINTYPE: {
 		LWCOLLECTION *g = (LWCOLLECTION *)geom;
 		for (i = 0; i < g->ngeoms; i++)
 		{
@@ -261,8 +254,7 @@ lwgeom_rotate_z_m_epoch(LWGEOM *geom, int direction)
 		return LW_SUCCESS;
 	}
 	default:
-		lwerror("lwgeom_rotate_z_m_epoch: Cannot handle type '%s'",
-			lwtype_name(geom->type));
+		lwerror("lwgeom_rotate_z_m_epoch: Cannot handle type '%s'", lwtype_name(geom->type));
 		return LW_FAILURE;
 	}
 }
@@ -366,13 +358,11 @@ lwgeom_rotate_xy(LWGEOM *geom, double theta, int axis)
 	case POINTTYPE:
 	case LINETYPE:
 	case CIRCSTRINGTYPE:
-	case TRIANGLETYPE:
-	{
+	case TRIANGLETYPE: {
 		LWLINE *g = (LWLINE *)geom;
 		return rotate_fn(g->points, theta);
 	}
-	case POLYGONTYPE:
-	{
+	case POLYGONTYPE: {
 		LWPOLY *g = (LWPOLY *)geom;
 		for (i = 0; i < g->nrings; i++)
 		{
@@ -390,8 +380,7 @@ lwgeom_rotate_xy(LWGEOM *geom, double theta, int axis)
 	case MULTICURVETYPE:
 	case MULTISURFACETYPE:
 	case POLYHEDRALSURFACETYPE:
-	case TINTYPE:
-	{
+	case TINTYPE: {
 		LWCOLLECTION *g = (LWCOLLECTION *)geom;
 		for (i = 0; i < g->ngeoms; i++)
 		{
@@ -401,15 +390,13 @@ lwgeom_rotate_xy(LWGEOM *geom, double theta, int axis)
 		return LW_SUCCESS;
 	}
 	default:
-		lwerror("lwgeom_rotate_xy: Cannot handle type '%s'",
-			lwtype_name(geom->type));
+		lwerror("lwgeom_rotate_xy: Cannot handle type '%s'", lwtype_name(geom->type));
 		return LW_FAILURE;
 	}
 }
 
 int
-lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
-                                  double dut1, double xp, double yp)
+lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch, double dut1, double xp, double yp)
 {
 	double jd;
 	double jd_ut1;
@@ -445,8 +432,7 @@ lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
 }
 
 int
-lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch,
-                                  double dut1, double xp, double yp)
+lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch, double dut1, double xp, double yp)
 {
 	double jd;
 	double jd_ut1;
