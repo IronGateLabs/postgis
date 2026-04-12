@@ -17,11 +17,11 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
 
 ## Phase 1: Path exclusions in sonar-project.properties
 
-**Status**: Not started. Blocked on Phase 0.
+**Status**: In progress on branch `feature/sonarcloud-phase1-exclusions` (commit 30620cc1d). CI verification pending (task 1.4).
 
-- [ ] 1.1 Open focused PR against develop titled "SonarCloud: exclude test fixtures and vendored code"
-- [ ] 1.2 Update `sonar-project.properties` `sonar.exclusions` value to include all TEST FIXTURE paths: `topology/test/**`, `raster/test/**`, `extras/ogc_test_suite/**`, `doc/html/images/styles.c` (in addition to the already-excluded `regress/**`, `**/cunit/**`, `**/test/**`, `fuzzers/**`, `extensions/**/sql/**`, `ci/**`, `deps/**`, `doc/**`)
-- [ ] 1.3 Add VENDORED file exclusions: `liblwgeom/lookup3.c`, `liblwgeom/lwin_wkt_lex.c`, `liblwgeom/lwin_wkt_parse.c`, `loader/dbfopen.c`, `loader/getopt.c`
+- [x] 1.1 Opened focused PR against develop titled "SonarCloud Phase 1: exclude test fixtures and vendored code" (branch `feature/sonarcloud-phase1-exclusions`)
+- [x] 1.2 Updated `sonar-project.properties` `sonar.exclusions` value to include TEST FIXTURE paths: `topology/test/**`, `raster/test/**`, `extras/ogc_test_suite/**`. `doc/html/images/styles.c` is already covered by the existing `doc/**` exclusion. All previous exclusions (`regress/**`, `**/cunit/**`, `**/test/**`, `fuzzers/**`, `extensions/**/sql/**`, `ci/**`, `deps/**`, `doc/**`) are preserved.
+- [x] 1.3 Added VENDORED file exclusions: `liblwgeom/lookup3.c`, `liblwgeom/lwin_wkt_lex.c`, `liblwgeom/lwin_wkt_parse.c`, `loader/dbfopen.c`, `loader/getopt.c`
 - [ ] 1.4 Before merging, run the `sonar.yml` workflow against the branch and confirm:
   - Blocker count drops from 152 toward 22 (target: ≤30)
   - No REAL issues were hidden by the new exclusions (cross-check a sample of excluded issues to confirm each is intentionally a test or vendored file)
