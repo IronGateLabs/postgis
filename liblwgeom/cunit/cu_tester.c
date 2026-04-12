@@ -82,6 +82,7 @@ extern void wrapx_suite_setup(void);
 extern void remove_irrelevant_points_for_view_suite_setup(void);
 extern void crs_family_suite_setup(void);
 extern void eci_suite_setup(void);
+extern void metal_suite_setup(void);
 
 
 /* AND ADD YOUR SUITE SETUP FUNCTION HERE (2 of 2) */
@@ -139,6 +140,7 @@ PG_SuiteSetup setupfuncs[] = {algorithms_suite_setup,
 			      remove_irrelevant_points_for_view_suite_setup,
 			      crs_family_suite_setup,
 			      eci_suite_setup,
+			      metal_suite_setup,
 			      NULL};
 
 

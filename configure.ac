@@ -1584,6 +1584,85 @@ AC_SUBST([ICPX])
 AC_SUBST([HAVE_ONEAPI])
 
 dnl ===========================================================================
+dnl Metal GPU compute (macOS only)
+dnl ===========================================================================
+
+AC_ARG_WITH([metal],
+  AS_HELP_STRING([--with-metal], [Enable Apple Metal GPU support (macOS only)]),
+  [WITH_METAL=$withval], [WITH_METAL=auto])
+
+HAVE_METAL=no
+METAL_COMPILER=""
+METALLIB_TOOL=""
+METAL_LDFLAGS=""
+
+if test "x$WITH_METAL" != "xno"; then
+  case $host_os in
+    darwin*)
+      AC_MSG_CHECKING([for Metal compiler (xcrun --find metal)])
+      METAL_COMPILER=`xcrun --find metal 2>/dev/null`
+      if test -n "$METAL_COMPILER"; then
+        AC_MSG_RESULT([$METAL_COMPILER])
+        AC_MSG_CHECKING([for Metal linker (xcrun --find metallib)])
+        METALLIB_TOOL=`xcrun --find metallib 2>/dev/null`
+        if test -n "$METALLIB_TOOL"; then
+          AC_MSG_RESULT([$METALLIB_TOOL])
+          dnl Verify the C compiler can compile Objective-C
+          AC_MSG_CHECKING([whether $CC can compile Objective-C])
+          cat > conftest.m <<EOF
+#import <Foundation/Foundation.h>
+int main(void) { return 0; }
+EOF
+          if $CC -ObjC -framework Foundation conftest.m -o conftest 2>/dev/null; then
+            AC_MSG_RESULT([yes])
+            dnl Check for xxd (used to embed metallib as C array)
+            AC_MSG_CHECKING([for xxd (metallib embedding)])
+            XXD=`command -v xxd 2>/dev/null`
+            if test -n "$XXD"; then
+              AC_MSG_RESULT([$XXD])
+              HAVE_METAL=yes
+              AC_DEFINE([HAVE_METAL], [1], [Apple Metal GPU support available])
+              METAL_LDFLAGS="-framework Metal -framework Foundation"
+            else
+              AC_MSG_RESULT([not found])
+              if test "x$WITH_METAL" != "xauto"; then
+                AC_MSG_ERROR([--with-metal specified but xxd not found (needed to embed metallib)])
+              fi
+            fi
+          else
+            AC_MSG_RESULT([no])
+            if test "x$WITH_METAL" != "xauto"; then
+              AC_MSG_ERROR([--with-metal specified but $CC cannot compile Objective-C])
+            fi
+          fi
+          rm -f conftest.m conftest
+        else
+          AC_MSG_RESULT([not found])
+          if test "x$WITH_METAL" != "xauto"; then
+            AC_MSG_ERROR([--with-metal specified but metallib not found])
+          fi
+        fi
+      else
+        AC_MSG_RESULT([not found])
+        if test "x$WITH_METAL" != "xauto"; then
+          AC_MSG_ERROR([--with-metal specified but metal compiler not found])
+        fi
+      fi
+      ;;
+    *)
+      if test "x$WITH_METAL" != "xauto"; then
+        AC_MSG_ERROR([--with-metal is only supported on macOS (darwin)])
+      fi
+      ;;
+  esac
+fi
+AC_SUBST([METAL_COMPILER])
+AC_SUBST([METALLIB_TOOL])
+AC_SUBST([METAL_LDFLAGS])
+AC_SUBST([HAVE_METAL])
+AC_SUBST([XXD])
+
+dnl ===========================================================================
 dnl Detect Valkey/hiredis client library for GPU batch queueing
 dnl ===========================================================================
 
@@ -1670,7 +1749,7 @@ AC_SUBST([POSTGIS_SCRIPTS_VERSION])
 CPPFLAGS="$PGSQL_CPPFLAGS $GEOS_CPPFLAGS $PROJ_CPPFLAGS $PROTOBUF_CPPFLAGS $XML2_CPPFLAGS $SFCGAL_CPPFLAGS $JSON_CPPFLAGS $CPPFLAGS"
 dnl AC_MSG_RESULT([CPPFLAGS: $CPPFLAGS])
 
-SHLIB_LINK="$PGSQL_LDFLAGS $GEOS_LDFLAGS $PROJ_LDFLAGS $JSON_LDFLAGS $PROTOBUF_LDFLAGS $XML2_LDFLAGS $SFCGAL_LDFLAGS $EXCLUDELIBS_LDFLAGS $LDFLAGS"
+SHLIB_LINK="$PGSQL_LDFLAGS $GEOS_LDFLAGS $PROJ_LDFLAGS $JSON_LDFLAGS $PROTOBUF_LDFLAGS $XML2_LDFLAGS $SFCGAL_LDFLAGS $METAL_LDFLAGS $EXCLUDELIBS_LDFLAGS $LDFLAGS"
 AC_SUBST([SHLIB_LINK])
 dnl AC_MSG_RESULT([SHLIB_LINK: $SHLIB_LINK])
 
@@ -2229,6 +2308,7 @@ fi
 AC_MSG_RESULT([  CUDA (nvcc):          ${HAVE_CUDA}])
 AC_MSG_RESULT([  ROCm (hipcc):         ${HAVE_ROCM}])
 AC_MSG_RESULT([  oneAPI (icpx):        ${HAVE_ONEAPI}])
+AC_MSG_RESULT([  Metal GPU (xcrun):    ${HAVE_METAL}])
 AC_MSG_RESULT([  Valkey (hiredis):     ${HAVE_VALKEY}])
 AC_MSG_RESULT()
 AC_MSG_RESULT([ -------- Documentation Generation -------- ])

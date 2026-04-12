@@ -4,8 +4,8 @@
  * http://postgis.net
  *
  * GPU abstraction layer for batch coordinate transforms.
- * Supports CUDA, ROCm/HIP, and oneAPI/SYCL backends through
- * a common C API.
+ * Supports CUDA, ROCm/HIP, oneAPI/SYCL, and Apple Metal backends
+ * through a common C API.
  *
  **********************************************************************/
 
@@ -24,7 +24,8 @@ typedef enum
   LW_GPU_NONE = 0,
   LW_GPU_CUDA = 1,
   LW_GPU_ROCM = 2,
-  LW_GPU_ONEAPI = 3
+  LW_GPU_ONEAPI = 3,
+  LW_GPU_METAL = 4
 } LW_GPU_BACKEND;
 
 /**
@@ -106,6 +107,15 @@ int lwgpu_oneapi_rotate_z(double *data, size_t stride, uint32_t n, double theta)
 int lwgpu_oneapi_rotate_z_m_epoch(double *data, size_t stride, uint32_t n, size_t m_off, int dir);
 void lwgpu_oneapi_shutdown(void);
 const char *lwgpu_oneapi_device_name(void);
+#endif
+
+#ifdef HAVE_METAL
+int lwgpu_metal_init(void);
+int lwgpu_metal_rotate_z(double *data, size_t stride, uint32_t n, double theta);
+int lwgpu_metal_rotate_z_m_epoch(double *data, size_t stride, uint32_t n,
+				 size_t m_off, int dir);
+void lwgpu_metal_shutdown(void);
+const char *lwgpu_metal_device_name(void);
 #endif
 
 #endif /* LWGEOM_GPU_H */

@@ -138,6 +138,9 @@
 /* Define to 1 if oneAPI/SYCL GPU support is available */
 #undef HAVE_ONEAPI
 
+/* Define to 1 if Apple Metal GPU support is available */
+#undef HAVE_METAL
+
 /* Define to 1 if Valkey/hiredis support is available */
 #undef HAVE_VALKEY
 
