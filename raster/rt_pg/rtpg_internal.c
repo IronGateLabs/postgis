@@ -143,6 +143,7 @@ rtpg_strsplit(const char *str, const char *delimiter, uint32_t *n) {
 	char *tmp = NULL;
 	char **rtn = NULL;
 	char *token = NULL;
+	char *saveptr = NULL;
 
 	*n = 0;
 	if (!str)
@@ -173,7 +174,7 @@ rtpg_strsplit(const char *str, const char *delimiter, uint32_t *n) {
 		return rtn;
 	}
 
-	token = strtok(tmp, delimiter);
+	token = strtok_r(tmp, delimiter, &saveptr);
 	while (token != NULL) {
 		if (*n < 1) {
 			rtn = (char **) palloc(sizeof(char *));
@@ -196,7 +197,7 @@ rtpg_strsplit(const char *str, const char *delimiter, uint32_t *n) {
 		strcpy(rtn[*n], token);
 		*n = *n + 1;
 
-		token = strtok(NULL, delimiter);
+		token = strtok_r(NULL, delimiter, &saveptr);
 	}
 
 	pfree(tmp);

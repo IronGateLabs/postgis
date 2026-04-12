@@ -1034,12 +1034,13 @@ Datum buffer(PG_FUNCTION_ARGS)
 	if (VARSIZE_ANY_EXHDR(params_text) > 0)
 	{
 		char *param;
+		char *saveptr = NULL;
 		char *params = text_to_cstring(params_text);
 
 		for (param=params; ; param=NULL)
 		{
 			char *key, *val;
-			param = strtok(param, " ");
+			param = strtok_r(param, " ", &saveptr);
 			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
 
@@ -1276,6 +1277,7 @@ Datum ST_OffsetCurve(PG_FUNCTION_ARGS)
 	int joinStyle  = DEFAULT_JOIN_STYLE;
 	char *param = NULL;
 	char *paramstr = NULL;
+	char *saveptr = NULL;
 
 	/* Read SQL arguments */
 	nargs = PG_NARGS();
@@ -1306,7 +1308,7 @@ Datum ST_OffsetCurve(PG_FUNCTION_ARGS)
 		for ( param=paramstr; ; param=NULL )
 		{
 			char *key, *val;
-			param = strtok(param, " ");
+			param = strtok_r(param, " ", &saveptr);
 			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
 
