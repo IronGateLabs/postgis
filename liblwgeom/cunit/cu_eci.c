@@ -181,16 +181,17 @@ test_eci_to_ecef_point(void)
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	/* Transform at J2000 epoch */
-	int ret = lwgeom_transform_eci_to_ecef(geom, 2000.0);
+	int ret = lwgeom_transform_eci_to_ecef(geom, 2000.0, SRID_ECI_ICRF);
 	CU_ASSERT_EQUAL(ret, LW_SUCCESS);
 
-	/* The point should be rotated around Z. Check radius preserved. */
+	/* Rotation preserves Euclidean norm. With IAU 2006/2000A the point
+	 * does NOT stay in the equatorial plane (precession-nutation tilts
+	 * the intermediate equator relative to J2000), so |Z| may be tens
+	 * of meters, but radius is invariant. */
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p);
 	double radius = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-	CU_ASSERT_DOUBLE_EQUAL(radius, 6378137.0, 0.001);
-	/* Z should be unchanged (rotation is about Z axis) */
-	CU_ASSERT_DOUBLE_EQUAL(p.z, 0.0, 0.001);
+	CU_ASSERT_DOUBLE_EQUAL(radius, 6378137.0, 1e-3);
 
 	lwgeom_free(geom);
 }
@@ -198,7 +199,9 @@ test_eci_to_ecef_point(void)
 static void
 test_ecef_to_eci_point(void)
 {
-	/* Test reverse: ECEF-to-ECI applies opposite rotation */
+	/* Test reverse: ECEF-to-ECI applies opposite rotation. Rotation
+	 * preserves norm but does not preserve the Z component under full
+	 * IAU 2006/2000A precession-nutation. */
 	LWGEOM *geom;
 	LWPOINT *pt;
 	POINT4D p;
@@ -206,14 +209,13 @@ test_ecef_to_eci_point(void)
 	geom = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
-	int ret = lwgeom_transform_ecef_to_eci(geom, 2000.0);
+	int ret = lwgeom_transform_ecef_to_eci(geom, 2000.0, SRID_ECI_ICRF);
 	CU_ASSERT_EQUAL(ret, LW_SUCCESS);
 
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p);
 	double radius = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-	CU_ASSERT_DOUBLE_EQUAL(radius, 6378137.0, 0.001);
-	CU_ASSERT_DOUBLE_EQUAL(p.z, 0.0, 0.001);
+	CU_ASSERT_DOUBLE_EQUAL(radius, 6378137.0, 1e-3);
 
 	lwgeom_free(geom);
 }
@@ -235,9 +237,9 @@ test_eci_ecef_roundtrip(void)
 	getPoint4d_p(pt->point, 0, &p_orig);
 
 	/* ECI -> ECEF */
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 	/* ECEF -> ECI */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(pt->point, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -266,8 +268,8 @@ test_eci_ecef_roundtrip_linestring(void)
 		getPoint4d_p(line->points, i, &p_orig[i]);
 
 	/* ECI -> ECEF -> ECI */
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	for (i = 0; i < 2; i++)
 	{
@@ -283,7 +285,10 @@ test_eci_ecef_roundtrip_linestring(void)
 static void
 test_eci_z_axis_invariant(void)
 {
-	/* Points on the Z axis should be unaffected by rotation about Z */
+	/* Points on the ECI Z axis are NOT invariant under IAU 2006/2000A
+	 * precession-nutation: the celestial pole differs from the
+	 * instantaneous Earth rotation pole by the full BPN matrix. The only
+	 * invariant is the vector norm. */
 	LWGEOM *geom;
 	LWPOINT *pt;
 	POINT4D p;
@@ -291,13 +296,12 @@ test_eci_z_axis_invariant(void)
 	geom = lwgeom_from_wkt("POINT Z (0 0 6356752)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 2024.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 2024.0, SRID_ECI_ICRF), LW_SUCCESS);
 
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p);
-	CU_ASSERT_DOUBLE_EQUAL(p.x, 0.0, 1e-6);
-	CU_ASSERT_DOUBLE_EQUAL(p.y, 0.0, 1e-6);
-	CU_ASSERT_DOUBLE_EQUAL(p.z, 6356752.0, 1e-6);
+	double radius = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+	CU_ASSERT_DOUBLE_EQUAL(radius, 6356752.0, 1e-3);
 
 	lwgeom_free(geom);
 }
@@ -316,8 +320,8 @@ test_eci_different_epochs_differ(void)
 	CU_ASSERT_PTR_NOT_NULL(geom1);
 	CU_ASSERT_PTR_NOT_NULL(geom2);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom1, 2024.0), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom2, 2024.5), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom1, 2024.0, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom2, 2024.5, SRID_ECI_ICRF), LW_SUCCESS);
 
 	pt1 = (LWPOINT *)geom1;
 	pt2 = (LWPOINT *)geom2;
@@ -358,8 +362,8 @@ test_eci_empty_geometry(void)
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	/* Empty geometries should pass through without error */
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 2024.0), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 2024.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 2024.0, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 2024.0, SRID_ECI_ICRF), LW_SUCCESS);
 
 	lwgeom_free(geom);
 }
@@ -383,8 +387,8 @@ test_eci_polygon(void)
 	getPoint4d_p(poly->rings[0], 0, &p_orig);
 
 	/* Roundtrip */
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(poly->rings[0], 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -635,13 +639,19 @@ test_eci_2d_geometry(void)
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p_orig);
 
-	/* Roundtrip should preserve coords */
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	/* 2D geometry cannot round-trip exactly under a 3D rotation because
+	 * the forward transform may produce a non-zero Z component which
+	 * is discarded on storage; the inverse then has insufficient
+	 * information to reconstruct the original. For a 2D ECEF/ECI
+	 * transform the only guarantee is that the forward call succeeds
+	 * and the output coordinates remain finite; precision semantics are
+	 * undefined for 2D. Prefer 3D POINT Z inputs. */
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(pt->point, 0, &p_final);
-	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
-	CU_ASSERT_DOUBLE_EQUAL(p_final.y, p_orig.y, 1e-6);
+	CU_ASSERT(isfinite(p_final.x));
+	CU_ASSERT(isfinite(p_final.y));
 
 	lwgeom_free(geom);
 }
@@ -667,8 +677,8 @@ test_eci_geometrycollection(void)
 	col = (LWCOLLECTION *)geom;
 	getPoint4d_p(((LWPOINT *)col->geoms[0])->point, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(((LWPOINT *)col->geoms[0])->point, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -701,8 +711,8 @@ test_eci_multipolygon(void)
 	poly = (LWPOLY *)col->geoms[0];
 	getPoint4d_p(poly->rings[0], 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(poly->rings[0], 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -735,8 +745,8 @@ test_eci_multilinestring(void)
 	line = (LWLINE *)col->geoms[0];
 	getPoint4d_p(line->points, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(line->points, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -763,8 +773,8 @@ test_eci_triangle(void)
 	tri = (LWLINE *)geom;
 	getPoint4d_p(tri->points, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(tri->points, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -790,8 +800,8 @@ test_eci_circularstring(void)
 	cs = (LWLINE *)geom;
 	getPoint4d_p(cs->points, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(cs->points, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -817,8 +827,8 @@ test_eci_extreme_epoch_far_future(void)
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 9999.0), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 9999.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 9999.0, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 9999.0, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(pt->point, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-3);
@@ -846,8 +856,8 @@ test_eci_extreme_epoch_far_past(void)
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 1000.0), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 1000.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, 1000.0, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, 1000.0, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(pt->point, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-3);
@@ -890,8 +900,8 @@ test_eci_large_pointarray(void)
 	line = (LWLINE *)geom;
 	getPoint4d_p(line->points, 0, &p_orig);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch), LW_SUCCESS);
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	getPoint4d_p(line->points, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 0.01);
@@ -932,9 +942,11 @@ test_eci_eop_roundtrip(void)
 	getPoint4d_p(pt->point, 0, &p_orig);
 
 	/* ECEF -> ECI with EOP */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom, epoch, dut1, xp, yp), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom, epoch, SRID_ECI_ICRF, dut1, xp, yp, 0.0, 0.0),
+			LW_SUCCESS);
 	/* ECI -> ECEF with EOP */
-	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef_eop(geom, epoch, dut1, xp, yp), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_eci_to_ecef_eop(geom, epoch, SRID_ECI_ICRF, dut1, xp, yp, 0.0, 0.0),
+			LW_SUCCESS);
 
 	getPoint4d_p(pt->point, 0, &p_final);
 	CU_ASSERT_DOUBLE_EQUAL(p_final.x, p_orig.x, 1e-6);
@@ -963,9 +975,10 @@ test_eci_eop_dut1_effect(void)
 	CU_ASSERT_PTR_NOT_NULL(geom_plain);
 
 	/* EOP transform with dut1 correction */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_eop, epoch, dut1, xp, yp), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_eop, epoch, SRID_ECI_ICRF, dut1, xp, yp, 0.0, 0.0),
+			LW_SUCCESS);
 	/* Plain transform (no dut1) */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom_plain, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom_plain, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	pt_eop = (LWPOINT *)geom_eop;
 	pt_plain = (LWPOINT *)geom_plain;
@@ -998,9 +1011,11 @@ test_eci_eop_polar_motion(void)
 	CU_ASSERT_PTR_NOT_NULL(geom_nopm);
 
 	/* With polar motion */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_pm, epoch, dut1, xp, yp), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_pm, epoch, SRID_ECI_ICRF, dut1, xp, yp, 0.0, 0.0),
+			LW_SUCCESS);
 	/* Without polar motion (same dut1=0 so ERA matches plain) */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_nopm, epoch, dut1, 0.0, 0.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_nopm, epoch, SRID_ECI_ICRF, dut1, 0.0, 0.0, 0.0, 0.0),
+			LW_SUCCESS);
 
 	pt_pm = (LWPOINT *)geom_pm;
 	pt_nopm = (LWPOINT *)geom_nopm;
@@ -1036,9 +1051,10 @@ test_eci_eop_zero_params_matches_plain(void)
 	CU_ASSERT_PTR_NOT_NULL(geom_plain);
 
 	/* EOP with all zeros */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_eop, epoch, 0.0, 0.0, 0.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom_eop, epoch, SRID_ECI_ICRF, 0.0, 0.0, 0.0, 0.0, 0.0),
+			LW_SUCCESS);
 	/* Plain (no EOP) */
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom_plain, epoch), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci(geom_plain, epoch, SRID_ECI_ICRF), LW_SUCCESS);
 
 	pt_eop = (LWPOINT *)geom_eop;
 	pt_plain = (LWPOINT *)geom_plain;
@@ -1055,24 +1071,31 @@ test_eci_eop_zero_params_matches_plain(void)
 }
 
 static void
-test_eci_eop_z_preserved(void)
+test_eci_eop_norm_preserved(void)
 {
-	/* With xp=0 and yp=0, Z should be preserved (Z-rotation only) */
+	/* Under the simplified Z-rotation model (Phase 2 and earlier), zero
+	 * polar motion meant Z was preserved. With the full IAU 2006/2000A
+	 * BPN matrix (Phase 3), precession-nutation tilts the celestial
+	 * equator, so Z is no longer an invariant. The only invariant is
+	 * the Euclidean norm of the coordinate vector. */
 	LWGEOM *geom;
 	LWPOINT *pt;
 	POINT4D p;
 	double epoch = 2024.0;
 	double dut1 = 0.1;
+	double expected_norm, actual_norm;
 
 	geom = lwgeom_from_wkt("POINT Z (5000000 3000000 4500000)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
+	expected_norm = sqrt(5000000.0 * 5000000.0 + 3000000.0 * 3000000.0 + 4500000.0 * 4500000.0);
 
-	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom, epoch, dut1, 0.0, 0.0), LW_SUCCESS);
+	CU_ASSERT_EQUAL(lwgeom_transform_ecef_to_eci_eop(geom, epoch, SRID_ECI_ICRF, dut1, 0.0, 0.0, 0.0, 0.0),
+			LW_SUCCESS);
 
 	pt = (LWPOINT *)geom;
 	getPoint4d_p(pt->point, 0, &p);
-	/* Z should be unchanged when polar motion is zero */
-	CU_ASSERT_DOUBLE_EQUAL(p.z, 4500000.0, 1e-6);
+	actual_norm = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+	CU_ASSERT_DOUBLE_EQUAL(actual_norm, expected_norm, 1e-3);
 
 	lwgeom_free(geom);
 }
@@ -1144,5 +1167,5 @@ eci_suite_setup(void)
 	PG_ADD_TEST(suite, test_eci_eop_dut1_effect);
 	PG_ADD_TEST(suite, test_eci_eop_polar_motion);
 	PG_ADD_TEST(suite, test_eci_eop_zero_params_matches_plain);
-	PG_ADD_TEST(suite, test_eci_eop_z_preserved);
+	PG_ADD_TEST(suite, test_eci_eop_norm_preserved);
 }

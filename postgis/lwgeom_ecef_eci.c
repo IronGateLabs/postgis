@@ -101,7 +101,8 @@ parse_eci_frame(const char *frame)
  * The third argument specifies the target frame: 'ICRF', 'J2000', or 'TEME'.
  * ---------------------------------------------------------------- */
 PG_FUNCTION_INFO_V1(postgis_ecef_to_eci);
-Datum postgis_ecef_to_eci(PG_FUNCTION_ARGS)
+Datum
+postgis_ecef_to_eci(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom_in;
 	LWGEOM *lwgeom;
@@ -120,22 +121,23 @@ Datum postgis_ecef_to_eci(PG_FUNCTION_ARGS)
 	/* Validate input SRID */
 	srid_from = gserialized_get_srid(geom_in);
 	if (srid_from != SRID_ECEF)
-		elog(ERROR, "ST_ECEFToECI: input geometry must have SRID %d (ECEF/WGS 84 geocentric), got %d",
-			 SRID_ECEF, srid_from);
+		elog(ERROR,
+		     "ST_ECEFToECI: input geometry must have SRID %d (ECEF/WGS 84 geocentric), got %d",
+		     SRID_ECEF,
+		     srid_from);
 
 	/* Parse target frame */
 	frame_str = text_to_cstring(frame_text);
 	srid_to = parse_eci_frame(frame_str);
 	if (srid_to == 0)
-		elog(ERROR, "ST_ECEFToECI: unrecognized ECI frame '%s' (expected ICRF, J2000, or TEME)",
-			 frame_str);
+		elog(ERROR, "ST_ECEFToECI: unrecognized ECI frame '%s' (expected ICRF, J2000, or TEME)", frame_str);
 
 	/* Convert timestamp to decimal year */
 	epoch = timestamptz_to_decimal_year(ts);
 
 	/* Deserialize, transform, set output SRID */
 	lwgeom = lwgeom_from_gserialized(geom_in);
-	if (lwgeom_transform_ecef_to_eci(lwgeom, epoch) != LW_SUCCESS)
+	if (lwgeom_transform_ecef_to_eci(lwgeom, epoch, srid_to) != LW_SUCCESS)
 	{
 		lwgeom_free(lwgeom);
 		PG_FREE_IF_COPY(geom_in, 0);
@@ -161,7 +163,8 @@ Datum postgis_ecef_to_eci(PG_FUNCTION_ARGS)
  * purposes and SRID validation: 'ICRF', 'J2000', or 'TEME'.
  * ---------------------------------------------------------------- */
 PG_FUNCTION_INFO_V1(postgis_eci_to_ecef);
-Datum postgis_eci_to_ecef(PG_FUNCTION_ARGS)
+Datum
+postgis_eci_to_ecef(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom_in;
 	LWGEOM *lwgeom;
@@ -180,25 +183,30 @@ Datum postgis_eci_to_ecef(PG_FUNCTION_ARGS)
 	/* Validate input SRID is an ECI SRID */
 	srid_from = gserialized_get_srid(geom_in);
 	if (!SRID_IS_ECI(srid_from))
-		elog(ERROR, "ST_ECIToECEF: input geometry must have an ECI SRID (%d-%d), got %d",
-			 SRID_ECI_BASE, SRID_ECI_MAX, srid_from);
+		elog(ERROR,
+		     "ST_ECIToECEF: input geometry must have an ECI SRID (%d-%d), got %d",
+		     SRID_ECI_BASE,
+		     SRID_ECI_MAX,
+		     srid_from);
 
 	/* Parse frame and cross-check against SRID */
 	frame_str = text_to_cstring(frame_text);
 	srid_expected = parse_eci_frame(frame_str);
 	if (srid_expected == 0)
-		elog(ERROR, "ST_ECIToECEF: unrecognized ECI frame '%s' (expected ICRF, J2000, or TEME)",
-			 frame_str);
+		elog(ERROR, "ST_ECIToECEF: unrecognized ECI frame '%s' (expected ICRF, J2000, or TEME)", frame_str);
 	if (srid_from != srid_expected)
-		elog(ERROR, "ST_ECIToECEF: geometry SRID %d does not match frame '%s' (SRID %d)",
-			 srid_from, frame_str, srid_expected);
+		elog(ERROR,
+		     "ST_ECIToECEF: geometry SRID %d does not match frame '%s' (SRID %d)",
+		     srid_from,
+		     frame_str,
+		     srid_expected);
 
 	/* Convert timestamp to decimal year */
 	epoch = timestamptz_to_decimal_year(ts);
 
 	/* Deserialize, transform, set output SRID to ECEF */
 	lwgeom = lwgeom_from_gserialized(geom_in);
-	if (lwgeom_transform_eci_to_ecef(lwgeom, epoch) != LW_SUCCESS)
+	if (lwgeom_transform_eci_to_ecef(lwgeom, epoch, srid_expected) != LW_SUCCESS)
 	{
 		lwgeom_free(lwgeom);
 		PG_FREE_IF_COPY(geom_in, 0);
@@ -217,16 +225,23 @@ Datum postgis_eci_to_ecef(PG_FUNCTION_ARGS)
 }
 
 /* ----------------------------------------------------------------
- * EOP-Enhanced Transforms
+ * EOP-Enhanced Transforms (IAU 2006/2000A full model, Phase 3)
  *
- * postgis_ecef_to_eci_eop(geometry, timestamptz, text, float8, float8, float8) -> geometry
- * postgis_eci_to_ecef_eop(geometry, timestamptz, text, float8, float8, float8) -> geometry
+ * postgis_ecef_to_eci_eop(geometry, timestamptz, text,
+ *                         float8, float8, float8, float8, float8) -> geometry
+ * postgis_eci_to_ecef_eop(geometry, timestamptz, text,
+ *                         float8, float8, float8, float8, float8) -> geometry
  *
- * These accept explicit EOP parameters (dut1, xp, yp) passed from SQL.
+ * These accept explicit EOP parameters (dut1, xp, yp, dx, dy) passed from
+ * SQL. dx/dy are the IAU 2000A CIP offsets; passing 0.0 for them is the
+ * Phase 2 behavior (simplified ERA + polar motion only). Phase 3 applies
+ * the full IAU 2006/2000A bias-precession-nutation matrix regardless of
+ * whether dx/dy are non-zero.
  * ---------------------------------------------------------------- */
 
 PG_FUNCTION_INFO_V1(postgis_ecef_to_eci_eop);
-Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
+Datum
+postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom_in;
 	LWGEOM *lwgeom;
@@ -240,6 +255,8 @@ Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
 	double dut1;
 	double xp;
 	double yp;
+	double dx;
+	double dy;
 
 	geom_in = PG_GETARG_GSERIALIZED_P_COPY(0);
 	ts = PG_GETARG_TIMESTAMPTZ(1);
@@ -247,12 +264,13 @@ Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
 	dut1 = PG_GETARG_FLOAT8(3);
 	xp = PG_GETARG_FLOAT8(4);
 	yp = PG_GETARG_FLOAT8(5);
+	dx = PG_GETARG_FLOAT8(6);
+	dy = PG_GETARG_FLOAT8(7);
 
 	/* Validate input SRID */
 	srid_from = gserialized_get_srid(geom_in);
 	if (srid_from != SRID_ECEF)
-		elog(ERROR, "postgis_ecef_to_eci_eop: input must have SRID %d (ECEF), got %d",
-			 SRID_ECEF, srid_from);
+		elog(ERROR, "postgis_ecef_to_eci_eop: input must have SRID %d (ECEF), got %d", SRID_ECEF, srid_from);
 
 	/* Parse target frame */
 	frame_str = text_to_cstring(frame_text);
@@ -265,7 +283,7 @@ Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
 
 	/* Transform with EOP corrections */
 	lwgeom = lwgeom_from_gserialized(geom_in);
-	if (lwgeom_transform_ecef_to_eci_eop(lwgeom, epoch, dut1, xp, yp) != LW_SUCCESS)
+	if (lwgeom_transform_ecef_to_eci_eop(lwgeom, epoch, srid_to, dut1, xp, yp, dx, dy) != LW_SUCCESS)
 	{
 		lwgeom_free(lwgeom);
 		PG_FREE_IF_COPY(geom_in, 0);
@@ -284,7 +302,8 @@ Datum postgis_ecef_to_eci_eop(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(postgis_eci_to_ecef_eop);
-Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
+Datum
+postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom_in;
 	LWGEOM *lwgeom;
@@ -298,6 +317,8 @@ Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
 	double dut1;
 	double xp;
 	double yp;
+	double dx;
+	double dy;
 
 	geom_in = PG_GETARG_GSERIALIZED_P_COPY(0);
 	ts = PG_GETARG_TIMESTAMPTZ(1);
@@ -305,12 +326,17 @@ Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
 	dut1 = PG_GETARG_FLOAT8(3);
 	xp = PG_GETARG_FLOAT8(4);
 	yp = PG_GETARG_FLOAT8(5);
+	dx = PG_GETARG_FLOAT8(6);
+	dy = PG_GETARG_FLOAT8(7);
 
 	/* Validate input SRID */
 	srid_from = gserialized_get_srid(geom_in);
 	if (!SRID_IS_ECI(srid_from))
-		elog(ERROR, "postgis_eci_to_ecef_eop: input must have ECI SRID (%d-%d), got %d",
-			 SRID_ECI_BASE, SRID_ECI_MAX, srid_from);
+		elog(ERROR,
+		     "postgis_eci_to_ecef_eop: input must have ECI SRID (%d-%d), got %d",
+		     SRID_ECI_BASE,
+		     SRID_ECI_MAX,
+		     srid_from);
 
 	/* Parse frame and cross-check */
 	frame_str = text_to_cstring(frame_text);
@@ -318,15 +344,18 @@ Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
 	if (srid_expected == 0)
 		elog(ERROR, "postgis_eci_to_ecef_eop: unrecognized frame '%s'", frame_str);
 	if (srid_from != srid_expected)
-		elog(ERROR, "postgis_eci_to_ecef_eop: SRID %d does not match frame '%s' (SRID %d)",
-			 srid_from, frame_str, srid_expected);
+		elog(ERROR,
+		     "postgis_eci_to_ecef_eop: SRID %d does not match frame '%s' (SRID %d)",
+		     srid_from,
+		     frame_str,
+		     srid_expected);
 
 	/* Convert timestamp to decimal year */
 	epoch = timestamptz_to_decimal_year(ts);
 
 	/* Transform with EOP corrections */
 	lwgeom = lwgeom_from_gserialized(geom_in);
-	if (lwgeom_transform_eci_to_ecef_eop(lwgeom, epoch, dut1, xp, yp) != LW_SUCCESS)
+	if (lwgeom_transform_eci_to_ecef_eop(lwgeom, epoch, srid_expected, dut1, xp, yp, dx, dy) != LW_SUCCESS)
 	{
 		lwgeom_free(lwgeom);
 		PG_FREE_IF_COPY(geom_in, 0);
@@ -356,7 +385,8 @@ Datum postgis_eci_to_ecef_eop(PG_FUNCTION_ARGS)
  * ---------------------------------------------------------------- */
 
 PG_FUNCTION_INFO_V1(postgis_ecef_x);
-Datum postgis_ecef_x(PG_FUNCTION_ARGS)
+Datum
+postgis_ecef_x(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	POINT4D pt;
@@ -375,7 +405,8 @@ Datum postgis_ecef_x(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(postgis_ecef_y);
-Datum postgis_ecef_y(PG_FUNCTION_ARGS)
+Datum
+postgis_ecef_y(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	POINT4D pt;
@@ -394,7 +425,8 @@ Datum postgis_ecef_y(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(postgis_ecef_z);
-Datum postgis_ecef_z(PG_FUNCTION_ARGS)
+Datum
+postgis_ecef_z(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	POINT4D pt;
