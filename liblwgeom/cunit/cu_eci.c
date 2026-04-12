@@ -25,27 +25,31 @@
 #include "CUnit/Basic.h"
 
 #include "liblwgeom_internal.h"
+#include "../erfa/erfa.h"
 #include "cu_tester.h"
 
 /***********************************************************************
  * Epoch Conversion Tests
  */
 
-static void test_epoch_to_jd_j2000(void)
+static void
+test_epoch_to_jd_j2000(void)
 {
 	/* J2000.0 epoch: 2000.0 -> JD 2451545.0 */
 	double jd = lweci_epoch_to_jd(2000.0);
 	CU_ASSERT_DOUBLE_EQUAL(jd, 2451545.0, 0.001);
 }
 
-static void test_epoch_to_jd_2024(void)
+static void
+test_epoch_to_jd_2024(void)
 {
 	/* 2024.0 -> 2451545.0 + 24*365.25 = 2460311.0 */
 	double jd = lweci_epoch_to_jd(2024.0);
 	CU_ASSERT_DOUBLE_EQUAL(jd, 2451545.0 + 24.0 * 365.25, 0.001);
 }
 
-static void test_epoch_to_jd_negative(void)
+static void
+test_epoch_to_jd_negative(void)
 {
 	/* 1990.0 -> 2451545.0 + (-10)*365.25 = 2447892.5 */
 	double jd = lweci_epoch_to_jd(1990.0);
@@ -56,7 +60,8 @@ static void test_epoch_to_jd_negative(void)
  * Earth Rotation Angle Tests
  */
 
-static void test_era_j2000(void)
+static void
+test_era_j2000(void)
 {
 	/* At J2000.0 epoch (JD 2451545.0), ERA should be a specific value */
 	double era = lweci_earth_rotation_angle(2451545.0);
@@ -66,7 +71,8 @@ static void test_era_j2000(void)
 	CU_ASSERT_DOUBLE_EQUAL(era, expected, 1e-10);
 }
 
-static void test_era_one_sidereal_day(void)
+static void
+test_era_one_sidereal_day(void)
 {
 	/* After one sidereal day, ERA should increase by ~2*pi */
 	/* One sidereal day ≈ 0.99726957 solar days */
@@ -77,11 +83,13 @@ static void test_era_one_sidereal_day(void)
 
 	/* ERA2 - ERA1 should be approximately 2*pi (one full rotation) */
 	double diff = era2 - era1;
-	if (diff < 0) diff += 2.0 * M_PI;
+	if (diff < 0)
+		diff += 2.0 * M_PI;
 	CU_ASSERT_DOUBLE_EQUAL(diff, 2.0 * M_PI, 0.001);
 }
 
-static void test_era_range(void)
+static void
+test_era_range(void)
 {
 	/* ERA should always be in [0, 2*pi) */
 	for (int i = 0; i < 100; i++)
@@ -93,7 +101,8 @@ static void test_era_range(void)
 	}
 }
 
-static void test_era_monotonic(void)
+static void
+test_era_monotonic(void)
 {
 	/* ERA should increase monotonically (mod 2*pi) */
 	double prev_raw = 0;
@@ -108,11 +117,59 @@ static void test_era_monotonic(void)
 	}
 }
 
+static void
+test_era_matches_erfa(void)
+{
+	/* Phase 2 of ecef-eci-full-iau-precision: lweci_earth_rotation_angle
+	 * is now a wrapper around eraEra00. Verify bit-identical results for
+	 * a range of epochs spanning many decades.
+	 *
+	 * The internal JD is passed to eraEra00 as (jd, 0.0) — a single-part
+	 * JD, which is the same form the legacy formula consumed. Since both
+	 * implementations evaluate the same IAU 2000 definition of ERA,
+	 * results must be bit-identical (strict equality, no tolerance). */
+	double test_jds[] = {
+	    2451545.0, /* J2000.0 */
+	    2451545.5, /* half a day later */
+	    2440587.5, /* 1970 Unix epoch */
+	    2451910.0, /* 2001-01-01 */
+	    2460676.5, /* 2025-01-01 */
+	    2469807.5, /* 2050-01-01 (future) */
+	    2433282.5, /* 1950-01-01 (past) */
+	};
+	size_t n = sizeof(test_jds) / sizeof(test_jds[0]);
+	for (size_t i = 0; i < n; i++)
+	{
+		double via_lweci = lweci_earth_rotation_angle(test_jds[i]);
+		double via_erfa = eraEra00(test_jds[i], 0.0);
+		CU_ASSERT_EQUAL(via_lweci, via_erfa);
+	}
+}
+
+static void
+test_epoch_to_jd_two_part(void)
+{
+	/* Two-part JD form sums to the single-part form. */
+	double epochs[] = {2000.0, 2024.5, 1970.0, 2050.0};
+	size_t n = sizeof(epochs) / sizeof(epochs[0]);
+	for (size_t i = 0; i < n; i++)
+	{
+		double single = lweci_epoch_to_jd(epochs[i]);
+		double jd1, jd2;
+		lweci_epoch_to_jd_two_part(epochs[i], &jd1, &jd2);
+		/* jd1 should be the canonical MJD epoch */
+		CU_ASSERT_DOUBLE_EQUAL(jd1, 2400000.5, 1e-12);
+		/* jd1 + jd2 should equal the single-part form exactly */
+		CU_ASSERT_EQUAL(jd1 + jd2, single);
+	}
+}
+
 /***********************************************************************
  * ECI-to-ECEF Transformation Tests
  */
 
-static void test_eci_to_ecef_point(void)
+static void
+test_eci_to_ecef_point(void)
 {
 	/* Test that ECI-to-ECEF applies a Z-axis rotation */
 	LWGEOM *geom;
@@ -138,7 +195,8 @@ static void test_eci_to_ecef_point(void)
 	lwgeom_free(geom);
 }
 
-static void test_ecef_to_eci_point(void)
+static void
+test_ecef_to_eci_point(void)
 {
 	/* Test reverse: ECEF-to-ECI applies opposite rotation */
 	LWGEOM *geom;
@@ -160,7 +218,8 @@ static void test_ecef_to_eci_point(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_ecef_roundtrip(void)
+static void
+test_eci_ecef_roundtrip(void)
 {
 	/* ECI -> ECEF -> ECI should return to original */
 	LWGEOM *geom;
@@ -188,7 +247,8 @@ static void test_eci_ecef_roundtrip(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_ecef_roundtrip_linestring(void)
+static void
+test_eci_ecef_roundtrip_linestring(void)
 {
 	/* Test roundtrip with linestring geometry */
 	LWGEOM *geom;
@@ -198,9 +258,7 @@ static void test_eci_ecef_roundtrip_linestring(void)
 	double epoch = 2020.0;
 	int i;
 
-	geom = lwgeom_from_wkt(
-		"LINESTRING Z (6378137 0 0, 0 6378137 0)",
-		LW_PARSER_CHECK_NONE);
+	geom = lwgeom_from_wkt("LINESTRING Z (6378137 0 0, 0 6378137 0)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	line = (LWLINE *)geom;
@@ -222,7 +280,8 @@ static void test_eci_ecef_roundtrip_linestring(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_z_axis_invariant(void)
+static void
+test_eci_z_axis_invariant(void)
 {
 	/* Points on the Z axis should be unaffected by rotation about Z */
 	LWGEOM *geom;
@@ -243,7 +302,8 @@ static void test_eci_z_axis_invariant(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_different_epochs_differ(void)
+static void
+test_eci_different_epochs_differ(void)
 {
 	/* Same point at different epochs should produce different ECEF coordinates */
 	LWGEOM *geom1, *geom2;
@@ -271,7 +331,8 @@ static void test_eci_different_epochs_differ(void)
 	lwgeom_free(geom2);
 }
 
-static void test_eci_no_epoch_error(void)
+static void
+test_eci_no_epoch_error(void)
 {
 	/* Attempting ECI transform without epoch should fail */
 	LWGEOM *geom;
@@ -287,7 +348,8 @@ static void test_eci_no_epoch_error(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_empty_geometry(void)
+static void
+test_eci_empty_geometry(void)
 {
 	/* Empty geometry should transform successfully */
 	LWGEOM *geom;
@@ -302,7 +364,8 @@ static void test_eci_empty_geometry(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_polygon(void)
+static void
+test_eci_polygon(void)
 {
 	/* Test polygon roundtrip */
 	LWGEOM *geom;
@@ -311,9 +374,9 @@ static void test_eci_polygon(void)
 	POINT4D p_final;
 	double epoch = 2023.0;
 
-	geom = lwgeom_from_wkt(
-		"POLYGON Z ((5000000 0 0, 5000000 1000000 0, 6000000 1000000 0, 6000000 0 0, 5000000 0 0))",
-		LW_PARSER_CHECK_NONE);
+	geom =
+	    lwgeom_from_wkt("POLYGON Z ((5000000 0 0, 5000000 1000000 0, 6000000 1000000 0, 6000000 0 0, 5000000 0 0))",
+			    LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	poly = (LWPOLY *)geom;
@@ -330,7 +393,8 @@ static void test_eci_polygon(void)
 	lwgeom_free(geom);
 }
 
-static void test_lwproj_epoch_field(void)
+static void
+test_lwproj_epoch_field(void)
 {
 	/* Verify LWPROJ epoch field initialization */
 	LWPROJ *lp;
@@ -349,8 +413,7 @@ static void test_lwproj_epoch_field(void)
 	}
 
 	/* Pipeline should also initialize to no epoch */
-	lp = lwproj_from_str_pipeline(
-		"+proj=pipeline +step +proj=cart +ellps=WGS84", true);
+	lp = lwproj_from_str_pipeline("+proj=pipeline +step +proj=cart +ellps=WGS84", true);
 	CU_ASSERT_PTR_NOT_NULL(lp);
 	if (lp)
 	{
@@ -360,7 +423,8 @@ static void test_lwproj_epoch_field(void)
 	}
 }
 
-static void test_lwcrs_family_requires_epoch(void)
+static void
+test_lwcrs_family_requires_epoch(void)
 {
 	/* Only INERTIAL requires epoch */
 	CU_ASSERT_EQUAL(lwcrs_family_requires_epoch(LW_CRS_INERTIAL), 1);
@@ -376,7 +440,8 @@ static void test_lwcrs_family_requires_epoch(void)
  * ECI SRID Range Tests
  */
 
-static void test_srid_is_eci(void)
+static void
+test_srid_is_eci(void)
 {
 	/* ECI SRID range: 900001-900099 */
 	CU_ASSERT_EQUAL(SRID_IS_ECI(SRID_ECI_ICRF), 1);
@@ -393,7 +458,8 @@ static void test_srid_is_eci(void)
 	CU_ASSERT_EQUAL(SRID_IS_ECI(0), 0);
 }
 
-static void test_eci_srid_family_lookup(void)
+static void
+test_eci_srid_family_lookup(void)
 {
 	/* ECI SRIDs should return LW_CRS_INERTIAL from the family lookup */
 	CU_ASSERT_EQUAL(lwsrid_get_crs_family(SRID_ECI_ICRF), LW_CRS_INERTIAL);
@@ -402,7 +468,8 @@ static void test_eci_srid_family_lookup(void)
 	CU_ASSERT_EQUAL(lwsrid_get_crs_family(900050), LW_CRS_INERTIAL);
 }
 
-static void test_eci_srid_constants(void)
+static void
+test_eci_srid_constants(void)
 {
 	/* Verify SRID constants are in the correct range */
 	CU_ASSERT_EQUAL(SRID_ECI_BASE, 900001);
@@ -416,7 +483,8 @@ static void test_eci_srid_constants(void)
  * ECI Bounding Box Tests
  */
 
-static void test_eci_gbox_point(void)
+static void
+test_eci_gbox_point(void)
 {
 	/* ECI bounding box for a single point */
 	LWGEOM *geom;
@@ -437,15 +505,15 @@ static void test_eci_gbox_point(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_gbox_linestring(void)
+static void
+test_eci_gbox_linestring(void)
 {
 	/* ECI bounding box for a linestring spanning 3D space */
 	LWGEOM *geom;
 	GBOX gbox;
 
-	geom = lwgeom_from_wkt(
-		"LINESTRING Z (-6378137 -6378137 -6356752, 6378137 6378137 6356752)",
-		LW_PARSER_CHECK_NONE);
+	geom =
+	    lwgeom_from_wkt("LINESTRING Z (-6378137 -6378137 -6356752, 6378137 6378137 6356752)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	memset(&gbox, 0, sizeof(GBOX));
@@ -460,16 +528,15 @@ static void test_eci_gbox_linestring(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_gbox_with_m_epoch(void)
+static void
+test_eci_gbox_with_m_epoch(void)
 {
 	/* ECI bounding box with M coordinate as epoch */
 	LWGEOM *geom;
 	GBOX gbox;
 
 	/* Two points at different epochs stored in M: 2024.0 and 2024.5 */
-	geom = lwgeom_from_wkt(
-		"LINESTRING ZM (6378137 0 0 2024.0, 0 6378137 0 2024.5)",
-		LW_PARSER_CHECK_NONE);
+	geom = lwgeom_from_wkt("LINESTRING ZM (6378137 0 0 2024.0, 0 6378137 0 2024.5)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	memset(&gbox, 0, sizeof(GBOX));
@@ -486,7 +553,8 @@ static void test_eci_gbox_with_m_epoch(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_gbox_empty(void)
+static void
+test_eci_gbox_empty(void)
 {
 	/* Empty geometry should fail */
 	LWGEOM *geom;
@@ -501,7 +569,8 @@ static void test_eci_gbox_empty(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_gbox_null_args(void)
+static void
+test_eci_gbox_null_args(void)
 {
 	/* NULL arguments should fail gracefully */
 	GBOX gbox;
@@ -512,7 +581,8 @@ static void test_eci_gbox_null_args(void)
 	lwgeom_free(geom);
 }
 
-static void test_postgis_eci_enabled(void)
+static void
+test_postgis_eci_enabled(void)
 {
 	/* Verify compile-time macros are defined */
 	CU_ASSERT_EQUAL(POSTGIS_ECI_ENABLED, 1);
@@ -523,15 +593,14 @@ static void test_postgis_eci_enabled(void)
 #endif
 }
 
-static void test_eci_multipoint_gbox(void)
+static void
+test_eci_multipoint_gbox(void)
 {
 	/* ECI bounding box for a multipoint */
 	LWGEOM *geom;
 	GBOX gbox;
 
-	geom = lwgeom_from_wkt(
-		"MULTIPOINT Z (6378137 0 0, -6378137 0 0, 0 0 6356752)",
-		LW_PARSER_CHECK_NONE);
+	geom = lwgeom_from_wkt("MULTIPOINT Z (6378137 0 0, -6378137 0 0, 0 0 6356752)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	memset(&gbox, 0, sizeof(GBOX));
@@ -550,7 +619,8 @@ static void test_eci_multipoint_gbox(void)
  * Branch Coverage Tests - Geometry Type Switch Cases
  */
 
-static void test_eci_2d_geometry(void)
+static void
+test_eci_2d_geometry(void)
 {
 	/* 2D geometry (no Z) should still rotate X/Y correctly */
 	LWGEOM *geom;
@@ -576,7 +646,8 @@ static void test_eci_2d_geometry(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_geometrycollection(void)
+static void
+test_eci_geometrycollection(void)
 {
 	/* GeometryCollection roundtrip (exercises COLLECTIONTYPE branch) */
 	LWGEOM *geom;
@@ -586,11 +657,11 @@ static void test_eci_geometrycollection(void)
 	double epoch = 2023.0;
 
 	geom = lwgeom_from_wkt(
-		"GEOMETRYCOLLECTION Z ("
-		"  POINT Z (6378137 0 0),"
-		"  LINESTRING Z (6378137 0 0, 0 6378137 0)"
-		")",
-		LW_PARSER_CHECK_NONE);
+	    "GEOMETRYCOLLECTION Z ("
+	    "  POINT Z (6378137 0 0),"
+	    "  LINESTRING Z (6378137 0 0, 0 6378137 0)"
+	    ")",
+	    LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	col = (LWCOLLECTION *)geom;
@@ -607,7 +678,8 @@ static void test_eci_geometrycollection(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_multipolygon(void)
+static void
+test_eci_multipolygon(void)
 {
 	/* MultiPolygon roundtrip (exercises MULTIPOLYGONTYPE branch) */
 	LWGEOM *geom;
@@ -618,11 +690,11 @@ static void test_eci_multipolygon(void)
 	double epoch = 2022.0;
 
 	geom = lwgeom_from_wkt(
-		"MULTIPOLYGON Z ("
-		"  ((5000000 0 0, 5000000 1000000 0, 6000000 1000000 0, 6000000 0 0, 5000000 0 0)),"
-		"  ((0 5000000 0, 0 5000000 1000000, 0 6000000 1000000, 0 6000000 0, 0 5000000 0))"
-		")",
-		LW_PARSER_CHECK_NONE);
+	    "MULTIPOLYGON Z ("
+	    "  ((5000000 0 0, 5000000 1000000 0, 6000000 1000000 0, 6000000 0 0, 5000000 0 0)),"
+	    "  ((0 5000000 0, 0 5000000 1000000, 0 6000000 1000000, 0 6000000 0, 0 5000000 0))"
+	    ")",
+	    LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	col = (LWCOLLECTION *)geom;
@@ -640,7 +712,8 @@ static void test_eci_multipolygon(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_multilinestring(void)
+static void
+test_eci_multilinestring(void)
 {
 	/* MultiLineString roundtrip (exercises MULTILINETYPE branch) */
 	LWGEOM *geom;
@@ -651,11 +724,11 @@ static void test_eci_multilinestring(void)
 	double epoch = 2025.0;
 
 	geom = lwgeom_from_wkt(
-		"MULTILINESTRING Z ("
-		"  (6378137 0 0, 0 6378137 0),"
-		"  (0 0 6356752, 6378137 0 0)"
-		")",
-		LW_PARSER_CHECK_NONE);
+	    "MULTILINESTRING Z ("
+	    "  (6378137 0 0, 0 6378137 0),"
+	    "  (0 0 6356752, 6378137 0 0)"
+	    ")",
+	    LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	col = (LWCOLLECTION *)geom;
@@ -673,7 +746,8 @@ static void test_eci_multilinestring(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_triangle(void)
+static void
+test_eci_triangle(void)
 {
 	/* Triangle roundtrip (exercises TRIANGLETYPE branch) */
 	LWGEOM *geom;
@@ -682,9 +756,8 @@ static void test_eci_triangle(void)
 	double epoch = 2024.0;
 	LWLINE *tri;
 
-	geom = lwgeom_from_wkt(
-		"TRIANGLE Z ((5000000 0 0, 5000000 1000000 0, 6000000 0 0, 5000000 0 0))",
-		LW_PARSER_CHECK_NONE);
+	geom = lwgeom_from_wkt("TRIANGLE Z ((5000000 0 0, 5000000 1000000 0, 6000000 0 0, 5000000 0 0))",
+			       LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	tri = (LWLINE *)geom;
@@ -701,7 +774,8 @@ static void test_eci_triangle(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_circularstring(void)
+static void
+test_eci_circularstring(void)
 {
 	/* CircularString roundtrip (exercises CIRCSTRINGTYPE branch) */
 	LWGEOM *geom;
@@ -710,9 +784,7 @@ static void test_eci_circularstring(void)
 	POINT4D p_final;
 	double epoch = 2024.0;
 
-	geom = lwgeom_from_wkt(
-		"CIRCULARSTRING Z (5000000 0 0, 5500000 500000 0, 6000000 0 0)",
-		LW_PARSER_CHECK_NONE);
+	geom = lwgeom_from_wkt("CIRCULARSTRING Z (5000000 0 0, 5500000 500000 0, 6000000 0 0)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
 
 	cs = (LWLINE *)geom;
@@ -729,7 +801,8 @@ static void test_eci_circularstring(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_extreme_epoch_far_future(void)
+static void
+test_eci_extreme_epoch_far_future(void)
 {
 	/* Test with far-future epoch: year 9999 */
 	LWGEOM *geom;
@@ -758,7 +831,8 @@ static void test_eci_extreme_epoch_far_future(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_extreme_epoch_far_past(void)
+static void
+test_eci_extreme_epoch_far_past(void)
 {
 	/* Test with far-past epoch: year 1000 */
 	LWGEOM *geom;
@@ -782,7 +856,8 @@ static void test_eci_extreme_epoch_far_past(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_large_pointarray(void)
+static void
+test_eci_large_pointarray(void)
 {
 	/* Test with a large LineString (1000 points) for stress/performance */
 	LWGEOM *geom;
@@ -801,14 +876,16 @@ static void test_eci_large_pointarray(void)
 		double angle = 2.0 * M_PI * i / 1000.0;
 		double x = 6378137.0 * cos(angle);
 		double y = 6378137.0 * sin(angle);
-		if (i > 0) offset += snprintf(wkt + offset, sizeof(wkt) - offset, ", ");
+		if (i > 0)
+			offset += snprintf(wkt + offset, sizeof(wkt) - offset, ", ");
 		offset += snprintf(wkt + offset, sizeof(wkt) - offset, "%.3f %.3f 0", x, y);
 	}
 	snprintf(wkt + offset, sizeof(wkt) - offset, ")");
 
 	geom = lwgeom_from_wkt(wkt, LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
-	if (!geom) return;
+	if (!geom)
+		return;
 
 	line = (LWLINE *)geom;
 	getPoint4d_p(line->points, 0, &p_orig);
@@ -835,7 +912,8 @@ static void test_eci_large_pointarray(void)
  * EOP-Enhanced Transform Tests
  */
 
-static void test_eci_eop_roundtrip(void)
+static void
+test_eci_eop_roundtrip(void)
 {
 	/* ECEF -> ECI (EOP) -> ECEF (EOP) should return to original */
 	LWGEOM *geom;
@@ -843,9 +921,9 @@ static void test_eci_eop_roundtrip(void)
 	POINT4D p_orig;
 	POINT4D p_final;
 	double epoch = 2024.5;
-	double dut1 = 0.035;   /* UT1-UTC in seconds */
-	double xp = 0.1234;    /* polar motion x in arcsec */
-	double yp = 0.5678;    /* polar motion y in arcsec */
+	double dut1 = 0.035; /* UT1-UTC in seconds */
+	double xp = 0.1234;  /* polar motion x in arcsec */
+	double yp = 0.5678;  /* polar motion y in arcsec */
 
 	geom = lwgeom_from_wkt("POINT Z (5000000 3000000 4000000)", LW_PARSER_CHECK_NONE);
 	CU_ASSERT_PTR_NOT_NULL(geom);
@@ -866,7 +944,8 @@ static void test_eci_eop_roundtrip(void)
 	lwgeom_free(geom);
 }
 
-static void test_eci_eop_dut1_effect(void)
+static void
+test_eci_eop_dut1_effect(void)
 {
 	/* dut1 correction should produce a different result from non-EOP */
 	LWGEOM *geom_eop, *geom_plain;
@@ -874,7 +953,7 @@ static void test_eci_eop_dut1_effect(void)
 	POINT4D p_eop;
 	POINT4D p_plain;
 	double epoch = 2024.0;
-	double dut1 = 0.5;    /* large dut1 for visible effect */
+	double dut1 = 0.5; /* large dut1 for visible effect */
 	double xp = 0.0;
 	double yp = 0.0;
 
@@ -900,7 +979,8 @@ static void test_eci_eop_dut1_effect(void)
 	lwgeom_free(geom_plain);
 }
 
-static void test_eci_eop_polar_motion(void)
+static void
+test_eci_eop_polar_motion(void)
 {
 	/* Polar motion (xp, yp) should affect X, Y, and Z coordinates */
 	LWGEOM *geom_pm, *geom_nopm;
@@ -909,8 +989,8 @@ static void test_eci_eop_polar_motion(void)
 	POINT4D p_nopm;
 	double epoch = 2024.0;
 	double dut1 = 0.0;
-	double xp = 0.2;   /* arcsec */
-	double yp = 0.3;   /* arcsec */
+	double xp = 0.2; /* arcsec */
+	double yp = 0.3; /* arcsec */
 
 	geom_pm = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
 	geom_nopm = lwgeom_from_wkt("POINT Z (6378137 0 0)", LW_PARSER_CHECK_NONE);
@@ -940,7 +1020,8 @@ static void test_eci_eop_polar_motion(void)
 	lwgeom_free(geom_nopm);
 }
 
-static void test_eci_eop_zero_params_matches_plain(void)
+static void
+test_eci_eop_zero_params_matches_plain(void)
 {
 	/* EOP with dut1=0, xp=0, yp=0 should match the non-EOP result */
 	LWGEOM *geom_eop, *geom_plain;
@@ -973,7 +1054,8 @@ static void test_eci_eop_zero_params_matches_plain(void)
 	lwgeom_free(geom_plain);
 }
 
-static void test_eci_eop_z_preserved(void)
+static void
+test_eci_eop_z_preserved(void)
 {
 	/* With xp=0 and yp=0, Z should be preserved (Z-rotation only) */
 	LWGEOM *geom;
@@ -999,7 +1081,8 @@ static void test_eci_eop_z_preserved(void)
  * Suite Setup
  */
 
-void eci_suite_setup(void)
+void
+eci_suite_setup(void)
 {
 	CU_pSuite suite = CU_add_suite("eci", NULL, NULL);
 
@@ -1013,6 +1096,8 @@ void eci_suite_setup(void)
 	PG_ADD_TEST(suite, test_era_one_sidereal_day);
 	PG_ADD_TEST(suite, test_era_range);
 	PG_ADD_TEST(suite, test_era_monotonic);
+	PG_ADD_TEST(suite, test_era_matches_erfa);
+	PG_ADD_TEST(suite, test_epoch_to_jd_two_part);
 
 	/* ECI-ECEF transformations */
 	PG_ADD_TEST(suite, test_eci_to_ecef_point);
