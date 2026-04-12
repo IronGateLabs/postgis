@@ -15,17 +15,19 @@ repos:
     hooks:
       - id: codespell
         args: ['--ignore-words=.codespell.ignore']
-        exclude: '^(deps/|extensions/.*/sql/|doc/html/|doc/po/|autom4te\.cache/|build-aux/|configure$|aclocal\.m4$|macros/libtool\.m4$)'
+        exclude: '^(deps/|extensions/.*/sql/|doc/html/|doc/po/|autom4te\.cache/|build-aux/|configure$|aclocal\.m4$|macros/libtool\.m4$|liblwgeom/erfa/)'
 
   # clang-format: enforce .clang-format on changed C/H files only
   # Excludes dirs with pre-existing style that differs from .clang-format
+  # and liblwgeom/erfa/ which is a vendored BSD-licensed upstream subset
+  # kept byte-identical to upstream for determinism and easy re-vendoring.
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v18.1.8
     hooks:
       - id: clang-format
         types_or: [c, c++]
         args: ['--dry-run', '--Werror']
-        exclude: '^(deps/|regress/|doc/|topology/|fuzzers/)'
+        exclude: '^(deps/|regress/|doc/|topology/|fuzzers/|liblwgeom/erfa/)'
 
   # shellcheck: catch script errors on changed shell files only
   # --severity=error: only block on actual errors, not style warnings
@@ -38,12 +40,14 @@ repos:
         exclude: '^(deps/|configure$|libtool$|build-aux/|ci/berrie|ci/debbie|ci/winnie|utils/)'
 
   # basic hygiene
+  # liblwgeom/erfa/ is excluded from trailing-whitespace and end-of-file-fixer
+  # because we keep the vendored ERFA subset byte-identical to upstream.
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-merge-conflict
       - id: trailing-whitespace
-        exclude: '(_expected|\.patch|\.sql\.in)$'
+        exclude: '(_expected|\.patch|\.sql\.in|^liblwgeom/erfa/)'
         args: ['--markdown-linebreak-ext=md']
       - id: end-of-file-fixer
-        exclude: '(_expected|\.patch)$'
+        exclude: '(_expected|\.patch|^liblwgeom/erfa/)'
