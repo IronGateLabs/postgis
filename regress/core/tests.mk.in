@@ -43,6 +43,7 @@ TESTS += \
 	$(top_srcdir)/regress/core/dump \
 	$(top_srcdir)/regress/core/dumppoints \
 	$(top_srcdir)/regress/core/dumpsegments \
+	$(top_srcdir)/regress/core/ecef_eci \
 	$(top_srcdir)/regress/core/empty \
 	$(top_srcdir)/regress/core/estimatedextent \
 	$(top_srcdir)/regress/core/filterm \
@@ -111,6 +112,7 @@ TESTS += \
 	$(top_srcdir)/regress/core/regress_proj_cache_overflow \
 	$(top_srcdir)/regress/core/regress_proj_pipeline \
 	$(top_srcdir)/regress/core/regress_selectivity \
+	$(top_srcdir)/regress/core/regress_crs_family \
 	$(top_srcdir)/regress/core/relate \
 	$(top_srcdir)/regress/core/relatematch \
 	$(top_srcdir)/regress/core/remove_irrelevant_points_for_view \

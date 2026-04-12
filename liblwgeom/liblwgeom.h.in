@@ -38,6 +38,32 @@
 
 #include "proj.h"
 
+/**
+ * CRS family classification.
+ * Identifies the coordinate system family for proper dispatch of
+ * spatial operations, angular conversions, and bounding box computation.
+ */
+typedef enum {
+	LW_CRS_UNKNOWN     = 0, /* Unclassified or unresolvable */
+	LW_CRS_GEOGRAPHIC  = 1, /* Latitude/longitude on ellipsoid (e.g. EPSG:4326) */
+	LW_CRS_PROJECTED   = 2, /* Planar Cartesian from map projection (e.g. EPSG:32632) */
+	LW_CRS_GEOCENTRIC  = 3, /* Earth-Centered Earth-Fixed Cartesian (e.g. EPSG:4978) */
+	LW_CRS_INERTIAL    = 4, /* Earth-Centered Inertial (ICRF/J2000/TEME) */
+	LW_CRS_TOPOCENTRIC = 5, /* Local tangent plane (ENU/NED) */
+	LW_CRS_ENGINEERING = 6  /* Local/engineering CRS with no geodetic datum */
+} LW_CRS_FAMILY;
+
+/* Return a human-readable name for a CRS family enum value */
+const char* lwcrs_family_name(LW_CRS_FAMILY family);
+
+/* Derive CRS family from a PROJ PJ_TYPE value */
+LW_CRS_FAMILY lwcrs_family_from_pj_type(PJ_TYPE pj_type);
+
+/* Look up CRS family for an SRID by querying the PROJ database.
+ * This works for any CRS registered in the PROJ database (e.g. EPSG codes).
+ * Returns LW_CRS_UNKNOWN if the SRID cannot be resolved. */
+LW_CRS_FAMILY lwsrid_get_crs_family(int32_t srid);
+
 /* For PROJ6 we cache several extra values to avoid calls to proj_get_source_crs
  * or proj_get_target_crs since those are very costly
  */
@@ -48,14 +74,95 @@ typedef struct LWPROJ
 	/* for pipeline transforms, whether to do a forward or inverse */
 	bool pipeline_is_forward;
 
-    /* Source crs is geographic: Used in geography calls (source srid == dst srid) */
+    /* DEPRECATED: use source_crs_family instead.
+     * Retained for backward compatibility with third-party extensions.
+     * Will be removed in the next major version. */
     uint8_t source_is_latlong;
     /* Source ellipsoid parameters */
     double source_semi_major_metre;
     double source_semi_minor_metre;
+
+    /* CRS family classification for source and target */
+    LW_CRS_FAMILY source_crs_family;
+    LW_CRS_FAMILY target_crs_family;
+
+    /* Coordinate epoch for time-dependent transforms (decimal year, e.g. 2024.5).
+     * When non-zero, populates PJ_COORD.t for epoch-aware PROJ operations.
+     * Required for ECI (inertial frame) transforms and dynamic datum conversions. */
+    double epoch;
 } LWPROJ;
 
+/* Sentinel value indicating no epoch is set */
+#define LWPROJ_NO_EPOCH 0.0
 
+/**
+ * Determine if the given CRS family requires an epoch for meaningful transforms.
+ * Currently only LW_CRS_INERTIAL requires an epoch.
+ */
+#define lwcrs_family_requires_epoch(f) ((f) == LW_CRS_INERTIAL)
+
+/**
+ * ECI (Earth-Centered Inertial) support is always available since it uses
+ * pure C math (Earth Rotation Angle) rather than PROJ APIs.
+ * The epoch field on LWPROJ and PJ_COORD.t work with PROJ >= 6.1
+ * (the minimum version required by PostGIS).
+ */
+#define POSTGIS_ECI_ENABLED 1
+
+/**
+ * PROJ 9.2+ provides advanced coordinate epoch APIs:
+ * - proj_coordinate_metadata_create()
+ * - proj_coordinate_metadata_get_epoch()
+ * - Dynamic datum support with PJ_TYPE_DYNAMIC_GEODETIC_REFERENCE_FRAME
+ * These are gated behind this macro for future use.
+ */
+#if POSTGIS_PROJ_VERSION >= 90200
+#define POSTGIS_PROJ_HAS_COORDINATE_EPOCH 1
+#else
+#define POSTGIS_PROJ_HAS_COORDINATE_EPOCH 0
+#endif
+
+/**
+ * Custom SRID range for ECI (Earth-Centered Inertial) reference frames.
+ * These are not in the EPSG registry, so we use a reserved range.
+ *
+ * Registration strategy:
+ *   - SRIDs 900001-900099 are reserved for ECI frames
+ *   - 900001 = ICRF (International Celestial Reference Frame)
+ *   - 900002 = J2000 (alias for ICRF at J2000.0 epoch)
+ *   - 900003 = TEME (True Equator Mean Equinox, used by TLE/SGP4)
+ *   - Users may register additional ECI frames via spatial_ref_sys
+ *   - CRS family is derived from SRID range at runtime
+ */
+#define SRID_ECI_BASE      900001
+#define SRID_ECI_ICRF      900001
+#define SRID_ECI_J2000     900002
+#define SRID_ECI_TEME      900003
+#define SRID_ECI_MAX       900099
+#define SRID_IS_ECI(srid)  ((srid) >= SRID_ECI_BASE && (srid) <= SRID_ECI_MAX)
+
+/**
+ * Compute the Earth Rotation Angle (ERA) in radians for a given Julian UT1 date.
+ * ERA = 2*pi*(0.7790572732640 + 1.00273781191135448 * Du)
+ * where Du = Julian UT1 date - 2451545.0 (days since J2000.0)
+ *
+ * This is the IERS 2003 definition used for ICRF/ITRF conversion.
+ */
+double lweci_earth_rotation_angle(double julian_ut1_date);
+
+/**
+ * Convert a decimal year epoch to Julian Date.
+ * e.g. 2024.0 -> 2460310.5 (Jan 1, 2024 noon)
+ */
+double lweci_epoch_to_jd(double decimal_year);
+
+/**
+ * Convert a decimal year epoch to a two-part Julian Date (jd1, jd2).
+ * jd1 is the MJD epoch (2400000.5); jd2 is MJD + fractional day.
+ * Two-part form preserves ~16 extra bits of precision across many-year
+ * spans versus a single-double JD. Preferred when feeding ERFA routines.
+ */
+void lweci_epoch_to_jd_two_part(double decimal_year, double *jd1, double *jd2);
 
 /* Enable new geodesic functions API */
 #define PROJ_GEODESIC
@@ -2296,7 +2403,7 @@ extern char*   hexbytes_from_bytes(const uint8_t *bytes, size_t size);
 /*
 * WKT detailed parsing support
 */
-extern int lwgeom_parse_wkt(LWGEOM_PARSER_RESULT *parser_result, char *wktstr, int parse_flags);
+extern int lwgeom_parse_wkt(LWGEOM_PARSER_RESULT *parser_result, const char *wktstr, int parse_flags);
 void lwgeom_parser_result_init(LWGEOM_PARSER_RESULT *parser_result);
 void lwgeom_parser_result_free(LWGEOM_PARSER_RESULT *parser_result);
 
@@ -2307,7 +2414,7 @@ extern void *lwrealloc(void *mem, size_t size);
 extern void lwfree(void *mem);
 
 /* Utilities */
-extern char *lwmessage_truncate(char *str, int startpos, int endpos, int maxlength, int truncdirection);
+extern char *lwmessage_truncate(const char *str, int errpos, int maxlength);
 
 /*
 * TWKB functions
@@ -2541,6 +2648,69 @@ LWPROJ *lwproj_from_str(const char* str_in, const char* str_out);
 int lwgeom_transform_pipeline(LWGEOM *geom, const char* pipeline, bool is_forward);
 
 /**
+ * Transform a geometry from ECI (inertial) to ECEF frame at a given epoch.
+ * Uses the full IAU 2006/2000A bias-precession-nutation matrix via ERFA.
+ * frame_srid selects ICRF (900001), J2000 (900002), or TEME (900003).
+ * Epoch is decimal year (e.g., 2024.5 for mid-2024).
+ * Accuracy: ~6 cm at Earth radius (zero EOP corrections).
+ */
+int lwgeom_transform_eci_to_ecef(LWGEOM *geom, double epoch, int32_t frame_srid);
+
+/**
+ * Transform a geometry from ECEF to ECI (inertial) frame at a given epoch.
+ * Uses the full IAU 2006/2000A model. frame_srid selects ICRF/J2000/TEME.
+ */
+int lwgeom_transform_ecef_to_eci(LWGEOM *geom, double epoch, int32_t frame_srid);
+
+/**
+ * Transform ECI to ECEF using per-point M coordinates as epochs.
+ * Each point's M value is interpreted as a decimal year.
+ * Note: this path uses the simplified Z-rotation (not full IAU 2006/2000A)
+ * because per-point matrix rebuild would be prohibitive; for precision
+ * transforms use the non-_m variants with a fixed epoch.
+ */
+int lwgeom_transform_eci_to_ecef_m(LWGEOM *geom);
+
+/**
+ * Transform ECEF to ECI using per-point M coordinates as epochs.
+ */
+int lwgeom_transform_ecef_to_eci_m(LWGEOM *geom);
+
+/**
+ * Transform ECEF to ECI with full IAU 2006/2000A + Earth Orientation
+ * Parameters. Builds rpom * rera * rbpn matrix via ERFA once per call
+ * and applies its transpose to every point.
+ *
+ *   frame_srid: ICRF (900001), J2000 (900002), or TEME (900003)
+ *   dut1:       UT1-UTC in seconds (from postgis_eop)
+ *   xp, yp:     polar motion in arcseconds (from postgis_eop)
+ *   dx, dy:     CIP offsets in arcseconds (from postgis_eop)
+ *
+ * All EOP corrections may be zero when no IERS data is available.
+ * Accuracy: ~1 micrometer at Earth radius with EOP, ~6 cm without.
+ */
+int lwgeom_transform_ecef_to_eci_eop(LWGEOM *geom, double epoch,
+                                      int32_t frame_srid,
+                                      double dut1, double xp, double yp,
+                                      double dx, double dy);
+
+/**
+ * Transform ECI to ECEF with full IAU 2006/2000A + EOP. See the
+ * ECEF->ECI variant above for parameter documentation.
+ */
+int lwgeom_transform_eci_to_ecef_eop(LWGEOM *geom, double epoch,
+                                      int32_t frame_srid,
+                                      double dut1, double xp, double yp,
+                                      double dx, double dy);
+
+/**
+ * Compute bounding box for an ECI geometry.
+ * Uses standard Cartesian GBOX computation (no geodetic normalization).
+ * M coordinate tracks temporal (epoch) extent when present.
+ */
+int lwgeom_eci_compute_gbox(const LWGEOM *geom, GBOX *gbox);
+
+/**
  * Allocate a new LWPROJ containing the reference to the PROJ's PJ using a
  * PROJ pipeline definition:
  * @param str_pipeline the coordinate operation pipeline string. Either:
@@ -2661,4 +2831,3 @@ int * lwgeom_cluster_kmeans(const LWGEOM **geoms, uint32_t n, uint32_t k, double
 #include "lwinline.h"
 
 #endif /* !defined _LIBLWGEOM_H  */
-

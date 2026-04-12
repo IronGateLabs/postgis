@@ -29,10 +29,12 @@
 #include <string.h> // strtok
 
 static void
-option_list_string_to_lower(char* key)
+option_list_string_to_lower(char *key)
 {
-	if (!key) return;
-	while (*key) {
+	if (!key)
+		return;
+	while (*key)
+	{
 		*key = tolower(*key);
 		key++;
 	}
@@ -50,18 +52,23 @@ option_list_string_to_lower(char* key)
 // 	return;
 // }
 
-const char*
-option_list_search(char** olist, const char* key)
+const char *
+option_list_search(char **olist, const char *key)
 {
 	size_t i = 0;
-	if (!olist) return NULL;
-	if (!key) return NULL;
-	while (olist[i]) {
+	if (!olist)
+		return NULL;
+	if (!key)
+		return NULL;
+	while (olist[i])
+	{
 		// Even entries are keys
-		if (!(i % 2)) {
+		if (!(i % 2))
+		{
 			// Does this key match ours?
-			if (strcmp(olist[i], key) == 0) {
-				return olist[i+1];
+			if (strcmp(olist[i], key) == 0)
+			{
+				return olist[i + 1];
 			}
 		}
 		i++;
@@ -70,12 +77,14 @@ option_list_search(char** olist, const char* key)
 }
 
 size_t
-option_list_length(char** olist)
+option_list_length(char **olist)
 {
 	size_t i = 0;
 	char **iter = olist;
-	if (!olist) return 0;
-	while(*iter) {
+	if (!olist)
+		return 0;
+	while (*iter)
+	{
 		i++;
 		iter++;
 	}
@@ -83,42 +92,49 @@ option_list_length(char** olist)
 }
 
 void
-option_list_parse(char* input, char** olist)
+option_list_parse(char *input, char **olist)
 {
 	const char *toksep = " ";
 	const char kvsep = '=';
 	char *key, *val;
-	if (!input) return;
+	if (!input)
+		return;
 	size_t i = 0, sz;
 
 	/* strtok nulls out the space between each token */
-	for (key = strtok(input, toksep); key; key = strtok(NULL, toksep)) {
-		if (i >= OPTION_LIST_SIZE) return;
+	for (key = strtok(input, toksep); key; key = strtok(NULL, toksep))
+	{
+		if (i >= OPTION_LIST_SIZE)
+			return;
 		olist[i] = key;
 		i += 2;
 	}
 
 	sz = i;
 	/* keys are every second entry in the olist */
-	for (i = 0; i < sz; i += 2) {
-		if (i >= OPTION_LIST_SIZE) return;
+	for (i = 0; i < sz; i += 2)
+	{
+		if (i >= OPTION_LIST_SIZE)
+			return;
 		key = olist[i];
 		/* find the key/value separator */
 		val = strchr(key, kvsep);
-		if (!val) {
+		if (!val)
+		{
 			lwerror("Option string entry '%s' lacks separator '%c'", key, kvsep);
+			return;
 		}
 		/* null out the separator */
 		*val = '\0';
 		/* point value entry to just after separator */
-		olist[i+1] = ++val;
+		olist[i + 1] = ++val;
 		/* all keys forced to lower case */
 		option_list_string_to_lower(key);
 	}
 }
 
 void
-option_list_gdal_parse(char* input, char** olist)
+option_list_gdal_parse(char *input, char **olist)
 {
 	const char *toksep = " ";
 	const char kvsep = '=';
@@ -136,7 +152,8 @@ option_list_gdal_parse(char* input, char** olist)
 	input_sz = strlen(input);
 
 	/* Temporarily hide quoted spaces */
-	while(*ptr) {
+	while (*ptr)
+	{
 		if (*ptr == q2 || *ptr == q1)
 			in_str = !in_str;
 		else if (in_str && *ptr == ' ')
@@ -146,28 +163,33 @@ option_list_gdal_parse(char* input, char** olist)
 	}
 
 	/* Tokenize on spaces */
-	for (key = strtok(input, toksep); key; key = strtok(NULL, toksep)) {
-		if (i >= OPTION_LIST_SIZE) return;
+	for (key = strtok(input, toksep); key; key = strtok(NULL, toksep))
+	{
+		if (i >= OPTION_LIST_SIZE)
+			return;
 		olist[i++] = key;
 	}
 
 	/* Check that these are GDAL KEY=VALUE options */
 	sz = i;
-	for (i = 0; i < sz; ++i) {
-		if (i >= OPTION_LIST_SIZE) return;
+	for (i = 0; i < sz; ++i)
+	{
+		if (i >= OPTION_LIST_SIZE)
+			return;
 		key = olist[i];
 		/* find the key/value separator */
 		val = strchr(key, kvsep);
-		if (!val) {
+		if (!val)
+		{
 			lwerror("Option string entry '%s' lacks separator '%c'", key, kvsep);
 			return;
 		}
 	}
 
 	/* Unhide quoted space */
-	for (i = 0; i <= input_sz; ++i) {
+	for (i = 0; i <= input_sz; ++i)
+	{
 		if (input[i] == notspace)
 			input[i] = ' ';
 	}
 }
-

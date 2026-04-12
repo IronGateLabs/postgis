@@ -1,0 +1,32 @@
+---
+# PostGIS clang-tidy configuration
+# Run: clang-tidy -p build liblwgeom/*.c
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-assignment-in-if-condition,
+  cert-err34-c,
+  cert-flp30-c,
+  clang-analyzer-core.*,
+  clang-analyzer-security.*,
+  clang-analyzer-deadcode.*,
+  misc-redundant-expression,
+  performance-*,
+  -performance-no-int-to-ptr,
+  portability-*,
+  readability-misleading-indentation,
+  readability-duplicate-include
+
+WarningsAsErrors: >
+  bugprone-use-after-move,
+  bugprone-undefined-memory-manipulation,
+  clang-analyzer-core.NullDereference,
+  clang-analyzer-core.UndefinedBinaryOperatorResult,
+  clang-analyzer-security.*
+
+HeaderFilterRegex: '(liblwgeom|postgis|libpgcommon)/.*\.h'
+
+# Match PostGIS coding style
+FormatStyle: file

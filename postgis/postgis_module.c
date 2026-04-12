@@ -30,14 +30,27 @@
 #include "utils/guc.h"
 #include "libpq/pqsignal.h"
 
+#include <limits.h>
+
 #include "../postgis_config.h"
 
 #include "lwgeom_log.h"
 #include "lwgeom_pg.h"
 #include "geos_c.h"
-
+#include "liblwgeom.h"
+#include "../liblwgeom/lwgeom_accel.h"
+#ifdef HAVE_VALKEY
+#include "postmaster/bgworker.h"
+#endif
 #ifdef HAVE_LIBPROTOBUF
 #include "lwgeom_wagyu.h"
+#endif
+
+/* Valkey batch worker GUC registration */
+extern void postgis_valkey_register_gucs(void);
+
+#ifdef HAVE_VALKEY
+extern void postgis_valkey_batch_main(Datum main_arg);
 #endif
 
 /*
@@ -106,6 +119,17 @@ pjLogFunction(void* data, int logLevel, const char* message)
 }
 #endif
 
+/* GUC variables for hardware acceleration.
+ * 0 = auto-calibrate at first GPU use (default). */
+static int postgis_gpu_dispatch_threshold = 0;
+
+static void
+postgis_gpu_threshold_assign(int newval, void *extra)
+{
+	(void)extra;
+	lwaccel_set_gpu_threshold((uint32_t)newval);
+}
+
 /*
  * Module load callback
  */
@@ -128,6 +152,41 @@ _PG_init(void)
 	proj_log_func(NULL, NULL, pjLogFunction);
 #endif
 
+	/* Register Valkey batch GUC parameters */
+	postgis_valkey_register_gucs();
+
+#ifdef HAVE_VALKEY
+	/* Register Valkey GPU batch background worker */
+	{
+		BackgroundWorker worker;
+		memset(&worker, 0, sizeof(worker));
+		snprintf(worker.bgw_name, BGW_MAXLEN, "PostGIS Valkey GPU batch worker");
+		snprintf(worker.bgw_type, BGW_MAXLEN, "postgis_valkey_batch");
+		worker.bgw_flags = BGWORKER_SHMEM_ACCESS;
+		worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
+		worker.bgw_restart_time = 60; /* restart after 60s on crash */
+		snprintf(worker.bgw_library_name, BGW_MAXLEN, "postgis-" POSTGIS_MAJOR_VERSION);
+		snprintf(worker.bgw_function_name, BGW_MAXLEN, "postgis_valkey_batch_main");
+		worker.bgw_main_arg = (Datum) 0;
+		RegisterBackgroundWorker(&worker);
+	}
+#endif
+
+	/* GPU dispatch threshold GUC */
+	DefineCustomIntVariable(
+		"postgis.gpu_dispatch_threshold",
+		"Minimum POINTARRAY size for GPU dispatch (points).",
+		"0 = auto-calibrate at first GPU use (default). "
+		"Set to a specific value to override.",
+		&postgis_gpu_dispatch_threshold,
+		0,        /* default: auto-calibrate */
+		0,        /* min: 0 = auto */
+		INT_MAX,  /* max */
+		PGC_USERSET,
+		0,
+		NULL,
+		postgis_gpu_threshold_assign,
+		NULL);
 }
 
 /*

@@ -120,6 +120,30 @@
 /* PostGIS version */
 #undef POSTGIS_VERSION
 
+/* Define to 1 if AVX2 and FMA SIMD support is available */
+#undef HAVE_AVX2
+
+/* Define to 1 if AVX-512 SIMD support is available */
+#undef HAVE_AVX512
+
+/* Define to 1 if ARM NEON SIMD support is available */
+#undef HAVE_NEON
+
+/* Define to 1 if CUDA GPU support is available */
+#undef HAVE_CUDA
+
+/* Define to 1 if ROCm/HIP GPU support is available */
+#undef HAVE_ROCM
+
+/* Define to 1 if oneAPI/SYCL GPU support is available */
+#undef HAVE_ONEAPI
+
+/* Define to 1 if Apple Metal GPU support is available */
+#undef HAVE_METAL
+
+/* Define to 1 if Valkey/hiredis support is available */
+#undef HAVE_VALKEY
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 

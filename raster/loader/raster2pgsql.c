@@ -858,7 +858,10 @@ static int
 copy_from_end(STRINGBUFFER *buffer)
 {
 	/* end of data */
-	append_sql_to_buffer(buffer, strdup("\\."));
+	char *str = strdup("\\.");
+	if (str == NULL)
+		return 0;
+	append_sql_to_buffer(buffer, str);
 
 	return 1;
 }

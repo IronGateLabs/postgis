@@ -32,13 +32,32 @@
 #endif
 #include "utils/builtins.h"
 
+#include "utils/timestamp.h"
+
 #include "liblwgeom.h"
 #include "lwgeodetic.h"
 #include "stringbuffer.h"
 #include "lwgeom_transform.h"
 
+/* Seconds per Julian year (365.25 days) */
+#define SECS_PER_JULIAN_YEAR (365.25 * 86400.0)
+/* J2000.0 epoch as Unix timestamp: 2000-01-01T12:00:00Z */
+#define J2000_UNIX_EPOCH 946728000.0
+/* PostgreSQL epoch (2000-01-01 00:00:00 UTC) as Unix seconds */
+#define PG_EPOCH_UNIX_OFFSET 946684800.0
+
+/**
+ * Convert a PostgreSQL TimestampTz to a decimal year for ECI transforms.
+ */
+static double
+timestamptz_to_decimal_year(TimestampTz ts)
+{
+	double unix_seconds = PG_EPOCH_UNIX_OFFSET + ((double)ts / 1000000.0);
+	return 2000.0 + (unix_seconds - J2000_UNIX_EPOCH) / SECS_PER_JULIAN_YEAR;
+}
 
 Datum transform(PG_FUNCTION_ARGS);
+Datum transform_epoch(PG_FUNCTION_ARGS);
 Datum transform_geom(PG_FUNCTION_ARGS);
 Datum transform_pipeline_geom(PG_FUNCTION_ARGS);
 Datum postgis_proj_version(PG_FUNCTION_ARGS);
@@ -52,13 +71,15 @@ Datum LWGEOM_asKML(PG_FUNCTION_ARGS);
  * are in an indeterminate state after the -38 error is thrown.
  */
 PG_FUNCTION_INFO_V1(transform);
-Datum transform(PG_FUNCTION_ARGS)
+Datum
+transform(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED* geom;
-	GSERIALIZED* result=NULL;
-	LWGEOM* lwgeom;
+	GSERIALIZED *geom;
+	GSERIALIZED *result = NULL;
+	LWGEOM *lwgeom;
 	LWPROJ *pj;
-	int32 srid_to, srid_from;
+	int32 srid_to;
+	int32 srid_from;
 
 	srid_to = PG_GETARG_INT32(1);
 	if (srid_to == SRID_UNKNOWN)
@@ -70,7 +91,7 @@ Datum transform(PG_FUNCTION_ARGS)
 	geom = PG_GETARG_GSERIALIZED_P_COPY(0);
 	srid_from = gserialized_get_srid(geom);
 
-	if ( srid_from == SRID_UNKNOWN )
+	if (srid_from == SRID_UNKNOWN)
 	{
 		PG_FREE_IF_COPY(geom, 0);
 		elog(ERROR, "ST_Transform: Input geometry has unknown (%d) SRID", SRID_UNKNOWN);
@@ -78,11 +99,71 @@ Datum transform(PG_FUNCTION_ARGS)
 	}
 
 	/* Input SRID and output SRID are equal, noop */
-	if ( srid_from == srid_to )
+	if (srid_from == srid_to)
 		PG_RETURN_POINTER(geom);
 
+	/* ECI transform: detect inertial CRS family and use M-coordinate epochs */
+	{
+		LW_CRS_FAMILY from_family = srid_get_crs_family(srid_from);
+		LW_CRS_FAMILY to_family = srid_get_crs_family(srid_to);
+
+		if (from_family == LW_CRS_INERTIAL || to_family == LW_CRS_INERTIAL)
+		{
+			int rv;
+			lwgeom = lwgeom_from_gserialized(geom);
+
+			if (!lwgeom_has_m(lwgeom))
+			{
+				lwgeom_free(lwgeom);
+				PG_FREE_IF_COPY(geom, 0);
+				elog(ERROR,
+				     "ST_Transform: ECI transform requires epoch. "
+				     "Use M coordinates as epoch values or call "
+				     "ST_Transform(geom, srid, epoch) with an explicit timestamp.");
+				PG_RETURN_NULL();
+			}
+
+			if (from_family == LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
+			{
+				/* ECI -> ECEF: per-point M as epoch (decimal year) */
+				rv = lwgeom_transform_eci_to_ecef_m(lwgeom);
+			}
+			else if (from_family != LW_CRS_INERTIAL && to_family == LW_CRS_INERTIAL)
+			{
+				/* ECEF -> ECI: per-point M as epoch (decimal year) */
+				rv = lwgeom_transform_ecef_to_eci_m(lwgeom);
+			}
+			else
+			{
+				lwgeom_free(lwgeom);
+				PG_FREE_IF_COPY(geom, 0);
+				elog(ERROR,
+				     "ST_Transform: Direct ECI-to-ECI frame transform is not supported. "
+				     "Transform to ECEF (SRID 4978) first.");
+				PG_RETURN_NULL();
+			}
+
+			if (rv == LW_FAILURE)
+			{
+				lwgeom_free(lwgeom);
+				PG_FREE_IF_COPY(geom, 0);
+				elog(ERROR, "ST_Transform: ECI transform failed.");
+				PG_RETURN_NULL();
+			}
+
+			lwgeom->srid = srid_to;
+			if (lwgeom->bbox)
+				lwgeom_refresh_bbox(lwgeom);
+
+			result = geometry_serialize(lwgeom);
+			lwgeom_free(lwgeom);
+			PG_FREE_IF_COPY(geom, 0);
+			PG_RETURN_POINTER(result);
+		}
+	}
+
 	postgis_initialize_cache();
-	if ( lwproj_lookup(srid_from, srid_to, &pj) == LW_FAILURE )
+	if (lwproj_lookup(srid_from, srid_to, &pj) == LW_FAILURE)
 	{
 		PG_FREE_IF_COPY(geom, 0);
 		elog(ERROR, "ST_Transform: Failure reading projections from spatial_ref_sys.");
@@ -95,7 +176,7 @@ Datum transform(PG_FUNCTION_ARGS)
 	lwgeom->srid = srid_to;
 
 	/* Re-compute bbox if input had one (COMPUTE_BBOX TAINTING) */
-	if ( lwgeom->bbox )
+	if (lwgeom->bbox)
 	{
 		lwgeom_refresh_bbox(lwgeom);
 	}
@@ -108,6 +189,118 @@ Datum transform(PG_FUNCTION_ARGS)
 }
 
 /**
+ * transform_epoch( GEOMETRY, INT (output srid), TIMESTAMPTZ (epoch) )
+ *
+ * ST_Transform overload for ECI/ECEF conversions with explicit epoch.
+ * The epoch is applied uniformly to all points in the geometry.
+ */
+PG_FUNCTION_INFO_V1(transform_epoch);
+Datum
+transform_epoch(PG_FUNCTION_ARGS)
+{
+	GSERIALIZED *geom;
+	GSERIALIZED *result = NULL;
+	LWGEOM *lwgeom;
+	int32 srid_to;
+	int32 srid_from;
+	TimestampTz ts;
+	double epoch;
+	LW_CRS_FAMILY from_family;
+	LW_CRS_FAMILY to_family;
+	int rv;
+
+	srid_to = PG_GETARG_INT32(1);
+	if (srid_to == SRID_UNKNOWN)
+	{
+		elog(ERROR, "ST_Transform: %d is an invalid target SRID", SRID_UNKNOWN);
+		PG_RETURN_NULL();
+	}
+
+	geom = PG_GETARG_GSERIALIZED_P_COPY(0);
+	srid_from = gserialized_get_srid(geom);
+
+	if (srid_from == SRID_UNKNOWN)
+	{
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR, "ST_Transform: Input geometry has unknown (%d) SRID", SRID_UNKNOWN);
+		PG_RETURN_NULL();
+	}
+
+	/* Input SRID and output SRID are equal, noop */
+	if (srid_from == srid_to)
+		PG_RETURN_POINTER(geom);
+
+	ts = PG_GETARG_TIMESTAMPTZ(2);
+	epoch = timestamptz_to_decimal_year(ts);
+
+	/* Validate epoch: must be a reasonable value (years 1000-3000) */
+	if (epoch < 1000.0 || epoch > 3000.0)
+	{
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR,
+		     "ST_Transform: Epoch value %.4f is outside valid range (1000-3000). "
+		     "Provide a valid timestamp.",
+		     epoch);
+		PG_RETURN_NULL();
+	}
+
+	from_family = srid_get_crs_family(srid_from);
+	to_family = srid_get_crs_family(srid_to);
+
+	if (from_family != LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
+	{
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR,
+		     "ST_Transform: Epoch parameter is only supported for ECI transforms. "
+		     "Source SRID %d and target SRID %d are not inertial frames.",
+		     srid_from,
+		     srid_to);
+		PG_RETURN_NULL();
+	}
+
+	lwgeom = lwgeom_from_gserialized(geom);
+
+	if (from_family == LW_CRS_INERTIAL && to_family != LW_CRS_INERTIAL)
+	{
+		/* ECI -> ECEF with uniform epoch, using the source geometry's
+		 * frame SRID to select the correct IAU 2006/2000A transform. */
+		rv = lwgeom_transform_eci_to_ecef(lwgeom, epoch, srid_from);
+	}
+	else if (from_family != LW_CRS_INERTIAL && to_family == LW_CRS_INERTIAL)
+	{
+		/* ECEF -> ECI with uniform epoch, target frame selects matrix. */
+		rv = lwgeom_transform_ecef_to_eci(lwgeom, epoch, srid_to);
+	}
+	else
+	{
+		lwgeom_free(lwgeom);
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR,
+		     "ST_Transform: Direct ECI-to-ECI frame transform is not supported. "
+		     "Transform to ECEF (SRID 4978) first.");
+		PG_RETURN_NULL();
+	}
+
+	if (rv == LW_FAILURE)
+	{
+		lwgeom_free(lwgeom);
+		PG_FREE_IF_COPY(geom, 0);
+		elog(ERROR, "ST_Transform: ECI transform failed.");
+		PG_RETURN_NULL();
+	}
+
+	lwgeom->srid = srid_to;
+	if (lwgeom->bbox)
+		lwgeom_refresh_bbox(lwgeom);
+
+	result = geometry_serialize(lwgeom);
+	lwgeom_free(lwgeom);
+	PG_FREE_IF_COPY(geom, 0);
+
+	PG_RETURN_POINTER(result);
+}
+
+/**
  * Transform_geom( GEOMETRY, TEXT (input proj4), TEXT (output proj4),
  *	INT (output srid)
  *
@@ -116,9 +309,10 @@ Datum transform(PG_FUNCTION_ARGS)
  * are in an indeterminate state after the -38 error is thrown.
  */
 PG_FUNCTION_INFO_V1(transform_geom);
-Datum transform_geom(PG_FUNCTION_ARGS)
+Datum
+transform_geom(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *gser, *gser_result=NULL;
+	GSERIALIZED *gser, *gser_result = NULL;
 	LWGEOM *geom;
 	char *input_srs, *output_srs;
 	int32 result_srid;
@@ -156,15 +350,15 @@ Datum transform_geom(PG_FUNCTION_ARGS)
 	PG_RETURN_POINTER(gser_result); /* new geometry */
 }
 
-
 /**
  * transform_pipeline_geom( GEOMETRY, TEXT (input proj pipeline),
  *	BOOL (is forward), INT (output srid)
  */
 PG_FUNCTION_INFO_V1(transform_pipeline_geom);
-Datum transform_pipeline_geom(PG_FUNCTION_ARGS)
+Datum
+transform_pipeline_geom(PG_FUNCTION_ARGS)
 {
-	GSERIALIZED *gser, *gser_result=NULL;
+	GSERIALIZED *gser, *gser_result = NULL;
 	LWGEOM *geom;
 	char *input_pipeline;
 	bool is_forward;
@@ -201,9 +395,9 @@ Datum transform_pipeline_geom(PG_FUNCTION_ARGS)
 	PG_RETURN_POINTER(gser_result); /* new geometry */
 }
 
-
 PG_FUNCTION_INFO_V1(postgis_proj_version);
-Datum postgis_proj_version(PG_FUNCTION_ARGS)
+Datum
+postgis_proj_version(PG_FUNCTION_ARGS)
 {
 	stringbuffer_t sb;
 
@@ -213,15 +407,14 @@ Datum postgis_proj_version(PG_FUNCTION_ARGS)
 
 #if POSTGIS_PROJ_VERSION >= 70100
 
-	stringbuffer_aprintf(&sb,
-		" NETWORK_ENABLED=%s",
-		proj_context_is_network_enabled(NULL) ? "ON" : "OFF");
+	stringbuffer_aprintf(&sb, " NETWORK_ENABLED=%s", proj_context_is_network_enabled(NULL) ? "ON" : "OFF");
 
 	if (proj_context_get_url_endpoint(NULL))
 		stringbuffer_aprintf(&sb, " URL_ENDPOINT=%s", proj_context_get_url_endpoint(NULL));
 
 	if (proj_context_get_user_writable_directory(NULL, 0))
-		stringbuffer_aprintf(&sb, " USER_WRITABLE_DIRECTORY=%s", proj_context_get_user_writable_directory(NULL, 0));
+		stringbuffer_aprintf(
+		    &sb, " USER_WRITABLE_DIRECTORY=%s", proj_context_get_user_writable_directory(NULL, 0));
 
 	if (proj_context_get_database_path(NULL))
 		stringbuffer_aprintf(&sb, " DATABASE_PATH=%s", proj_context_get_database_path(NULL));
@@ -232,27 +425,28 @@ Datum postgis_proj_version(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(postgis_proj_compiled_version);
-Datum postgis_proj_compiled_version(PG_FUNCTION_ARGS)
+Datum
+postgis_proj_compiled_version(PG_FUNCTION_ARGS)
 {
-  static char ver[64];
-  text *result;
-  sprintf(
-    ver,
-    "%d.%d.%d",
-    (POSTGIS_PROJ_VERSION/10000),
-    ((POSTGIS_PROJ_VERSION%10000)/100),
-    ((POSTGIS_PROJ_VERSION)%100)
-  );
+	static char ver[64];
+	text *result;
+	snprintf(ver,
+		 sizeof(ver),
+		 "%d.%d.%d",
+		 POSTGIS_PROJ_VERSION / 10000,
+		 (POSTGIS_PROJ_VERSION % 10000) / 100,
+		 POSTGIS_PROJ_VERSION % 100);
 
-  result = cstring_to_text(ver);
-  PG_RETURN_POINTER(result);
+	result = cstring_to_text(ver);
+	PG_RETURN_POINTER(result);
 }
 
 /**
  * Encode feature in KML
  */
 PG_FUNCTION_INFO_V1(LWGEOM_asKML);
-Datum LWGEOM_asKML(PG_FUNCTION_ARGS)
+Datum
+LWGEOM_asKML(PG_FUNCTION_ARGS)
 {
 	LWGEOM *lwgeom;
 	lwvarlena_t *kml;
@@ -268,7 +462,7 @@ Datum LWGEOM_asKML(PG_FUNCTION_ARGS)
 	text *prefix_text = PG_GETARG_TEXT_P(2);
 	srid_from = gserialized_get_srid(geom);
 
-	if ( srid_from == SRID_UNKNOWN )
+	if (srid_from == SRID_UNKNOWN)
 	{
 		PG_FREE_IF_COPY(geom, 0);
 		elog(ERROR, "ST_AsKML: Input geometry has unknown (%d) SRID", SRID_UNKNOWN);
@@ -282,12 +476,11 @@ Datum LWGEOM_asKML(PG_FUNCTION_ARGS)
 	if (VARSIZE_ANY_EXHDR(prefix_text) > 0)
 	{
 		/* +2 is one for the ':' and one for term null */
-		prefixbuf = palloc(VARSIZE_ANY_EXHDR(prefix_text)+2);
-		memcpy(prefixbuf, VARDATA(prefix_text),
-		       VARSIZE_ANY_EXHDR(prefix_text));
+		prefixbuf = palloc(VARSIZE_ANY_EXHDR(prefix_text) + 2);
+		memcpy(prefixbuf, VARDATA(prefix_text), VARSIZE_ANY_EXHDR(prefix_text));
 		/* add colon and null terminate */
 		prefixbuf[VARSIZE_ANY_EXHDR(prefix_text)] = ':';
-		prefixbuf[VARSIZE_ANY_EXHDR(prefix_text)+1] = '\0';
+		prefixbuf[VARSIZE_ANY_EXHDR(prefix_text) + 1] = '\0';
 		prefix = prefixbuf;
 	}
 
@@ -316,86 +509,97 @@ Datum LWGEOM_asKML(PG_FUNCTION_ARGS)
  */
 
 struct srs_entry {
-	text* auth_name;
-	text* auth_code;
+	text *auth_name;
+	text *auth_code;
 	double sort;
 };
 
 struct srs_data {
-	struct srs_entry* entries;
+	struct srs_entry *entries;
 	uint32_t num_entries;
 	uint32_t capacity;
 	uint32_t current_entry;
 };
 
 static int
-srs_entry_cmp (const void *a, const void *b)
+srs_entry_cmp(const void *a, const void *b)
 {
-	const struct srs_entry *entry_a = (const struct srs_entry*)(a);
-	const struct srs_entry *entry_b = (const struct srs_entry*)(b);
-	if      (entry_a->sort < entry_b->sort) return -1;
-	else if (entry_a->sort > entry_b->sort) return 1;
-	else return 0;
+	const struct srs_entry *entry_a = (const struct srs_entry *)(a);
+	const struct srs_entry *entry_b = (const struct srs_entry *)(b);
+	if (entry_a->sort < entry_b->sort)
+		return -1;
+	else if (entry_a->sort > entry_b->sort)
+		return 1;
+	else
+		return 0;
 }
 
 static Datum
-srs_tuple_from_entry(const struct srs_entry* entry, TupleDesc tuple_desc)
+srs_tuple_from_entry(const struct srs_entry *entry, TupleDesc tuple_desc)
 {
 	HeapTuple tuple;
 	Datum tuple_data[7] = {0, 0, 0, 0, 0, 0, 0};
-	bool  tuple_null[7] = {true, true, true, true, true, true, true};
-	PJ_CONTEXT * ctx = NULL;
-	const char * const empty_options[2] = {NULL};
-	const char * const wkt_options[2] = {"MULTILINE=NO", NULL};
-	const char * srtext;
-	const char * proj4text;
-	const char * srname;
+	bool tuple_null[7] = {true, true, true, true, true, true, true};
+	PJ_CONTEXT *ctx = NULL;
+	const char *const empty_options[2] = {NULL};
+	const char *const wkt_options[2] = {"MULTILINE=NO", NULL};
+	const char *srtext;
+	const char *proj4text;
+	const char *srname;
 	double w_lon, s_lat, e_lon, n_lat;
 	int ok;
 
 	PJ *obj = proj_create_from_database(ctx,
-	            text_to_cstring(entry->auth_name),
-	            text_to_cstring(entry->auth_code),
-	            PJ_CATEGORY_CRS, 0, empty_options);
+					    text_to_cstring(entry->auth_name),
+					    text_to_cstring(entry->auth_code),
+					    PJ_CATEGORY_CRS,
+					    0,
+					    empty_options);
 
 	if (!obj)
-		return (Datum) 0;
+		return (Datum)0;
 
 	srtext = proj_as_wkt(ctx, obj, PJ_WKT1_GDAL, wkt_options);
 	proj4text = proj_as_proj_string(ctx, obj, PJ_PROJ_4, empty_options);
 	srname = proj_get_name(obj);
 	ok = proj_get_area_of_use(ctx, obj, &w_lon, &s_lat, &e_lon, &n_lat, NULL);
 
-	if (entry->auth_name) {
+	if (entry->auth_name)
+	{
 		tuple_data[0] = PointerGetDatum(entry->auth_name);
 		tuple_null[0] = false;
 	}
 
-	if (entry->auth_code) {
+	if (entry->auth_code)
+	{
 		tuple_data[1] = PointerGetDatum(entry->auth_code);
 		tuple_null[1] = false;
 	}
 
-	if (srname) {
+	if (srname)
+	{
 		tuple_data[2] = PointerGetDatum(cstring_to_text(srname));
 		tuple_null[2] = false;
 	}
 
-	if (srtext) {
+	if (srtext)
+	{
 		tuple_data[3] = PointerGetDatum(cstring_to_text(srtext));
 		tuple_null[3] = false;
 	}
 
-	if (proj4text) {
+	if (proj4text)
+	{
 		tuple_data[4] = PointerGetDatum(cstring_to_text(proj4text));
 		tuple_null[4] = false;
 	}
 
-	if (ok) {
+	if (ok)
+	{
 		LWPOINT *p_sw = lwpoint_make2d(4326, w_lon, s_lat);
 		LWPOINT *p_ne = lwpoint_make2d(4326, e_lon, n_lat);
-		GSERIALIZED *g_sw = geometry_serialize((LWGEOM*)p_sw);
-		GSERIALIZED *g_ne = geometry_serialize((LWGEOM*)p_ne);
+		GSERIALIZED *g_sw = geometry_serialize((LWGEOM *)p_sw);
+		GSERIALIZED *g_ne = geometry_serialize((LWGEOM *)p_ne);
 		tuple_data[5] = PointerGetDatum(g_sw);
 		tuple_null[5] = false;
 		tuple_data[6] = PointerGetDatum(g_ne);
@@ -430,14 +634,15 @@ srs_state_memcheck(struct srs_data *state)
 }
 
 static void
-srs_state_codes(const char* auth_name, struct srs_data *state)
+srs_state_codes(const char *auth_name, struct srs_data *state)
 {
-	/*
-	* Only a subset of supported proj types actually
-	* show up in spatial_ref_sys
-	*/
-	#define ntypes 3
-	PJ_TYPE types[ntypes] = {PJ_TYPE_PROJECTED_CRS, PJ_TYPE_GEOGRAPHIC_CRS, PJ_TYPE_COMPOUND_CRS};
+/*
+ * Only a subset of supported proj types actually
+ * show up in spatial_ref_sys
+ */
+#define ntypes 4
+	PJ_TYPE types[ntypes] = {
+	    PJ_TYPE_PROJECTED_CRS, PJ_TYPE_GEOGRAPHIC_CRS, PJ_TYPE_COMPOUND_CRS, PJ_TYPE_GEOCENTRIC_CRS};
 	uint32_t j;
 
 	for (j = 0; j < ntypes; j++)
@@ -448,7 +653,7 @@ srs_state_codes(const char* auth_name, struct srs_data *state)
 		PROJ_STRING_LIST codes_ptr = proj_get_codes_from_database(ctx, auth_name, type, allow_deprecated);
 		PROJ_STRING_LIST codes = codes_ptr;
 		const char *code;
-		while(codes && *codes)
+		while (codes && *codes)
 		{
 			/* Read current code and move forward one entry */
 			code = *codes++;
@@ -491,8 +696,7 @@ srs_find_planar(const char *auth_name, const LWGEOM *bounds, struct srs_data *st
 	{
 		LWPROJ *pj;
 		if (lwproj_lookup(srid_from, srid_to, &pj) == LW_FAILURE)
-			elog(ERROR, "%s: Lookup of SRID %u => %u transform failed",
-			    __func__, srid_from, srid_to);
+			elog(ERROR, "%s: Lookup of SRID %u => %u transform failed", __func__, srid_from, srid_to);
 
 		box3d_transform(&gbox, pj);
 	}
@@ -502,8 +706,7 @@ srs_find_planar(const char *auth_name, const LWGEOM *bounds, struct srs_data *st
 	params->east_lon_degree = gbox.xmax;
 	params->north_lat_degree = gbox.ymax;
 
-	crs_list = crs_list_ptr = proj_get_crs_info_list_from_database(
-	                            ctx, auth_name, params, &crs_count);
+	crs_list = crs_list_ptr = proj_get_crs_info_list_from_database(ctx, auth_name, params, &crs_count);
 
 	/* TODO, throw out really huge / dumb areas? */
 
@@ -544,18 +747,20 @@ srs_find_planar(const char *auth_name, const LWGEOM *bounds, struct srs_data *st
  */
 Datum postgis_srs_entry(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(postgis_srs_entry);
-Datum postgis_srs_entry(PG_FUNCTION_ARGS)
+Datum
+postgis_srs_entry(PG_FUNCTION_ARGS)
 {
 	Datum result;
 	struct srs_entry entry;
-	text* auth_name = PG_GETARG_TEXT_P(0);
-	text* auth_code = PG_GETARG_TEXT_P(1);
+	text *auth_name = PG_GETARG_TEXT_P(0);
+	text *auth_code = PG_GETARG_TEXT_P(1);
 	TupleDesc tuple_desc;
 
 	if (get_call_result_type(fcinfo, 0, &tuple_desc) != TYPEFUNC_COMPOSITE)
 	{
-		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-			errmsg("%s called with incompatible return type", __func__)));
+		ereport(ERROR,
+			(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+			 errmsg("%s called with incompatible return type", __func__)));
 	}
 	BlessTupleDesc(tuple_desc);
 
@@ -569,10 +774,10 @@ Datum postgis_srs_entry(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 }
 
-
 Datum postgis_srs_entry_all(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(postgis_srs_entry_all);
-Datum postgis_srs_entry_all(PG_FUNCTION_ARGS)
+Datum
+postgis_srs_entry_all(PG_FUNCTION_ARGS)
 {
 	FuncCallContext *funcctx;
 	MemoryContext oldcontext;
@@ -580,35 +785,36 @@ Datum postgis_srs_entry_all(PG_FUNCTION_ARGS)
 	Datum result;
 
 	/*
-	* On the first call, fill in the state with all
-	* of the auth_name/auth_srid pairings in the
-	* proj database. Then the per-call routine is just
-	* one isolated call per pair.
-	*/
+	 * On the first call, fill in the state with all
+	 * of the auth_name/auth_srid pairings in the
+	 * proj database. Then the per-call routine is just
+	 * one isolated call per pair.
+	 */
 	if (SRF_IS_FIRSTCALL())
 	{
 		funcctx = SRF_FIRSTCALL_INIT();
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
 		/*
-		* Could read all authorities from database, but includes
-		* authorities (IGN, OGC) that use non-integral values in
-		* auth_srid. So hand-coded list for now.
-		*/
+		 * Could read all authorities from database, but includes
+		 * authorities (IGN, OGC) that use non-integral values in
+		 * auth_srid. So hand-coded list for now.
+		 */
 		state = srs_state_init();
 		srs_state_codes("EPSG", state);
 		srs_state_codes("ESRI", state);
 		srs_state_codes("IAU_2015", state);
 
 		/*
-		* Read the TupleDesc from the FunctionCallInfo. The SQL definition
-		* of the function must have the right number of fields and types
-		* to match up to this C code.
-		*/
+		 * Read the TupleDesc from the FunctionCallInfo. The SQL definition
+		 * of the function must have the right number of fields and types
+		 * to match up to this C code.
+		 */
 		if (get_call_result_type(fcinfo, 0, &funcctx->tuple_desc) != TYPEFUNC_COMPOSITE)
 		{
-			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-			    errmsg("%s called with incompatible return type", __func__)));
+			ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("%s called with incompatible return type", __func__)));
 		}
 
 		BlessTupleDesc(funcctx->tuple_desc);
@@ -627,9 +833,7 @@ Datum postgis_srs_entry_all(PG_FUNCTION_ARGS)
 	}
 
 	/* Lookup the srtext/proj4text for this entry */
-	result = srs_tuple_from_entry(
-	           state->entries + state->current_entry++,
-	           funcctx->tuple_desc);
+	result = srs_tuple_from_entry(state->entries + state->current_entry++, funcctx->tuple_desc);
 
 	if (result)
 		SRF_RETURN_NEXT(funcctx, result);
@@ -638,30 +842,30 @@ Datum postgis_srs_entry_all(PG_FUNCTION_ARGS)
 	SRF_RETURN_DONE(funcctx);
 }
 
-
 Datum postgis_srs_codes(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(postgis_srs_codes);
-Datum postgis_srs_codes(PG_FUNCTION_ARGS)
+Datum
+postgis_srs_codes(PG_FUNCTION_ARGS)
 {
 	FuncCallContext *funcctx;
 	MemoryContext oldcontext;
 	struct srs_data *state;
 	Datum result;
-	text* auth_name = PG_GETARG_TEXT_P(0);
-	text* auth_code;
+	text *auth_name = PG_GETARG_TEXT_P(0);
+	text *auth_code;
 
 	/*
-	* On the first call, fill in the state with all
-	* of the auth_name/auth_srid pairings in the
-	* proj database. Then the per-call routine is just
-	* one isolated call per pair.
-	*/
+	 * On the first call, fill in the state with all
+	 * of the auth_name/auth_srid pairings in the
+	 * proj database. Then the per-call routine is just
+	 * one isolated call per pair.
+	 */
 	if (SRF_IS_FIRSTCALL())
 	{
 		/*
-		* Only a subset of supported proj types actually
-		* show up in spatial_ref_sys
-		*/
+		 * Only a subset of supported proj types actually
+		 * show up in spatial_ref_sys
+		 */
 		funcctx = SRF_FIRSTCALL_INIT();
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		state = srs_state_init();
@@ -693,14 +897,14 @@ Datum postgis_srs_codes(PG_FUNCTION_ARGS)
 	SRF_RETURN_DONE(funcctx);
 }
 
-
 /**
  * Search for projections given extent and (optional) auth_name
  * returns TABLE(auth_name, auth_srid, srtext, proj4text, point_sw, point_ne)
  */
 Datum postgis_srs_search(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(postgis_srs_search);
-Datum postgis_srs_search(PG_FUNCTION_ARGS)
+Datum
+postgis_srs_search(PG_FUNCTION_ARGS)
 {
 	FuncCallContext *funcctx;
 	MemoryContext oldcontext;
@@ -708,11 +912,11 @@ Datum postgis_srs_search(PG_FUNCTION_ARGS)
 	Datum result;
 
 	/*
-	* On the first call, fill in the state with all
-	* of the auth_name/auth_srid pairings in the
-	* proj database. Then the per-call routine is just
-	* one isolated call per pair.
-	*/
+	 * On the first call, fill in the state with all
+	 * of the auth_name/auth_srid pairings in the
+	 * proj database. Then the per-call routine is just
+	 * one isolated call per pair.
+	 */
 	if (SRF_IS_FIRSTCALL())
 	{
 		GSERIALIZED *gbounds = PG_GETARG_GSERIALIZED_P(0);
@@ -723,24 +927,25 @@ Datum postgis_srs_search(PG_FUNCTION_ARGS)
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
 		/*
-		* Could read all authorities from database, but includes
-		* authorities (IGN, OGC) that use non-integral values in
-		* auth_srid. So hand-coded list for now.
-		*/
+		 * Could read all authorities from database, but includes
+		 * authorities (IGN, OGC) that use non-integral values in
+		 * auth_srid. So hand-coded list for now.
+		 */
 		state = srs_state_init();
 
 		/* Run the Proj query */
 		srs_find_planar(text_to_cstring(auth_name), bounds, state);
 
 		/*
-		* Read the TupleDesc from the FunctionCallInfo. The SQL definition
-		* of the function must have the right number of fields and types
-		* to match up to this C code.
-		*/
+		 * Read the TupleDesc from the FunctionCallInfo. The SQL definition
+		 * of the function must have the right number of fields and types
+		 * to match up to this C code.
+		 */
 		if (get_call_result_type(fcinfo, 0, &funcctx->tuple_desc) != TYPEFUNC_COMPOSITE)
 		{
-			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-			    errmsg("%s called with incompatible return type", __func__)));
+			ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("%s called with incompatible return type", __func__)));
 		}
 
 		BlessTupleDesc(funcctx->tuple_desc);
@@ -753,16 +958,13 @@ Datum postgis_srs_search(PG_FUNCTION_ARGS)
 	state = funcctx->user_fctx;
 
 	/* Exit when we've read all entries */
-	if (!state->num_entries ||
-	    state->current_entry == state->num_entries)
+	if (!state->num_entries || state->current_entry == state->num_entries)
 	{
 		SRF_RETURN_DONE(funcctx);
 	}
 
 	/* Lookup the srtext/proj4text for this entry */
-	result = srs_tuple_from_entry(
-	           state->entries + state->current_entry++,
-	           funcctx->tuple_desc);
+	result = srs_tuple_from_entry(state->entries + state->current_entry++, funcctx->tuple_desc);
 
 	if (result)
 		SRF_RETURN_NEXT(funcctx, result);
@@ -771,4 +973,25 @@ Datum postgis_srs_search(PG_FUNCTION_ARGS)
 	SRF_RETURN_DONE(funcctx);
 }
 
+/**
+ * postgis_crs_family(srid integer) returns text
+ * Returns the CRS family name ('geographic', 'projected', 'geocentric',
+ * 'inertial', 'topocentric', 'engineering', or 'unknown') for a given SRID.
+ */
+Datum postgis_crs_family(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(postgis_crs_family);
+Datum
+postgis_crs_family(PG_FUNCTION_ARGS)
+{
+	int32_t srid = PG_GETARG_INT32(0);
+	LW_CRS_FAMILY family;
+	const char *name;
 
+	if (srid == SRID_UNKNOWN)
+		PG_RETURN_TEXT_P(cstring_to_text("unknown"));
+
+	postgis_initialize_cache();
+	family = srid_get_crs_family(srid);
+	name = lwcrs_family_name(family);
+	PG_RETURN_TEXT_P(cstring_to_text(name));
+}

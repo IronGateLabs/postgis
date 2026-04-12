@@ -34,6 +34,7 @@
 #include "liblwgeom.h"
 #include "liblwgeom_internal.h"
 #include "lwgeom_pg.h"
+#include "lwgeom_transform.h"
 
 #include <math.h>
 #include <float.h>
@@ -146,19 +147,38 @@ Datum LWGEOM_summary(PG_FUNCTION_ARGS)
 	GSERIALIZED *g = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwg = lwgeom_from_gserialized(g);
 	char *lwresult = lwgeom_summary(lwg, 0);
+	/*
+	 * Safe: summary_str is guaranteed non-NULL by the ternary above,
+	 * so strlen cannot dereference a NULL pointer (SonarCloud S5813).
+	 */
+	const char *summary_str = lwresult ? lwresult : "";
 	uint32_t gver = gserialized_get_version(g);
-	size_t result_sz = strlen(lwresult) + 8;
+	int32_t srid = gserialized_get_srid(g);
+	size_t result_sz = strlen(summary_str) + 64; /* extra room for CRS family */
 	char *result;
+	int written;
 	if (gver == 0)
 	{
 		result = lwalloc(result_sz + 2);
-		snprintf(result, result_sz, "0:%s", lwresult);
+		written = snprintf(result, result_sz, "0:%s", summary_str);
 	}
 	else
 	{
 		result = lwalloc(result_sz);
-		snprintf(result, result_sz, "%s", lwresult);
+		written = snprintf(result, result_sz, "%s", summary_str);
 	}
+
+	/* Append CRS family when SRID is set */
+	if (srid > 0 && written >= 0 && (size_t)written < result_sz)
+	{
+		LW_CRS_FAMILY family = srid_get_crs_family(srid);
+		if (family != LW_CRS_UNKNOWN)
+		{
+			snprintf(result + written, result_sz - written,
+				" crs_family=%s", lwcrs_family_name(family));
+		}
+	}
+
 	lwgeom_free(lwg);
 	lwfree(lwresult);
 
@@ -277,9 +297,12 @@ PG_FUNCTION_INFO_V1(ST_Area);
 Datum ST_Area(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
-	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM *lwgeom;
 	double area = 0.0;
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Area");
+
+	lwgeom = lwgeom_from_gserialized(geom);
 	area = lwgeom_area(lwgeom);
 
 	lwgeom_free(lwgeom);
@@ -300,7 +323,14 @@ Datum LWGEOM_length2d_linestring(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
 	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
-	double dist = lwgeom_length_2d(lwgeom);
+	double dist;
+
+	/* Geocentric (ECEF) coordinates: use 3D Euclidean length */
+	if (srid_get_crs_family(gserialized_get_srid(geom)) == LW_CRS_GEOCENTRIC)
+		dist = lwgeom_length(lwgeom);
+	else
+		dist = lwgeom_length_2d(lwgeom);
+
 	lwgeom_free(lwgeom);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_FLOAT8(dist);
@@ -335,9 +365,11 @@ PG_FUNCTION_INFO_V1(LWGEOM_perimeter_poly);
 Datum LWGEOM_perimeter_poly(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
-	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM *lwgeom;
 	double perimeter = 0.0;
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Perimeter");
+	lwgeom = lwgeom_from_gserialized(geom);
 	perimeter = lwgeom_perimeter(lwgeom);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_FLOAT8(perimeter);
@@ -354,9 +386,11 @@ PG_FUNCTION_INFO_V1(LWGEOM_perimeter2d_poly);
 Datum LWGEOM_perimeter2d_poly(PG_FUNCTION_ARGS)
 {
 	GSERIALIZED *geom = PG_GETARG_GSERIALIZED_P(0);
-	LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM *lwgeom;
 	double perimeter = 0.0;
 
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Perimeter");
+	lwgeom = lwgeom_from_gserialized(geom);
 	perimeter = lwgeom_perimeter_2d(lwgeom);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_FLOAT8(perimeter);
@@ -621,7 +655,10 @@ Datum LWGEOM_closestpoint(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
-	point = lwgeom_closest_point(lwgeom1, lwgeom2);
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		point = lwgeom_closest_point_3d(lwgeom1, lwgeom2);
+	else
+		point = lwgeom_closest_point(lwgeom1, lwgeom2);
 
 	if (lwgeom_is_empty(point))
 		PG_RETURN_NULL();
@@ -650,7 +687,10 @@ Datum LWGEOM_shortestline2d(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
-	theline = lwgeom_closest_line(lwgeom1, lwgeom2);
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		theline = lwgeom_closest_line_3d(lwgeom1, lwgeom2);
+	else
+		theline = lwgeom_closest_line(lwgeom1, lwgeom2);
 
 	if (lwgeom_is_empty(theline))
 		PG_RETURN_NULL();
@@ -706,7 +746,11 @@ Datum ST_Distance(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 
-	mindist = lwgeom_mindistance2d(lwgeom1, lwgeom2);
+	/* Geocentric (ECEF) coordinates: use 3D Euclidean distance */
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		mindist = lwgeom_mindistance3d(lwgeom1, lwgeom2);
+	else
+		mindist = lwgeom_mindistance2d(lwgeom1, lwgeom2);
 
 	lwgeom_free(lwgeom1);
 	lwgeom_free(lwgeom2);
@@ -749,7 +793,11 @@ Datum ST_DWithinUncached(PG_FUNCTION_ARGS)
 		PG_RETURN_BOOL(false);
 	}
 
-	mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
+	/* Geocentric (ECEF) coordinates: use 3D distance for tolerance check */
+	if (srid_get_crs_family(gserialized_get_srid(geom1)) == LW_CRS_GEOCENTRIC)
+		mindist = lwgeom_mindistance3d_tolerance(lwgeom1, lwgeom2, tolerance);
+	else
+		mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
 
 	PG_FREE_IF_COPY(geom1, 0);
 	PG_FREE_IF_COPY(geom2, 1);
@@ -1843,6 +1891,7 @@ Datum LWGEOM_segmentize2d(PG_FUNCTION_ARGS)
 	POSTGIS_DEBUG(2, "LWGEOM_segmentize2d called");
 
 	ingeom = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(ingeom, "ST_Segmentize");
 	dist = PG_GETARG_FLOAT8(1);
 	type = gserialized_get_type(ingeom);
 
@@ -2519,6 +2568,7 @@ Datum LWGEOM_azimuth(PG_FUNCTION_ARGS)
 		PG_RETURN_NULL();
 	}
 	srid = lwpoint->srid;
+	srid_check_crs_family_not_geocentric(srid, "ST_Azimuth");
 	if (!getPoint2d_p(lwpoint->point, 0, &p1))
 	{
 		PG_FREE_IF_COPY(geom, 0);
@@ -2584,6 +2634,7 @@ Datum geometry_project_direction(PG_FUNCTION_ARGS)
 	double distance, azimuth;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_Project");
 	distance = PG_GETARG_FLOAT8(1);
 	azimuth = PG_GETARG_FLOAT8(2);
 	lwgeom1 = lwgeom_from_gserialized(geom1);
@@ -2618,6 +2669,7 @@ Datum geometry_project_geometry(PG_FUNCTION_ARGS)
 	double distance;
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_Project");
 	geom2 = PG_GETARG_GSERIALIZED_P(1);
 	distance = PG_GETARG_FLOAT8(2);
 

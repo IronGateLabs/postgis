@@ -104,6 +104,8 @@ java/jdbc/Makefile
 java/jdbc/lib/
 java/jdbc/pom.xml
 java/jdbc/target/
+liblwgeom/bench/bench_accel
+liblwgeom/bench/bench_metal
 liblwgeom/cunit/cu_tester
 liblwgeom/cunit/Makefile
 liblwgeom/geobuf.pb-c.c
@@ -233,6 +235,16 @@ deps/flatgeobuf/Makefile
 # Dump
 **/*Dump.xml
 **/*.core
+
+# Local/AI-generated artifacts (not for version control)
+.local/
+
+# ECEF/ECI extension generated files
+extensions/postgis_ecef_eci/Makefile
+extensions/postgis_ecef_eci/postgis_ecef_eci.control
+extensions/postgis_ecef_eci/sql/
+postgis/ecef_eci.sql
+postgis/ecef_eci_upgrade.sql*
 
 # MacOS
 .DS_Store

@@ -37,6 +37,7 @@
 #include "lwgeom_geos.h"
 #include "lwgeom_log.h"
 #include "lwgeom_pg.h"
+#include "lwgeom_transform.h"
 
 
 typedef struct {
@@ -766,6 +767,18 @@ coverage_window_calculation(PG_FUNCTION_ARGS, int mode)
 			context->isdone = true;
 			context->isnull = true;
 			PG_RETURN_NULL();
+		}
+
+		/* Check first row's SRID for geocentric guard (CoverageSimplify only) */
+		if (mode == COVERAGE_SIMPLIFY)
+		{
+			bool isnull_chk;
+			Datum d_chk = WinGetFuncArgCurrent(winobj, 0, &isnull_chk);
+			if (!isnull_chk)
+			{
+				GSERIALIZED *gser_chk = (GSERIALIZED *)PG_DETOAST_DATUM(d_chk);
+				gserialized_check_crs_family_not_geocentric(gser_chk, "ST_CoverageSimplify");
+			}
 		}
 
 		initGEOS(lwpgnotice, lwgeom_geos_error);
