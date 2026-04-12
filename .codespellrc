@@ -3,6 +3,7 @@ ignore-words = .codespell.ignore
 skip =
     ./build/**,
     ./deps/**,
+    ./liblwgeom/erfa/**,
     ./extensions/*/sql/**,
     ./extensions/*/sql_bits/*.sql,
     ./doc/html/**,
