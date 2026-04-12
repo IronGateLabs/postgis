@@ -174,12 +174,14 @@ ERFA_OBJS = \
 	erfa/falp03.o \
 	erfa/fama03.o \
 	erfa/fame03.o \
+	erfa/fane03.o \
 	erfa/faom03.o \
 	erfa/fapa03.o \
 	erfa/fasa03.o \
 	erfa/faur03.o \
 	erfa/fave03.o \
 	erfa/fw2m.o \
+	erfa/fw2xy.o \
 	erfa/gmst06.o \
 	erfa/ir.o \
 	erfa/nut00a.o \
@@ -196,7 +198,10 @@ ERFA_OBJS = \
 	erfa/ry.o \
 	erfa/rz.o \
 	erfa/s06.o \
-	erfa/sp00.o
+	erfa/sp00.o \
+	erfa/tr.o \
+	erfa/xy06.o \
+	erfa/xys06a.o
 
 SA_OBJS += $(ERFA_OBJS)
 
