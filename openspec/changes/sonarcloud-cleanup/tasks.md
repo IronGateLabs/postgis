@@ -44,16 +44,16 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
 
 ## Phase 3: Memory-safety fixes
 
-**Status**: Not started. Blocked on Phase 1.
+**Status**: In progress. Phase 3a + 3c.1 shipped as [PR #18](https://github.com/IronGateLabs/postgis/pull/18) (2026-04-12). Phase 3b/3c.2/3d pending.
 
 ### 3a. Confirmed NULL dereferences (HIGH priority, security-adjacent)
 
-- [ ] 3a.1 Open focused PR against develop titled "Fix NULL pointer dereferences flagged by SonarCloud S2259"
-- [ ] 3a.2 Fix `postgis/flatgeobuf.c:563`: move NULL check before `ctx->ctx` dereference and capture `flatgeobuf_agg_ctx_init` return value
-- [ ] 3a.3 Fix `liblwgeom/optionlist.c:112`: add `return;` after `lwerror()` call so subsequent `*val = '\0';` does not execute when `val` is NULL
-- [ ] 3a.4 Add CUnit regression tests demonstrating the pre-fix crash (crafted input that sets `ctx = NULL` for flatgeobuf; crafted option string without separator for optionlist)
-- [ ] 3a.5 Run ASan build locally to verify no NULL derefs fire in the fixed code paths
-- [ ] 3a.6 Merge the PR
+- [x] 3a.1 Opened focused PR against develop titled "SonarCloud Phase 3a: memory-safety fixes (NULL derefs + PR #8 salvage)" → [PR #18](https://github.com/IronGateLabs/postgis/pull/18)
+- [x] 3a.2 Fixed `postgis/flatgeobuf.c` — moved NULL check before `ctx->ctx` dereference in `flatgeobuf_agg_finalfn`, captured `flatgeobuf_agg_ctx_init` return value (commit `7dc645e2e`). File also reformatted to `.clang-format` style in separate commit `849ed0079` because pre-commit hook flagged pre-existing violations adjacent to the edit.
+- [x] 3a.3 Fixed `liblwgeom/optionlist.c` — added `return;` after `lwerror()` call in `option_list_parse`. Verified `lwerror` does NOT longjmp in the test harness (cu_errorreporter just captures the message), and `option_list_gdal_parse` already uses the same `lwerror(...); return;` pattern, confirming this is a missing return (commit `7dc645e2e`).
+- [x] 3a.4 Added regression test in `cu_misc.c::test_optionlist` for malformed input (`"keywithoutvalue"`) asserting `cu_error_msg` matches the expected lwerror message (commit `7dc645e2e`). **Flatgeobuf CUnit test deferred**: no existing CUnit harness for postgis/flatgeobuf; creating one is scoped out of Phase 3a and deferred to Phase 3b or a future cleanup.
+- [ ] 3a.5 Run ASan build locally to verify no NULL derefs fire in the fixed code paths (deferred: CI ASan run on PR #18 covers this path).
+- [ ] 3a.6 Merge the PR (awaiting CI).
 
 ### 3b. Remaining S2259 null-deref instances (6 more)
 
@@ -63,10 +63,10 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
 
 ### 3c. Potential out-of-bounds issues (S3519 in non-vendored code)
 
-- [ ] 3c.1 Investigate `postgis/gserialized_estimate.c:1012` and `:1035` — "Access `field.value[-1]`" — determine if the negative index access is real or the analyzer is misreading array arithmetic
+- [x] 3c.1 Investigated `postgis/gserialized_estimate.c` — confirmed the negative-index access via `nd_stats_value_index()` return value `-1` is a real bug at 4 call sites. Salvaged fix from closed PR #8 commit `47c20c68d` via cherry-pick (`8de2429ef`). Included in [PR #18](https://github.com/IronGateLabs/postgis/pull/18). Also covers the `raster/loader/raster2pgsql.c` NULL-after-`strdup` guard from the same commit.
 - [ ] 3c.2 Investigate `raster/rt_core/rt_wkb.c:543` — `memcpy` OOB array element — determine if the memcpy length can actually exceed the source or destination bound
-- [ ] 3c.3 Fix the real issues; NOSONAR the false positives
-- [ ] 3c.4 Include in the same PR as 3a/3b if the diff is small, or open a separate focused PR
+- [x] 3c.3 Fixed real issues in gserialized_estimate.c and raster2pgsql.c via commit `8de2429ef`; rt_wkb.c deferred to 3c.2 investigation
+- [x] 3c.4 Bundled into PR #18 (same PR as Phase 3a)
 
 ### 3d. Uninitialized value reads (S836)
 
