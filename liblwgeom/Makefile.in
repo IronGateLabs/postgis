@@ -150,6 +150,56 @@ endif
 # Acceleration dispatch (always built, contains runtime detection + scalar fallback)
 SA_OBJS += lwgeom_accel.o lwgeom_gpu.o
 
+# Vendored ERFA subset for IAU 2006/2000A precession-nutation.
+# See liblwgeom/erfa/ERFA-VERSION.txt for upstream version and license.
+# Compiled with relaxed warnings since upstream code uses standard-mandated
+# function signatures that may have unused parameters. All other fork code
+# keeps -Wall -Werror.
+ERFA_OBJS = \
+	erfa/anp.o \
+	erfa/bi00.o \
+	erfa/bpn2xy.o \
+	erfa/c2i06a.o \
+	erfa/c2ixys.o \
+	erfa/c2t06a.o \
+	erfa/c2tcio.o \
+	erfa/cp.o \
+	erfa/cr.o \
+	erfa/era00.o \
+	erfa/fad03.o \
+	erfa/fae03.o \
+	erfa/faf03.o \
+	erfa/faju03.o \
+	erfa/fal03.o \
+	erfa/falp03.o \
+	erfa/fama03.o \
+	erfa/fame03.o \
+	erfa/faom03.o \
+	erfa/fapa03.o \
+	erfa/fasa03.o \
+	erfa/faur03.o \
+	erfa/fave03.o \
+	erfa/fw2m.o \
+	erfa/gmst06.o \
+	erfa/ir.o \
+	erfa/nut00a.o \
+	erfa/nut06a.o \
+	erfa/obl06.o \
+	erfa/pfw06.o \
+	erfa/pmat76.o \
+	erfa/pnm06a.o \
+	erfa/pom00.o \
+	erfa/pr00.o \
+	erfa/prec76.o \
+	erfa/rx.o \
+	erfa/rxr.o \
+	erfa/ry.o \
+	erfa/rz.o \
+	erfa/s06.o \
+	erfa/sp00.o
+
+SA_OBJS += $(ERFA_OBJS)
+
 # SIMD-accelerated files (compiled with ISA-specific flags)
 ACCEL_OBJS =
 ifeq (@HAVE_AVX2@,yes)
@@ -261,6 +311,7 @@ clean:
 	rm -rf topo/.libs
 	rm -rf accel/.libs accel/*.o accel/*.lo
 	rm -f accel/*.air accel/*.metallib accel/gpu_metal_kernels_metallib.h
+	rm -rf erfa/.libs erfa/*.o erfa/*.lo
 
 distclean: clean
 	$(MAKE) -C cunit distclean
@@ -297,6 +348,18 @@ lwin_wkt_lex.c: lwin_wkt_lex.l
 
 liblwgeom.h: liblwgeom.h.in
 	cd $(top_builddir) && ./config.status
+
+# Vendored ERFA compilation rule (relaxed warnings for upstream code)
+# ERFA functions follow IAU standard signatures that may have unused params.
+# We disable those specific warnings for the vendored subdirectory only;
+# all other fork code keeps -Wall -Werror untouched.
+# IEEE-754 standard FP math is required for ERFA accuracy; do not enable
+# -ffast-math here.
+$(ERFA_OBJS:.o=.lo): erfa/%.lo: erfa/%.c
+	@mkdir -p erfa
+	$(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) \
+		-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable \
+		-c -o $@ $<
 
 # SIMD-specific compilation rules (need ISA-specific flags)
 accel/rotate_z_avx2.lo: accel/rotate_z_avx2.c
