@@ -107,79 +107,12 @@ lweci_earth_rotation_angle(double julian_ut1_date)
 	return eraEra00(julian_ut1_date, 0.0);
 }
 
-/**
- * Apply a rotation about the Z axis to a POINT4D.
- *
- * Rz(theta):
- *   x' =  x*cos(theta) + y*sin(theta)
- *   y' = -x*sin(theta) + y*cos(theta)
- *   z' =  z
- */
-/* Single-point rotate_z moved to lwgeom_accel.c as ptarray_rotate_z_scalar */
-
-/**
- * Apply Z-axis rotation to all points in a POINTARRAY.
- * Dispatches to SIMD-accelerated implementation when available.
- */
-static int
-ptarray_rotate_z(POINTARRAY *pa, double theta)
-{
-	const LW_ACCEL_DISPATCH *accel = lwaccel_get();
-	return accel->rotate_z(pa, theta);
-}
-
-/**
- * Apply Z-axis rotation to all points in a geometry.
- */
-static int
-lwgeom_rotate_z(LWGEOM *geom, double theta)
-{
-	uint32_t i;
-
-	if (lwgeom_is_empty(geom))
-		return LW_SUCCESS;
-
-	switch (geom->type)
-	{
-	case POINTTYPE:
-	case LINETYPE:
-	case CIRCSTRINGTYPE:
-	case TRIANGLETYPE: {
-		LWLINE *g = (LWLINE *)geom;
-		return ptarray_rotate_z(g->points, theta);
-	}
-	case POLYGONTYPE: {
-		LWPOLY *g = (LWPOLY *)geom;
-		for (i = 0; i < g->nrings; i++)
-		{
-			if (ptarray_rotate_z(g->rings[i], theta) != LW_SUCCESS)
-				return LW_FAILURE;
-		}
-		return LW_SUCCESS;
-	}
-	case MULTIPOINTTYPE:
-	case MULTILINETYPE:
-	case MULTIPOLYGONTYPE:
-	case COLLECTIONTYPE:
-	case COMPOUNDTYPE:
-	case CURVEPOLYTYPE:
-	case MULTICURVETYPE:
-	case MULTISURFACETYPE:
-	case POLYHEDRALSURFACETYPE:
-	case TINTYPE: {
-		LWCOLLECTION *g = (LWCOLLECTION *)geom;
-		for (i = 0; i < g->ngeoms; i++)
-		{
-			if (lwgeom_rotate_z(g->geoms[i], theta) != LW_SUCCESS)
-				return LW_FAILURE;
-		}
-		return LW_SUCCESS;
-	}
-	default:
-		lwerror("lwgeom_rotate_z: Cannot handle type '%s'", lwtype_name(geom->type));
-		return LW_FAILURE;
-	}
-}
+/* Note: Phase 3 removed the simple lwgeom_rotate_z / lwgeom_rotate_xy
+ * helpers that built up transforms as a chain of axis rotations. The
+ * full IAU 2006/2000A path builds a single 3x3 matrix via ERFA and
+ * applies it via lwgeom_apply_matrix3x3 at the bottom of this file.
+ * The per-point M-epoch rotation path (lwgeom_transform_*_m) still
+ * uses SIMD-dispatched ptarray_rotate_z_m_epoch. */
 
 int
 lwgeom_transform_eci_to_ecef(LWGEOM *geom, double epoch, int32_t frame_srid)
@@ -298,108 +231,10 @@ lwgeom_transform_ecef_to_eci_m(LWGEOM *geom)
 /* Arcseconds to radians */
 #define ARCSEC_TO_RAD (M_PI / (180.0 * 3600.0))
 
-/**
- * Apply X-axis rotation (Rx) to a POINTARRAY.
- * Rx(theta): y' = y*cos - z*sin, z' = y*sin + z*cos
- */
-static int
-ptarray_rotate_x(POINTARRAY *pa, double theta)
-{
-	uint32_t i;
-	double cos_t = cos(theta);
-	double sin_t = sin(theta);
-	POINT4D p;
-
-	for (i = 0; i < pa->npoints; i++)
-	{
-		getPoint4d_p(pa, i, &p);
-		double y = p.y;
-		double z = p.z;
-		p.y = y * cos_t - z * sin_t;
-		p.z = y * sin_t + z * cos_t;
-		ptarray_set_point4d(pa, i, &p);
-	}
-	return LW_SUCCESS;
-}
-
-/**
- * Apply Y-axis rotation (Ry) to a POINTARRAY.
- * Ry(theta): x' = x*cos + z*sin, z' = -x*sin + z*cos
- */
-static int
-ptarray_rotate_y(POINTARRAY *pa, double theta)
-{
-	uint32_t i;
-	double cos_t = cos(theta);
-	double sin_t = sin(theta);
-	POINT4D p;
-
-	for (i = 0; i < pa->npoints; i++)
-	{
-		getPoint4d_p(pa, i, &p);
-		double x = p.x;
-		double z = p.z;
-		p.x = x * cos_t + z * sin_t;
-		p.z = -x * sin_t + z * cos_t;
-		ptarray_set_point4d(pa, i, &p);
-	}
-	return LW_SUCCESS;
-}
-
-/**
- * Apply X or Y axis rotation to all points in a geometry.
- * axis: 0 = X-axis, 1 = Y-axis
- */
-static int
-lwgeom_rotate_xy(LWGEOM *geom, double theta, int axis)
-{
-	uint32_t i;
-	int (*rotate_fn)(POINTARRAY *, double) = axis ? ptarray_rotate_y : ptarray_rotate_x;
-
-	if (lwgeom_is_empty(geom))
-		return LW_SUCCESS;
-
-	switch (geom->type)
-	{
-	case POINTTYPE:
-	case LINETYPE:
-	case CIRCSTRINGTYPE:
-	case TRIANGLETYPE: {
-		LWLINE *g = (LWLINE *)geom;
-		return rotate_fn(g->points, theta);
-	}
-	case POLYGONTYPE: {
-		LWPOLY *g = (LWPOLY *)geom;
-		for (i = 0; i < g->nrings; i++)
-		{
-			if (rotate_fn(g->rings[i], theta) != LW_SUCCESS)
-				return LW_FAILURE;
-		}
-		return LW_SUCCESS;
-	}
-	case MULTIPOINTTYPE:
-	case MULTILINETYPE:
-	case MULTIPOLYGONTYPE:
-	case COLLECTIONTYPE:
-	case COMPOUNDTYPE:
-	case CURVEPOLYTYPE:
-	case MULTICURVETYPE:
-	case MULTISURFACETYPE:
-	case POLYHEDRALSURFACETYPE:
-	case TINTYPE: {
-		LWCOLLECTION *g = (LWCOLLECTION *)geom;
-		for (i = 0; i < g->ngeoms; i++)
-		{
-			if (lwgeom_rotate_xy(g->geoms[i], theta, axis) != LW_SUCCESS)
-				return LW_FAILURE;
-		}
-		return LW_SUCCESS;
-	}
-	default:
-		lwerror("lwgeom_rotate_xy: Cannot handle type '%s'", lwtype_name(geom->type));
-		return LW_FAILURE;
-	}
-}
+/* Note: ptarray_rotate_x, ptarray_rotate_y, and lwgeom_rotate_xy were
+ * removed in Phase 3 along with their sole caller (the old polar
+ * motion axis-rotation chain in lwgeom_transform_*_eop). The full
+ * BPN matrix path in lwgeom_apply_matrix3x3 supersedes them. */
 
 /***************************************************************************/
 /* IAU 2006/2000A full bias-precession-nutation transforms (Phase 3)        */
