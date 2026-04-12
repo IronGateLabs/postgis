@@ -108,12 +108,20 @@ SELECT 'to_ecef_srid', ST_SRID(ST_ECI_To_ECEF(
 	:'epoch_jun15'::timestamptz,
 	:'frame_icrf'));
 
--- Z coordinate is preserved through rotation (only X/Y change)
-SELECT 'z_preserved',
-	abs(ST_Z(ST_ECEF_To_ECI(
-		ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-		:'epoch_jun15'::timestamptz,
-		:'frame_icrf')) - 4500000) < 0.001;
+-- Vector norm is preserved through rotation (full IAU 2006/2000A
+-- precession-nutation tilts the equator so individual components
+-- vary, but the rotation matrix is orthogonal so |v| is invariant).
+-- Renamed from z_preserved (which was true only for the old
+-- simplified Z-rotation model).
+SELECT 'norm_preserved',
+	abs(
+		(SELECT sqrt(ST_X(p)*ST_X(p) + ST_Y(p)*ST_Y(p) + ST_Z(p)*ST_Z(p))
+		 FROM (SELECT ST_ECEF_To_ECI(
+			ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
+			:'epoch_jun15'::timestamptz,
+			:'frame_icrf') AS p) sub)
+		- sqrt(4000000.0*4000000.0 + 3000000.0*3000000.0 + 4500000.0*4500000.0)
+	) < 0.001;
 
 -- Different epochs give different ECI results (Earth rotates)
 SELECT 'diff_epochs',
@@ -251,12 +259,19 @@ FROM (
 			:'frame_icrf') AS eci_eop
 ) sub;
 
--- Z coordinate preserved through EOP-enhanced rotation
-SELECT 'eop_z_preserved',
-	abs(ST_Z(ST_ECEF_To_ECI_EOP(
-		ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-		(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
-		:'frame_icrf')) - 4500000) < 1.0;
+-- Vector norm preserved through EOP-enhanced rotation (orthogonal
+-- matrix composition of BPN + ERA + polar motion preserves |v|).
+-- Renamed from eop_z_preserved per the Phase 3 precession-nutation
+-- upgrade.
+SELECT 'eop_norm_preserved',
+	abs(
+		(SELECT sqrt(ST_X(p)*ST_X(p) + ST_Y(p)*ST_Y(p) + ST_Z(p)*ST_Z(p))
+		 FROM (SELECT ST_ECEF_To_ECI_EOP(
+			ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
+			(:'epoch_j2000'::timestamptz + ((60000.5 - 51544.0) * 86400)::int * interval '1 second'),
+			:'frame_icrf') AS p) sub)
+		- sqrt(4000000.0*4000000.0 + 3000000.0*3000000.0 + 4500000.0*4500000.0)
+	) < 0.001;
 
 -- Clean up EOP test data
 DELETE FROM postgis_eop WHERE mjd IN (60000.0, 60001.0, 60002.0);
