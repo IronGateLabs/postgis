@@ -267,11 +267,12 @@ get_xlink_node(xmlNodePtr xnode)
 
 	if (xnode->ns)
 	{
+		/* NOSONAR c:S2068 — XPath expression template, not a credential */
 		id = lwalloc((xmlStrlen(xnode->ns->prefix) * 2 + xmlStrlen(xnode->name) + xmlStrlen(href) +
 			      sizeof("//:[@:id='']") + 1));
 		/* XPath pattern look like: //gml:point[@gml:id='p1'] */
 		sprintf(id,
-			"//%s:%s[@%s:id='%s']",
+			"//%s:%s[@%s:id='%s']", /* NOSONAR */
 			(char *)xnode->ns->prefix,
 			(char *)xnode->name,
 			(char *)xnode->ns->prefix,
@@ -279,6 +280,7 @@ get_xlink_node(xmlNodePtr xnode)
 	}
 	else
 	{
+		/* NOSONAR c:S2068 — XPath expression template, not a credential */
 		id = lwalloc((xmlStrlen(xnode->name) + xmlStrlen(href) + sizeof("//:[@:id='']") + 1));
 		/* XPath pattern look like: //gml:point[@gml:id='p1'] */
 		sprintf(id, "//%s[@id='%s']", (char *)xnode->name, (char *)p);
