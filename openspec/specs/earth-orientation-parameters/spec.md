@@ -70,3 +70,19 @@ The system SHALL validate EOP values during loading to prevent obviously incorre
 #### Scenario: DUT1 out of range
 - **WHEN** EOP data with `dut1 = 2.0` (seconds) is loaded -- outside the +/-0.9 second range maintained by leap seconds
 - **THEN** the system SHALL raise a warning or error indicating the value is outside expected bounds
+
+### Requirement: EOP-enhanced transforms apply full IAU 2006/2000A corrections
+The `ST_ECEF_To_ECI_EOP()` and `ST_ECI_To_ECEF_EOP()` functions SHALL apply all five EOP values (UT1-UTC, polar motion xp/yp, AND CIP offsets dx/dy) via the IAU 2006/2000A bias-precession-nutation matrix. Previously these functions applied only UT1 and polar motion, silently ignoring the dx/dy columns.
+
+#### Scenario: All five EOP values are threaded to the C transform
+- **WHEN** `ST_ECEF_To_ECI_EOP(geom, epoch, frame)` is called and `postgis_eop_interpolate(epoch)` returns a row with all five corrections
+- **THEN** the PL/pgSQL wrapper SHALL pass `dut1`, `xp`, `yp`, `dx`, `dy` to the underlying C function `_postgis_ecef_to_eci_eop`
+- **AND** the C function SHALL apply `dut1` as the UT1-UTC offset when building the Earth rotation angle
+- **AND** the C function SHALL apply `xp`, `yp` via `eraPom00` to build the polar motion matrix
+- **AND** the C function SHALL inject `dx`, `dy` as corrections to the IAU 2006 CIP X, Y coordinates before building the celestial-to-intermediate matrix via `eraC2ixys`
+
+#### Scenario: Missing EOP row falls back to zero-correction IAU 2006/2000A
+- **WHEN** `postgis_eop_interpolate(epoch)` returns NULL for the requested epoch
+- **THEN** the SQL wrapper SHALL fall back to `ST_ECEF_To_ECI(geom, epoch, frame)` which uses zero corrections
+- **AND** the fallback SHALL still compute the full IAU 2006/2000A bias-precession-nutation matrix (only the EOP refinements are zero, not the BPN matrix itself)
+- **AND** the fallback accuracy SHALL remain within approximately 6 centimeters at Earth radius
