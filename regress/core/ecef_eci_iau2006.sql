@@ -15,8 +15,7 @@
 -- same IEEE-754 double precision.
 --
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-CREATE EXTENSION IF NOT EXISTS postgis_ecef_eci;
+-- ECEF/ECI functions are loaded by the test infrastructure (run_test.pl)
 
 -- Reference test input: an off-equator, off-pole ECEF point near Earth
 -- surface.
@@ -186,5 +185,4 @@ SELECT 'norm_invariant_teme',
         - sqrt(4000000.0*4000000.0 + 3000000.0*3000000.0 + 4500000.0*4500000.0)
     ) < 1e-3;
 
--- Cleanup
-DROP EXTENSION postgis_ecef_eci;
+-- Cleanup handled by test infrastructure
