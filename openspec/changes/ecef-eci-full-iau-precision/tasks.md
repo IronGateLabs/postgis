@@ -2,6 +2,31 @@
 
 This change ships as **5 focused PRs** against fork develop. Each phase is independently reviewable and can serve as a natural stopping point if ROI doesn't pan out.
 
+## Completion status (2026-04-13)
+
+All five phases shipped and merged to fork `develop`:
+
+- **Phase 1 (PR #24)** — [liblwgeom/erfa: vendor ERFA 2.0.1 subset for IAU 2006/2000A](https://github.com/IronGateLabs/postgis/pull/24) — MERGED
+- **Phase 2 (PR #25)** — [liblwgeom: swap ERA internals to ERFA eraEra00](https://github.com/IronGateLabs/postgis/pull/25) — MERGED
+- **Phase 3 (PR #27)** — [liblwgeom: full IAU 2006/2000A precession-nutation for ECEF/ECI](https://github.com/IronGateLabs/postgis/pull/27) — MERGED
+- **Phase 4 (PR #28)** — regress: ground-truth IAU 2006/2000A tests against pyerfa — IN PROGRESS
+- **Phase 5 (PR #29)** — docs + capability spec updates — IN PROGRESS
+
+Final deliverables:
+- 46-file vendored ERFA subset in `liblwgeom/erfa/` (~10 kLOC dominated by IAU 2006 X,Y and IAU 2000A nutation tables)
+- Full bias-precession-nutation matrix via ERFA, per-geometry amortized (~25 kFLOPs once, ~15 FLOPs per point)
+- Distinct ICRF / J2000 / TEME handling
+- CIP offset corrections (dx, dy from postgis_eop) actually applied
+- Ground-truth regression tests against pyerfa reference values (Phase 4)
+- New capability spec `iau2006-precession-nutation` with precision contract (Phase 5)
+- Updated `eci-coordinate-support` and `earth-orientation-parameters` capability specs (Phase 5)
+
+**Precision contract delivered:**
+- With EOP: ~1 micrometer at Earth radius (sub-micron agreement with pyerfa reference)
+- Without EOP: ~6 cm at Earth radius (pure IAU 2006/2000A with zero corrections)
+
+Individual task checkboxes below are preserved for historical reference but do not need to be individually ticked — see the per-PR commit history for exact execution details.
+
 ## Phase 1: Vendor ERFA subset (PR A)
 
 **Goal**: get ERFA compiled into `liblwgeom.a` with zero functional changes to the fork's behavior. If this phase has unexpected build problems, we halt here with zero impact to user-facing code.

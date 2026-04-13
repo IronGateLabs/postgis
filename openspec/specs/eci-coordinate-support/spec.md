@@ -22,12 +22,23 @@ The system SHALL identify Earth-Centered Inertial (ECI) coordinate systems (ICRF
 
 > **Note (contract alignment v0.2.0):** The guard function `srid_check_crs_family_not_geocentric()` scope was broadened to block both `LW_CRS_GEOCENTRIC` and `LW_CRS_INERTIAL` CRS families. See the `ecef-coordinate-support` spec for the full list of error-class functions.
 
-### Requirement: Epoch-parameterized ECI-to-ECEF transformation
-The system SHALL support transformation between ECI and ECEF frames with an epoch parameter that accounts for Earth's rotation. The epoch MAY be provided as the M coordinate of `POINT4D` geometries or as an explicit parameter to `ST_Transform`.
+### Requirement: Epoch-parameterized ECI-to-ECEF transformation (IAU 2006/2000A)
+The system SHALL support transformation between ECI and ECEF frames with an epoch parameter, implementing the **IAU 2006 precession** combined with the **IAU 2000A nutation** model as the celestial-to-terrestrial rotation. Distinct handling is provided for the three supported frames (ICRF, J2000, TEME); they SHALL NOT collapse to the same rotation. Transforms are built via the vendored ERFA subset (`liblwgeom/erfa/`) and the per-geometry rotation matrix is amortized across all points.
+
+Precision contract: ~1 micrometer at Earth radius when EOP data is available (ST_ECEF_To_ECI_EOP with `postgis_eop` populated from IERS Bulletin A), and ~6 centimeters at Earth radius when EOP data is unavailable (zero-correction IAU 2006/2000A via ST_ECEF_To_ECI).
+
+The epoch MAY be provided as the M coordinate of `POINT4D` geometries (uses the simplified Z-rotation per-point path for speed), or as an explicit parameter to `ST_Transform`, `ST_ECEF_To_ECI`, or `ST_ECI_To_ECEF` (uses the full IAU 2006/2000A matrix path).
+
+#### Scenario: ICRF, J2000, and TEME produce distinct results
+- **WHEN** `ST_ECEF_To_ECI(geom, epoch, frame)` is called with the same geometry and epoch for each of the three frames `ICRF`, `J2000`, and `TEME`
+- **THEN** the three results SHALL differ in a way consistent with their physical definitions
+- **AND** the ICRF and J2000 results SHALL differ by the IAU 2000 frame bias (sub-meter at Earth radius)
+- **AND** the TEME result SHALL differ from ICRF and J2000 by tens of kilometers because TEME uses Greenwich Mean Sidereal Time instead of Earth Rotation Angle
 
 #### Scenario: ECI to ECEF with M-coordinate epoch
 - **WHEN** `ST_Transform(eci_geom, 4978)` is called on an ECI geometry where each point's M coordinate contains the epoch (decimal year)
-- **THEN** the transformation SHALL apply Earth rotation correction for each point's epoch, producing correct ECEF coordinates
+- **THEN** the transformation SHALL apply the per-point Z-axis rotation (simplified ERA-only model, SIMD-dispatched) for each point's epoch
+- **AND** the per-point path does NOT use the full IAU 2006/2000A matrix because per-point matrix rebuild would be prohibitive; callers needing precision SHALL use `ST_ECEF_To_ECI(geom, epoch, frame)` with a fixed epoch instead
 
 #### Scenario: ECI to ECEF with explicit epoch parameter
 - **WHEN** `ST_Transform(eci_geom, 4978, epoch => '2025-01-01T00:00:00Z')` is called with a single epoch for the entire geometry
