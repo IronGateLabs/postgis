@@ -1,12 +1,6 @@
 ---
-name: openspec-new-change
-description: Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "openspec-new-change"
+description: "Start a new OpenSpec change using the experimental artifact workflow. Use when the user wants to create a new feature, fix, or modification with a structured step-by-step approach."
 ---
 
 Start a new change using the experimental artifact-driven approach.
@@ -72,3 +66,7 @@ After completing the steps, summarize:
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
 - Pass --schema if using a non-default workflow
+
+## MANUAL MIGRATION REQUIRED
+
+Review unsupported Claude skill fields manually: `author`, `compatibility`, `generatedBy`, `license`, `metadata`, `version`.

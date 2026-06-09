@@ -1,12 +1,6 @@
 ---
-name: openspec-archive-change
-description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "openspec-archive-change"
+description: "Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete."
 ---
 
 Archive a completed change in the experimental workflow.
@@ -112,3 +106,7 @@ All artifacts complete. All tasks complete.
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
+
+## MANUAL MIGRATION REQUIRED
+
+Review unsupported Claude skill fields manually: `author`, `compatibility`, `generatedBy`, `license`, `metadata`, `version`.

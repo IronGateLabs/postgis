@@ -1,17 +1,17 @@
 ---
-name: openspec-verify-change
-description: Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "source-command-opsx-verify"
+description: "Verify implementation matches change artifacts before archiving"
 ---
+
+# source-command-opsx-verify
+
+Use this skill when the user asks to run the migrated source command `opsx-verify`.
+
+## Command Template
 
 Verify that an implementation matches the change artifacts (specs, tasks, design).
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after `/opsx:verify` (e.g., `/opsx:verify add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -166,3 +166,9 @@ Use clear markdown with:
 - Code references in format: `file.ts:123`
 - Specific, actionable recommendations
 - No vague suggestions like "consider reviewing"
+
+## MANUAL MIGRATION REQUIRED
+
+Migrated from source command `opsx-verify` into a Codex skill. Invoke it as `$source-command-opsx-verify` and manually rewrite any slash-command behavior that depended on provider-specific runtime expansion.
+
+Review unsupported command metadata manually: `category`, `name`, `tags`.

@@ -1,12 +1,6 @@
 ---
-name: openspec-apply-change
-description: Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "openspec-apply-change"
+description: "Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks."
 ---
 
 Implement tasks from an OpenSpec change.
@@ -154,3 +148,7 @@ This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
 - **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly
+
+## MANUAL MIGRATION REQUIRED
+
+Review unsupported Claude skill fields manually: `author`, `compatibility`, `generatedBy`, `license`, `metadata`, `version`.

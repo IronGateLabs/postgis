@@ -1,12 +1,6 @@
 ---
-name: openspec-ff-change
-description: Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "openspec-ff-change"
+description: "Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually."
 ---
 
 Fast-forward through artifact creation - generate everything needed to start implementation in one go.
@@ -99,3 +93,7 @@ After completing all artifacts, summarize:
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, suggest continuing that change instead
 - Verify each artifact file exists after writing before proceeding to next
+
+## MANUAL MIGRATION REQUIRED
+
+Review unsupported Claude skill fields manually: `author`, `compatibility`, `generatedBy`, `license`, `metadata`, `version`.

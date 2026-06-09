@@ -106,6 +106,9 @@ java/jdbc/pom.xml
 java/jdbc/target/
 liblwgeom/bench/bench_accel
 liblwgeom/bench/bench_metal
+liblwgeom/accel/*.air
+liblwgeom/accel/*.metallib
+liblwgeom/accel/gpu_metal_kernels_metallib.h
 liblwgeom/cunit/cu_tester
 liblwgeom/cunit/Makefile
 liblwgeom/geobuf.pb-c.c
@@ -218,6 +221,13 @@ postgis/sfcgal.sql
 postgis/uninstall_sfcgal.sql
 *.pdf
 *.epub
+
+# Local connector logs
+proxmox_mcp.log
+
+# Local Codex migration byproducts; committed skills live under .agents/skills
+.codex/skills/
+.codex/migrate-to-codex-report.txt
 .idea/*
 .syntastic_c_config
 .vs/*

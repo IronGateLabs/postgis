@@ -1,12 +1,6 @@
 ---
-name: openspec-continue-change
-description: Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "openspec-continue-change"
+description: "Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow."
 ---
 
 Continue working on a change by creating the next artifact.
@@ -116,3 +110,7 @@ For other schemas, follow the `instruction` field from the CLI output.
 - **IMPORTANT**: `context` and `rules` are constraints for YOU, not content for the file
   - Do NOT copy `<context>`, `<rules>`, `<project_context>` blocks into the artifact
   - These guide what you write, but should never appear in the output
+
+## MANUAL MIGRATION REQUIRED
+
+Review unsupported Claude skill fields manually: `author`, `compatibility`, `generatedBy`, `license`, `metadata`, `version`.
