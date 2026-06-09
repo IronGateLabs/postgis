@@ -76,10 +76,10 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
 
 ## Phase 4: `strtok` → `strtok_r` thread-safety sweep
 
-**Status**: Not started. Blocked on Phase 1 (for dashboard clarity). Can proceed in parallel with Phase 3.
+**Status**: In review via [PR #20](https://github.com/IronGateLabs/postgis/pull/20). Rebased onto current `develop` on 2026-06-09 to refresh stale static-analysis contexts.
 
-- [ ] 4.1 Open focused PR against develop titled "Replace non-reentrant strtok with strtok_r throughout accel/loader/raster"
-- [ ] 4.2 Update the 8 call sites mechanically:
+- [x] 4.1 Open focused PR against develop titled "SonarCloud Phase 4: replace strtok with strtok_r for thread safety" -> [PR #20](https://github.com/IronGateLabs/postgis/pull/20)
+- [x] 4.2 Update the 8 call sites mechanically:
   - `liblwgeom/optionlist.c:95`
   - `liblwgeom/optionlist.c:149`
   - `postgis/lwgeom_geos.c:1029`
@@ -88,9 +88,9 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
   - `raster/loader/raster2pgsql.c:266`
   - `raster/rt_pg/rtpg_internal.c:176`
   - `raster/rt_pg/rtpg_internal.c:199`
-- [ ] 4.3 For each site, add a `char *saveptr;` local and change `strtok(s, sep)` to `strtok_r(s, sep, &saveptr)` and subsequent `strtok(NULL, sep)` to `strtok_r(NULL, sep, &saveptr)`
-- [ ] 4.4 Verify each saveptr is unique per logical invocation (not shared across unrelated tokenizations)
-- [ ] 4.5 Run existing regression tests to confirm no behavior changes
+- [x] 4.3 For each site, add a `char *saveptr;` local and change `strtok(s, sep)` to `strtok_r(s, sep, &saveptr)` and subsequent `strtok(NULL, sep)` to `strtok_r(NULL, sep, &saveptr)`
+- [x] 4.4 Verify each saveptr is unique per logical invocation (not shared across unrelated tokenizations)
+- [x] 4.5 Run existing regression tests to confirm no behavior changes. PR #20's pre-rebase CI matrix passed; post-rebase rerun is pending on the refreshed branch.
 - [ ] 4.6 Merge the PR
 
 ## Phase 5: Side-effect-in-logical-operator cleanups

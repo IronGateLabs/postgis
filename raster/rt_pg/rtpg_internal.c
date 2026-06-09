@@ -66,8 +66,10 @@ rtpg_strreplace(
 	int limit = (count != NULL && *count > 0) ? *count : -1;
 
 	tmp = str;
-	while ((tmp = strstr(tmp, oldstr)) != NULL && found != limit)
-		found++, tmp += oldlen;
+	while ((tmp = strstr(tmp, oldstr)) != NULL && found != limit) {
+		found++;
+		tmp += oldlen;
+	}
 
 	length = strlen(str) + found * (newlen - oldlen);
 	if ((result = (char *) palloc(length + 1)) == NULL) {
@@ -98,10 +100,12 @@ rtpg_strreplace(
 
 char *
 rtpg_strtoupper(char * str) {
-	int j;
+	size_t j = strlen(str);
 
-	for (j = strlen(str) - 1; j >= 0; j--)
-		str[j] = toupper(str[j]);
+	while (j > 0) {
+		j--;
+		str[j] = (char) toupper((unsigned char) str[j]);
+	}
 
 	return str;
 }
@@ -143,6 +147,7 @@ rtpg_strsplit(const char *str, const char *delimiter, uint32_t *n) {
 	char *tmp = NULL;
 	char **rtn = NULL;
 	char *token = NULL;
+	char *saveptr = NULL;
 
 	*n = 0;
 	if (!str)
@@ -173,7 +178,7 @@ rtpg_strsplit(const char *str, const char *delimiter, uint32_t *n) {
 		return rtn;
 	}
 
-	token = strtok(tmp, delimiter);
+	token = strtok_r(tmp, delimiter, &saveptr);
 	while (token != NULL) {
 		if (*n < 1) {
 			rtn = (char **) palloc(sizeof(char *));
@@ -196,7 +201,7 @@ rtpg_strsplit(const char *str, const char *delimiter, uint32_t *n) {
 		strcpy(rtn[*n], token);
 		*n = *n + 1;
 
-		token = strtok(NULL, delimiter);
+		token = strtok_r(NULL, delimiter, &saveptr);
 	}
 
 	pfree(tmp);
@@ -226,8 +231,8 @@ char*
 rtpg_trim(const char *input) {
 	char *rtn;
 	char *ptr;
-	uint32_t offset = 0;
-	int inputlen = 0;
+	size_t offset = 0;
+	size_t inputlen = 0;
 
 	if (!input)
 		return NULL;
@@ -262,18 +267,28 @@ rtpg_trim(const char *input) {
  * http://stackoverflow.com/a/1634398
  */
 char *
-rtpg_strrstr(const char *s1, const char *s2) {
-	int s1len = strlen(s1);
-	int s2len = strlen(s2);
+rtpg_strrstr(char *s1, const char *s2) {
+	size_t s1len;
+	size_t s2len;
 	char *s;
+
+	if (!s1 || !s2)
+		return NULL;
+
+	s1len = strlen(s1); /* NOSONAR c:S5813 - callers pass checked NUL-terminated C strings. */
+	s2len = strlen(s2); /* NOSONAR c:S5813 - callers pass checked NUL-terminated C strings. */
 
 	if (s2len > s1len)
 		return NULL;
 
-	s = (char *) (s1 + s1len - s2len);
-	for (; s >= s1; --s)
+	s = s1 + s1len - s2len;
+	while (1) {
 		if (strncmp(s, s2, s2len) == 0)
 			return s;
+		if (s == s1)
+			break;
+		--s;
+	}
 
 	return NULL;
 }
@@ -281,8 +296,7 @@ rtpg_strrstr(const char *s1, const char *s2) {
 char *
 rtpg_getSR(int32_t srid)
 {
-	int i = 0;
-	int len = 0;
+	size_t len = 0;
 	char *sql = NULL;
 	int spi_result;
 	TupleDesc tupdesc;
@@ -338,7 +352,7 @@ LIMIT 1
 	tuple = tuptable->vals[0];
 
 	/* which column to use? */
-	for (i = 1; i < 4; i++) {
+	for (int i = 1; i < 4; i++) {
 		tmp = SPI_getvalue(tuple, tupdesc, i);
 
 		/* value AND GDAL supports this SR */
