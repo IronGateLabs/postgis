@@ -66,8 +66,10 @@ rtpg_strreplace(
 	int limit = (count != NULL && *count > 0) ? *count : -1;
 
 	tmp = str;
-	while ((tmp = strstr(tmp, oldstr)) != NULL && found != limit)
-		found++, tmp += oldlen;
+	while ((tmp = strstr(tmp, oldstr)) != NULL && found != limit) {
+		found++;
+		tmp += oldlen;
+	}
 
 	length = strlen(str) + found * (newlen - oldlen);
 	if ((result = (char *) palloc(length + 1)) == NULL) {
@@ -98,10 +100,12 @@ rtpg_strreplace(
 
 char *
 rtpg_strtoupper(char * str) {
-	int j;
+	size_t j = strlen(str);
 
-	for (j = strlen(str) - 1; j >= 0; j--)
-		str[j] = toupper(str[j]);
+	while (j > 0) {
+		j--;
+		str[j] = (char) toupper((unsigned char) str[j]);
+	}
 
 	return str;
 }
@@ -227,8 +231,8 @@ char*
 rtpg_trim(const char *input) {
 	char *rtn;
 	char *ptr;
-	uint32_t offset = 0;
-	int inputlen = 0;
+	size_t offset = 0;
+	size_t inputlen = 0;
 
 	if (!input)
 		return NULL;
@@ -264,17 +268,21 @@ rtpg_trim(const char *input) {
  */
 char *
 rtpg_strrstr(const char *s1, const char *s2) {
-	int s1len = strlen(s1);
-	int s2len = strlen(s2);
-	char *s;
+	size_t s1len = strlen(s1);
+	size_t s2len = strlen(s2);
+	const char *s;
 
 	if (s2len > s1len)
 		return NULL;
 
-	s = (char *) (s1 + s1len - s2len);
-	for (; s >= s1; --s)
+	s = s1 + s1len - s2len;
+	while (1) {
 		if (strncmp(s, s2, s2len) == 0)
-			return s;
+			return (char *) s;
+		if (s == s1)
+			break;
+		--s;
+	}
 
 	return NULL;
 }
@@ -282,8 +290,7 @@ rtpg_strrstr(const char *s1, const char *s2) {
 char *
 rtpg_getSR(int32_t srid)
 {
-	int i = 0;
-	int len = 0;
+	size_t len = 0;
 	char *sql = NULL;
 	int spi_result;
 	TupleDesc tupdesc;
@@ -339,7 +346,7 @@ LIMIT 1
 	tuple = tuptable->vals[0];
 
 	/* which column to use? */
-	for (i = 1; i < 4; i++) {
+	for (int i = 1; i < 4; i++) {
 		tmp = SPI_getvalue(tuple, tupdesc, i);
 
 		/* value AND GDAL supports this SR */
