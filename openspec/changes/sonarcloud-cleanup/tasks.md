@@ -76,7 +76,7 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
 
 ## Phase 4: `strtok` → `strtok_r` thread-safety sweep
 
-**Status**: In review via [PR #20](https://github.com/IronGateLabs/postgis/pull/20). Rebased onto current `develop` on 2026-06-09 to refresh stale static-analysis contexts.
+**Status**: COMPLETED 2026-06-09 via [PR #20](https://github.com/IronGateLabs/postgis/pull/20) (merged to develop as `239c0374555e827cc56aca2887c41f8e135e02b3`).
 
 - [x] 4.1 Open focused PR against develop titled "SonarCloud Phase 4: replace strtok with strtok_r for thread safety" -> [PR #20](https://github.com/IronGateLabs/postgis/pull/20)
 - [x] 4.2 Update the 8 call sites mechanically:
@@ -90,8 +90,8 @@ This is a **living checklist**. Items get checked off as phases complete. Links 
   - `raster/rt_pg/rtpg_internal.c:199`
 - [x] 4.3 For each site, add a `char *saveptr;` local and change `strtok(s, sep)` to `strtok_r(s, sep, &saveptr)` and subsequent `strtok(NULL, sep)` to `strtok_r(NULL, sep, &saveptr)`
 - [x] 4.4 Verify each saveptr is unique per logical invocation (not shared across unrelated tokenizations)
-- [x] 4.5 Run existing regression tests to confirm no behavior changes. PR #20's pre-rebase CI matrix passed; post-rebase rerun is pending on the refreshed branch.
-- [ ] 4.6 Merge the PR
+- [x] 4.5 Run existing regression tests to confirm no behavior changes. PR #20's pre-rebase CI matrix passed; post-rebase CI matrix passed on 2026-06-09, including SonarCloud Code Analysis and SonarCloud Scan.
+- [x] 4.6 Merge the PR -> [PR #20](https://github.com/IronGateLabs/postgis/pull/20) merged to `develop` on 2026-06-09 as `239c0374555e827cc56aca2887c41f8e135e02b3`
 
 ## Phase 5: Side-effect-in-logical-operator cleanups
 
