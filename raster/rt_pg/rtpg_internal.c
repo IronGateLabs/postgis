@@ -268,9 +268,15 @@ rtpg_trim(const char *input) {
  */
 char *
 rtpg_strrstr(const char *s1, const char *s2) {
-	size_t s1len = strlen(s1);
-	size_t s2len = strlen(s2);
+	size_t s1len;
+	size_t s2len;
 	const char *s;
+
+	if (!s1 || !s2)
+		return NULL;
+
+	s1len = strlen(s1);
+	s2len = strlen(s2);
 
 	if (s2len > s1len)
 		return NULL;

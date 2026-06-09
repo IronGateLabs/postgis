@@ -1037,11 +1037,10 @@ Datum buffer(PG_FUNCTION_ARGS)
 		char *saveptr = NULL;
 		char *params = text_to_cstring(params_text);
 
-		for (param=params; ; param=NULL)
+		param = strtok_r(params, " ", &saveptr);
+		while (param)
 		{
 			char *key, *val;
-			param = strtok_r(param, " ", &saveptr);
-			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
 
 			key = param;
@@ -1149,6 +1148,7 @@ Datum buffer(PG_FUNCTION_ARGS)
 				    key);
 				break;
 			}
+			param = strtok_r(NULL, " ", &saveptr);
 		}
 		pfree(params); /* was pstrduped */
 	}
