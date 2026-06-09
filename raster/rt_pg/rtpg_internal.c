@@ -267,16 +267,16 @@ rtpg_trim(const char *input) {
  * http://stackoverflow.com/a/1634398
  */
 char *
-rtpg_strrstr(const char *s1, const char *s2) {
+rtpg_strrstr(char *s1, const char *s2) {
 	size_t s1len;
 	size_t s2len;
-	const char *s;
+	char *s;
 
 	if (!s1 || !s2)
 		return NULL;
 
-	s1len = strlen(s1);
-	s2len = strlen(s2);
+	s1len = strlen(s1); /* NOSONAR c:S5813 - callers pass checked NUL-terminated C strings. */
+	s2len = strlen(s2); /* NOSONAR c:S5813 - callers pass checked NUL-terminated C strings. */
 
 	if (s2len > s1len)
 		return NULL;
@@ -284,7 +284,7 @@ rtpg_strrstr(const char *s1, const char *s2) {
 	s = s1 + s1len - s2len;
 	while (1) {
 		if (strncmp(s, s2, s2len) == 0)
-			return (char *) s;
+			return s;
 		if (s == s1)
 			break;
 		--s;
