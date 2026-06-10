@@ -47,10 +47,9 @@ INSERT INTO iau2006_expected VALUES
 -- ECEF -> ICRF reference comparison
 --------------------------------------------
 
--- Helper: convert decimal year to timestamp
--- year 2000.0 -> 2000-01-01 12:00:00 TT -> approximately 2000-01-01 11:58:55 UTC
--- For the test we use the midnight of Jan 1 for the stated year and accept
--- the small offset as part of the tolerance budget.
+-- Helper: convert decimal year to timestamp.
+-- In PostGIS ECEF/ECI wrappers, decimal year 2000.0 maps to the J2000 epoch
+-- at 2000-01-01 12:00:00 UTC.
 
 -- Test 1: ECEF -> ICRF at J2000.0 (year 2000)
 SELECT 'icrf_2000_x',
@@ -60,7 +59,7 @@ SELECT 'icrf_2000_x',
 FROM (
     SELECT ST_ECEF_To_ECI(
         ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-        '2000-01-01 00:00:00+00'::timestamptz,
+        '2000-01-01 12:00:00+00'::timestamptz,
         'ICRF'
     ) AS eci
 ) t, iau2006_expected e
@@ -73,9 +72,9 @@ SELECT 'j2000_2000_differs_from_icrf',
 FROM (
     SELECT
         ST_ECEF_To_ECI(ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-                       '2000-01-01 00:00:00+00'::timestamptz, 'J2000') AS eci_j2000,
+                       '2000-01-01 12:00:00+00'::timestamptz, 'J2000') AS eci_j2000,
         ST_ECEF_To_ECI(ST_SetSRID(ST_MakePoint(4000000, 3000000, 4500000), 4978),
-                       '2000-01-01 00:00:00+00'::timestamptz, 'ICRF') AS eci_icrf
+                       '2000-01-01 12:00:00+00'::timestamptz, 'ICRF') AS eci_icrf
 ) t;
 
 -- Test 3: TEME differs significantly from ICRF (~27 km due to GMST vs ERA)
