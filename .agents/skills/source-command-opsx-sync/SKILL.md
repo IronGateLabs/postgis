@@ -1,19 +1,19 @@
 ---
-name: openspec-sync-specs
-description: Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+name: "source-command-opsx-sync"
+description: "Sync delta specs from a change to main specs"
 ---
+
+# source-command-opsx-sync
+
+Use this skill when the user asks to run the migrated source command `opsx-sync`.
+
+## Command Template
 
 Sync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after `/opsx:sync` (e.g., `/opsx:sync add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -136,3 +136,9 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
+
+## MANUAL MIGRATION REQUIRED
+
+Migrated from source command `opsx-sync` into a Codex skill. Invoke it as `$source-command-opsx-sync` and manually rewrite any slash-command behavior that depended on provider-specific runtime expansion.
+
+Review unsupported command metadata manually: `category`, `name`, `tags`.

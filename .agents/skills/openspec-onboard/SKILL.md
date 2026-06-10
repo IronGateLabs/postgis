@@ -1,8 +1,6 @@
 ---
-name: "OPSX: Onboard"
-description: Guided onboarding - walk through a complete OpenSpec workflow cycle with narration
-category: Workflow
-tags: [workflow, onboarding, tutorial, learning]
+name: "openspec-onboard"
+description: "Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work."
 ---
 
 Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
@@ -548,3 +546,7 @@ Exit gracefully.
 - **Handle exits gracefully**—never pressure the user to continue
 - **Use real codebase tasks**—don't simulate or use fake examples
 - **Adjust scope gently**—guide toward smaller tasks but respect user choice
+
+## MANUAL MIGRATION REQUIRED
+
+Review unsupported Claude skill fields manually: `author`, `compatibility`, `generatedBy`, `license`, `metadata`, `version`.

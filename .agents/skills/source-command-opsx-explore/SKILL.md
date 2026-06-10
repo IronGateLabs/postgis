@@ -1,9 +1,13 @@
 ---
-name: "OPSX: Explore"
+name: "source-command-opsx-explore"
 description: "Enter explore mode - think through ideas, investigate problems, clarify requirements"
-category: Workflow
-tags: [workflow, explore, experimental, thinking]
 ---
+
+# source-command-opsx-explore
+
+Use this skill when the user asks to run the migrated source command `opsx-explore`.
+
+## Command Template
 
 Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
@@ -171,3 +175,9 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
 - **Do question assumptions** - Including the user's and your own
+
+## MANUAL MIGRATION REQUIRED
+
+Migrated from source command `opsx-explore` into a Codex skill. Invoke it as `$source-command-opsx-explore` and manually rewrite any slash-command behavior that depended on provider-specific runtime expansion.
+
+Review unsupported command metadata manually: `category`, `name`, `tags`.

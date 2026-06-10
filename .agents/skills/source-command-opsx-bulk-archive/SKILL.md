@@ -1,9 +1,13 @@
 ---
-name: "OPSX: Bulk Archive"
-description: Archive multiple completed changes at once
-category: Workflow
-tags: [workflow, archive, experimental, bulk]
+name: "source-command-opsx-bulk-archive"
+description: "Archive multiple completed changes at once"
 ---
+
+# source-command-opsx-bulk-archive
+
+Use this skill when the user asks to run the migrated source command `opsx-bulk-archive`.
+
+## Command Template
 
 Archive multiple completed changes in a single operation.
 
@@ -240,3 +244,9 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>
 - If archive target exists, fail that change but continue with others
+
+## MANUAL MIGRATION REQUIRED
+
+Migrated from source command `opsx-bulk-archive` into a Codex skill. Invoke it as `$source-command-opsx-bulk-archive` and manually rewrite any slash-command behavior that depended on provider-specific runtime expansion.
+
+Review unsupported command metadata manually: `category`, `name`, `tags`.

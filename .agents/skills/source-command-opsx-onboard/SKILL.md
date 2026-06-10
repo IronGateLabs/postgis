@@ -1,9 +1,13 @@
 ---
-name: "OPSX: Onboard"
-description: Guided onboarding - walk through a complete OpenSpec workflow cycle with narration
-category: Workflow
-tags: [workflow, onboarding, tutorial, learning]
+name: "source-command-opsx-onboard"
+description: "Guided onboarding - walk through a complete OpenSpec workflow cycle with narration"
 ---
+
+# source-command-opsx-onboard
+
+Use this skill when the user asks to run the migrated source command `opsx-onboard`.
+
+## Command Template
 
 Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
 
@@ -548,3 +552,11 @@ Exit gracefully.
 - **Handle exits gracefully**—never pressure the user to continue
 - **Use real codebase tasks**—don't simulate or use fake examples
 - **Adjust scope gently**—guide toward smaller tasks but respect user choice
+
+## MANUAL MIGRATION REQUIRED
+
+Migrated from source command `opsx-onboard` into a Codex skill. Invoke it as `$source-command-opsx-onboard` and manually rewrite any slash-command behavior that depended on provider-specific runtime expansion.
+
+Provider shell-output interpolation like ``!`command` `` was preserved as text; replace it with explicit Codex instructions to run the command when needed.
+
+Review unsupported command metadata manually: `category`, `name`, `tags`.
