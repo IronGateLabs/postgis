@@ -212,6 +212,29 @@ make -C regress check RUNTESTFLAGS="--extension" TESTS="$(pwd)/regress/core/affi
 Swap `regress/core/affine` for the test you need.
 
 
+### Metal GPU acceleration (macOS only)
+
+On macOS with Xcode command-line tools installed, PostGIS automatically detects
+Metal GPU compute support during `./configure`:
+
+```
+Metal GPU (xcrun):    yes
+```
+
+To verify Metal is detected:
+```bash
+./configure 2>&1 | grep -i metal
+```
+
+To run the GPU benchmark comparing scalar vs NEON vs Metal:
+```bash
+cd liblwgeom/bench
+make bench_metal
+./run_bench.sh
+./run_bench.sh --validate  # verify correctness
+./run_bench.sh --csv       # machine-readable output
+```
+
 ## 7. Inspecting coverage results
 
 Coverage builds rely on the `lcov` utilities. After executing the coverage `make check` run:

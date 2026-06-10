@@ -38,6 +38,7 @@
 
 /* PostGIS */
 #include "lwgeom_geos.h"
+#include "lwgeom_transform.h"
 #include "liblwgeom.h"
 #include "liblwgeom_internal.h"
 #include "lwgeom_itree.h"
@@ -788,6 +789,8 @@ Datum convexhull(PG_FUNCTION_ARGS)
 
 	geom1 = PG_GETARG_GSERIALIZED_P(0);
 
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_ConvexHull");
+
 	/* Empty.ConvexHull() == Empty */
 	if ( gserialized_is_empty(geom1) )
 		PG_RETURN_POINTER(geom1);
@@ -885,10 +888,15 @@ Datum ST_SimplifyPolygonHull(PG_FUNCTION_ARGS)
 	GSERIALIZED* geom = PG_GETARG_GSERIALIZED_P(0);
 	double vertex_fraction = PG_GETARG_FLOAT8(1);
 	uint32_t is_outer = PG_GETARG_BOOL(2);
+	LWGEOM* lwgeom;
+	LWGEOM* lwresult;
+	GSERIALIZED* result;
 
-	LWGEOM* lwgeom = lwgeom_from_gserialized(geom);
-	LWGEOM* lwresult = lwgeom_simplify_polygonal(lwgeom, vertex_fraction, is_outer);
-	GSERIALIZED* result = geometry_serialize(lwresult);
+	gserialized_check_crs_family_not_geocentric(geom, "ST_SimplifyPolygonHull");
+
+	lwgeom = lwgeom_from_gserialized(geom);
+	lwresult = lwgeom_simplify_polygonal(lwgeom, vertex_fraction, is_outer);
+	result = geometry_serialize(lwresult);
 
 	lwgeom_free(lwgeom);
 	lwgeom_free(lwresult);
@@ -910,6 +918,9 @@ Datum topologypreservesimplify(PG_FUNCTION_ARGS)
 
 	gs1 = PG_GETARG_GSERIALIZED_P(0);
 	tolerance = PG_GETARG_FLOAT8(1);
+
+	gserialized_check_crs_family_not_geocentric(gs1, "ST_SimplifyPreserveTopology");
+
 	lwg1 = lwgeom_from_gserialized(gs1);
 
 	/* Empty.Simplify() == Empty */
@@ -984,6 +995,8 @@ Datum buffer(PG_FUNCTION_ARGS)
 	double size = PG_GETARG_FLOAT8(1);
 	text *params_text;
 
+	gserialized_check_crs_family_not_geocentric(geom1, "ST_Buffer");
+
 	if (PG_NARGS() > 2)
 	{
 		params_text = PG_GETARG_TEXT_P(2);
@@ -1021,13 +1034,13 @@ Datum buffer(PG_FUNCTION_ARGS)
 	if (VARSIZE_ANY_EXHDR(params_text) > 0)
 	{
 		char *param;
+		char *saveptr = NULL;
 		char *params = text_to_cstring(params_text);
 
-		for (param=params; ; param=NULL)
+		param = strtok_r(params, " ", &saveptr);
+		while (param)
 		{
 			char *key, *val;
-			param = strtok(param, " ");
-			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
 
 			key = param;
@@ -1135,6 +1148,7 @@ Datum buffer(PG_FUNCTION_ARGS)
 				    key);
 				break;
 			}
+			param = strtok_r(NULL, " ", &saveptr);
 		}
 		pfree(params); /* was pstrduped */
 	}
@@ -1263,10 +1277,12 @@ Datum ST_OffsetCurve(PG_FUNCTION_ARGS)
 	int joinStyle  = DEFAULT_JOIN_STYLE;
 	char *param = NULL;
 	char *paramstr = NULL;
+	char *saveptr = NULL;
 
 	/* Read SQL arguments */
 	nargs = PG_NARGS();
 	gser_input = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(gser_input, "ST_OffsetCurve");
 	size = PG_GETARG_FLOAT8(1);
 
 	/* For distance == 0, just return the input. */
@@ -1292,7 +1308,7 @@ Datum ST_OffsetCurve(PG_FUNCTION_ARGS)
 		for ( param=paramstr; ; param=NULL )
 		{
 			char *key, *val;
-			param = strtok(param, " ");
+			param = strtok_r(param, " ", &saveptr);
 			if (!param) break;
 			POSTGIS_DEBUGF(3, "Param: %s", param);
 
@@ -1455,6 +1471,7 @@ Datum centroid(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom, *lwresult;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Centroid");
 
 	lwgeom = lwgeom_from_gserialized(geom);
 	lwresult = lwgeom_centroid(lwgeom);
@@ -2175,6 +2192,7 @@ Datum ST_BuildArea(PG_FUNCTION_ARGS)
 	LWGEOM *lwgeom_in, *lwgeom_out;
 
 	geom = PG_GETARG_GSERIALIZED_P(0);
+	gserialized_check_crs_family_not_geocentric(geom, "ST_BuildArea");
 	lwgeom_in = lwgeom_from_gserialized(geom);
 
 	lwgeom_out = lwgeom_buildarea(lwgeom_in);
@@ -2209,6 +2227,8 @@ Datum ST_DelaunayTriangles(PG_FUNCTION_ARGS)
 	geom = PG_GETARG_GSERIALIZED_P(0);
 	tolerance = PG_GETARG_FLOAT8(1);
 	flags = PG_GETARG_INT32(2);
+
+	gserialized_check_crs_family_not_geocentric(geom, "ST_DelaunayTriangles");
 
 	lwgeom_in = lwgeom_from_gserialized(geom);
 	lwgeom_out = lwgeom_delaunay_triangulation(lwgeom_in, tolerance, flags);
@@ -2513,6 +2533,8 @@ Datum ST_Voronoi(PG_FUNCTION_ARGS)
 
 	/* Read our input geometry */
 	input = PG_GETARG_GSERIALIZED_P(0);
+
+	gserialized_check_crs_family_not_geocentric(input, "ST_Voronoi");
 
 	lwgeom_input = lwgeom_from_gserialized(input);
 

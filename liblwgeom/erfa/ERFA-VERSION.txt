@@ -1,0 +1,139 @@
+ERFA vendored subset for PostGIS ECEF/ECI IAU 2006/2000A transforms
+====================================================================
+
+Upstream:       https://github.com/liberfa/erfa
+Version:        v2.0.1
+License:        BSD-3-Clause (see LICENSE file in this directory)
+Vendored on:    2026-04-12
+Vendored by:    openspec change ecef-eci-full-iau-precision, Phase 1 (PR A)
+
+About ERFA
+----------
+
+ERFA (Essential Routines for Fundamental Astronomy) is a BSD-licensed
+fork of IAU SOFA maintained by the astropy project. It implements the
+international standard algorithms for astronomical coordinate
+transformations, precession, nutation, Earth rotation, and time scales.
+
+ERFA is bit-identical to SOFA for the routines vendored here. The fork
+exists only to provide a GPL-compatible redistribution license; the
+algorithms and coefficient tables are identical to the IAU-published
+versions.
+
+Why vendored, not linked
+------------------------
+
+1. Not widely packaged: Red Hat/Fedora has no ERFA package; macOS
+   Homebrew has it but rarely installed; Windows has none. Linking to
+   a system package would exclude most users.
+
+2. Version determinism: vendoring guarantees every build uses the same
+   coefficient tables and regression test reference values.
+
+3. Size is small: the vendored subset is ~7,400 lines of C, dominated
+   by nutation coefficient tables.
+
+4. Stability: the IAU 2006/2000A model is frozen by international
+   standard. The tables don't change.
+
+Subset scope
+------------
+
+Vendored subset traced via dependency BFS from these entry points:
+  eraC2t06a   - celestial-to-terrestrial matrix (IAU 2006)
+  eraEra00    - Earth Rotation Angle (IAU 2000)
+  eraPom00    - polar motion matrix
+  eraPnm06a   - precession-nutation matrix (IAU 2006)
+  eraGmst06   - Greenwich Mean Sidereal Time (IAU 2006)
+  eraBi00     - frame bias (IAU 2000)
+
+Total: 41 source files + 3 headers + LICENSE.
+
+Vendored files
+--------------
+
+Entry points and frame composition:
+  c2t06a.c    eraC2t06a  - Celestial-to-terrestrial matrix (IAU 2006)
+  c2tcio.c    eraC2tcio  - Form C2T matrix from CIO-based components
+  c2i06a.c    eraC2i06a  - Celestial-to-intermediate matrix (IAU 2006)
+  c2ixys.c    eraC2ixys  - C2I matrix given CIP X,Y and CIO locator s
+
+Precession-nutation:
+  pnm06a.c    eraPnm06a  - Precession-nutation matrix (IAU 2006)
+  nut06a.c    eraNut06a  - Nutation components (IAU 2006)
+  nut00a.c    eraNut00a  - IAU 2000A nutation series (1365 luni-solar terms)
+  pfw06.c     eraPfw06   - Fukushima-Williams precession angles (IAU 2006)
+  fw2m.c      eraFw2m    - Fukushima-Williams angles to rotation matrix
+  bi00.c      eraBi00    - IAU 2000 frame bias
+  bpn2xy.c    eraBpn2xy  - Extract CIP X,Y from bias-precession-nutation matrix
+  pr00.c      eraPr00    - IAU 2000 precession-rate adjustments
+  pmat76.c    eraPmat76  - IAU 1976 precession matrix (used internally)
+  prec76.c    eraPrec76  - IAU 1976 precession angles (used internally)
+  obl06.c     eraObl06   - Mean obliquity (IAU 2006)
+  s06.c       eraS06     - CIO locator s for (X,Y) coordinates (IAU 2006)
+
+Earth rotation and sidereal time:
+  era00.c     eraEra00   - Earth Rotation Angle (IAU 2000)
+  gmst06.c    eraGmst06  - Greenwich Mean Sidereal Time (IAU 2006)
+
+Polar motion:
+  pom00.c     eraPom00   - Polar motion matrix
+  sp00.c      eraSp00    - TIO locator s' (IAU 2000)
+
+Fundamental argument helpers (Delaunay/planetary mean longitudes):
+  fad03.c     eraFad03   - Mean elongation of Moon from Sun (IAU 2003)
+  fae03.c     eraFae03   - Mean longitude of Earth (IAU 2003)
+  faf03.c     eraFaf03   - Mean argument of latitude of Moon (IAU 2003)
+  faju03.c    eraFaju03  - Mean longitude of Jupiter (IAU 2003)
+  fal03.c     eraFal03   - Mean anomaly of Moon (IAU 2003)
+  falp03.c    eraFalp03  - Mean anomaly of Sun (IAU 2003)
+  fama03.c    eraFama03  - Mean longitude of Mars (IAU 2003)
+  fame03.c    eraFame03  - Mean longitude of Mercury (IAU 2003)
+  faom03.c    eraFaom03  - Mean longitude of Moon's ascending node (IAU 2003)
+  fapa03.c    eraFapa03  - General accumulated precession (IAU 2003)
+  fasa03.c    eraFasa03  - Mean longitude of Saturn (IAU 2003)
+  faur03.c    eraFaur03  - Mean longitude of Uranus (IAU 2003)
+  fave03.c    eraFave03  - Mean longitude of Venus (IAU 2003)
+
+Matrix and vector utilities:
+  ir.c        eraIr      - Initialize rotation matrix to identity
+  cr.c        eraCr      - Copy rotation matrix
+  cp.c        eraCp      - Copy position/vector
+  rx.c        eraRx      - Rotate rotation matrix about X axis
+  ry.c        eraRy      - Rotate rotation matrix about Y axis
+  rz.c        eraRz      - Rotate rotation matrix about Z axis
+  rxr.c       eraRxr     - Multiply two rotation matrices
+  anp.c       eraAnp     - Normalize angle to [0, 2pi)
+
+Headers:
+  erfa.h      Public API declarations
+  erfam.h     Internal macros and constants
+  erfaextra.h Extra routines header
+
+License:
+  LICENSE     BSD-3-Clause (NumFOCUS Foundation)
+
+Re-vendoring procedure
+----------------------
+
+If a future release fixes a bug in one of the vendored files:
+
+1. Download the new ERFA release tarball from the upstream GitHub releases page.
+2. Re-run the dependency trace script (ci/trace_erfa.py, if we commit it) to
+   regenerate the subset list. If the list is unchanged, proceed. If it
+   changed, update this file and the Makefile to match.
+3. Copy the updated source files into this directory, preserving license
+   headers.
+4. Rebuild and run the ECEF/ECI regression test suite. If expected values
+   change, investigate and update them only after verifying the change is
+   intentional per the ERFA release notes.
+5. Update the "Version" line at the top of this file and the "Vendored on"
+   date.
+6. Commit with message "liblwgeom/erfa: update vendored ERFA to vX.Y.Z".
+
+Modifications from upstream
+---------------------------
+
+NONE. The vendored files are byte-identical to the upstream release
+except for the possible addition of this ERFA-VERSION.txt file (which
+was not in the upstream at vendoring time).

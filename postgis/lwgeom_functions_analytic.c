@@ -33,6 +33,7 @@
 #include "lwgeom_itree.h"
 
 #include "access/htup_details.h"
+#include "lwgeom_transform.h"
 
 /* Prototypes */
 Datum LWGEOM_simplify2d(PG_FUNCTION_ARGS);
@@ -64,6 +65,8 @@ Datum LWGEOM_simplify2d(PG_FUNCTION_ARGS)
 	LWGEOM *in;
 	bool preserve_collapsed = false;
 	int modified = LW_FALSE;
+
+	gserialized_check_crs_family_not_geocentric(geom, "ST_Simplify");
 
 	/* Can't simplify points! */
 	if ( type == POINTTYPE || type == MULTIPOINTTYPE )
@@ -183,6 +186,8 @@ Datum LWGEOM_line_interpolate_point(PG_FUNCTION_ARGS)
 	LWLINE* lwline;
 	LWGEOM* lwresult;
 	POINTARRAY* opa;
+
+	gserialized_check_crs_family_not_geocentric(gser, "ST_LineInterpolatePoint");
 
 	if ( distance_fraction < 0 || distance_fraction > 1 )
 	{

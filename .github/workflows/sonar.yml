@@ -1,0 +1,76 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: build-wrapper-output
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0  # Full history required for SonarCloud blame and branch analysis
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          # Install PostgreSQL dev headers for whichever version is available.
+          # ubuntu-latest may have pgdg repo; avoid postgresql-server-dev-all
+          # which conflicts with pgdg's postgresql-common version.
+          PG_VER=$(pg_config --version 2>/dev/null | grep -oP '\d+' | head -1 || echo "16")
+          # PostgreSQL's LLVM bitcode compilation requires a specific clang version
+          # (hardcoded in Makefile.global). Detect which one and install/symlink it.
+          PG_CLANG=$(grep -oP 'CLANG = \K.*' /usr/lib/postgresql/${PG_VER}/lib/pgxs/src/Makefile.global 2>/dev/null || echo "")
+          if [ -n "$PG_CLANG" ] && ! command -v "$PG_CLANG" &>/dev/null; then
+            # Install generic clang, then symlink to the version PG expects
+            sudo apt-get install -y --no-install-recommends clang llvm-dev
+            CLANG_ACTUAL=$(command -v clang 2>/dev/null || echo "")
+            if [ -n "$CLANG_ACTUAL" ]; then
+              sudo ln -sf "$CLANG_ACTUAL" "$PG_CLANG"
+            fi
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            postgresql-server-dev-${PG_VER} \
+            libgeos-dev \
+            libproj-dev \
+            libgdal-dev \
+            libxml2-dev \
+            libjson-c-dev \
+            libprotobuf-c-dev \
+            protobuf-c-compiler \
+            xsltproc \
+            libcunit1-dev \
+            libsfcgal-dev
+
+      - name: Install SonarCloud build wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
+
+      - name: Configure and build with build wrapper
+        run: |
+          ./autogen.sh
+          ./configure --with-raster --with-topology --with-sfcgal
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} make -j$(nproc)
+
+      # make lint (clang-format check + cppcheck) is not run here because
+      # SonarCloud performs its own static analysis via the build wrapper
+      # output.  Lint checks are enforced by pre-commit hooks locally.
+
+      - name: Run SonarCloud scanner
+        uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

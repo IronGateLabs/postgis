@@ -82,8 +82,14 @@ else
 all: cu_tester
 
 # Build and run the unit tester
+#
+# Invoke via libtool --mode=execute to handle the case where libtool
+# produces a #!/bin/sh wrapper around the real binary (common on
+# mingw/MSYS2). Running `./cu_tester` directly was flaky on Windows CI.
+# This matches the pattern already used by liblwgeom/cunit, postgis/cunit,
+# and loader/cunit.
 check: cu_tester
-	@./cu_tester
+	@$(LIBTOOL) --mode=execute ./cu_tester
 
 endif
 

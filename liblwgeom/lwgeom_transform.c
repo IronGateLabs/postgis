@@ -25,24 +25,110 @@
 
 #include "../postgis_config.h"
 #include "liblwgeom_internal.h"
+#include "lwgeom_accel.h"
 #include "lwgeom_log.h"
 #include <string.h>
 
-/** convert decimal degrees to radians */
-static void
-to_rad(POINT4D *pt)
+/***************************************************************************/
+/* CRS family classification functions                                      */
+/***************************************************************************/
+
+const char*
+lwcrs_family_name(LW_CRS_FAMILY family)
 {
-	pt->x *= M_PI/180.0;
-	pt->y *= M_PI/180.0;
+	switch (family)
+	{
+		case LW_CRS_GEOGRAPHIC:  return "geographic";
+		case LW_CRS_PROJECTED:   return "projected";
+		case LW_CRS_GEOCENTRIC:  return "geocentric";
+		case LW_CRS_INERTIAL:    return "inertial";
+		case LW_CRS_TOPOCENTRIC: return "topocentric";
+		case LW_CRS_ENGINEERING: return "engineering";
+		case LW_CRS_UNKNOWN:
+		default:                 return "unknown";
+	}
 }
 
-/** convert radians to decimal degrees */
-static void
-to_dec(POINT4D *pt)
+LW_CRS_FAMILY
+lwcrs_family_from_pj_type(PJ_TYPE pj_type)
 {
-	pt->x *= 180.0/M_PI;
-	pt->y *= 180.0/M_PI;
+	switch (pj_type)
+	{
+		case PJ_TYPE_GEOGRAPHIC_2D_CRS:
+		case PJ_TYPE_GEOGRAPHIC_3D_CRS:
+			return LW_CRS_GEOGRAPHIC;
+
+		case PJ_TYPE_PROJECTED_CRS:
+			return LW_CRS_PROJECTED;
+
+		case PJ_TYPE_GEOCENTRIC_CRS:
+			return LW_CRS_GEOCENTRIC;
+
+		case PJ_TYPE_ENGINEERING_CRS:
+			return LW_CRS_ENGINEERING;
+
+		default:
+			return LW_CRS_UNKNOWN;
+	}
 }
+
+/**
+ * Determine the CRS family of a PJ CRS object.
+ * Handles compound CRS by inspecting the horizontal component.
+ */
+static LW_CRS_FAMILY
+lwcrs_family_from_pj(PJ *pj_crs)
+{
+	PJ_TYPE pj_type;
+	LW_CRS_FAMILY family;
+
+	if (!pj_crs)
+		return LW_CRS_UNKNOWN;
+
+	pj_type = proj_get_type(pj_crs);
+
+	/* For compound CRS, inspect the horizontal component */
+	if (pj_type == PJ_TYPE_COMPOUND_CRS)
+	{
+		PJ *horiz = proj_crs_get_sub_crs(PJ_DEFAULT_CTX, pj_crs, 0);
+		if (horiz)
+		{
+			family = lwcrs_family_from_pj_type(proj_get_type(horiz));
+			proj_destroy(horiz);
+			return family;
+		}
+		return LW_CRS_UNKNOWN;
+	}
+
+	return lwcrs_family_from_pj_type(pj_type);
+}
+
+LW_CRS_FAMILY
+lwsrid_get_crs_family(int32_t srid)
+{
+	char srid_str[64];
+	PJ *pj_crs;
+	LW_CRS_FAMILY family;
+
+	/* SRID 0 (unknown/unset) is not in EPSG registry */
+	if (srid == SRID_UNKNOWN)
+		return LW_CRS_UNKNOWN;
+
+	/* Check for custom ECI SRID range (not in EPSG registry) */
+	if (SRID_IS_ECI(srid))
+		return LW_CRS_INERTIAL;
+
+	snprintf(srid_str, sizeof(srid_str), "EPSG:%d", srid);
+	pj_crs = proj_create(PJ_DEFAULT_CTX, srid_str);
+	if (!pj_crs)
+		return LW_CRS_UNKNOWN;
+
+	family = lwcrs_family_from_pj(pj_crs);
+	proj_destroy(pj_crs);
+	return family;
+}
+
+/* to_rad/to_dec replaced by SIMD-accelerated lwaccel_get()->rad_convert() */
 
 /***************************************************************************/
 
@@ -51,6 +137,8 @@ lwproj_from_str(const char* str_in, const char* str_out)
 {
 	uint8_t source_is_latlong = LW_FALSE;
 	double semi_major_metre = DBL_MAX, semi_minor_metre = DBL_MAX;
+	LW_CRS_FAMILY source_crs_family = LW_CRS_UNKNOWN;
+	LW_CRS_FAMILY target_crs_family = LW_CRS_UNKNOWN;
 
 	/* Usable inputs? */
 	if (! (str_in && str_out))
@@ -60,43 +148,64 @@ lwproj_from_str(const char* str_in, const char* str_out)
 	if (!pj)
 		return NULL;
 
-	/* Fill in geodetic parameter information when a null-transform */
-	/* is passed, because that's how we signal we want to store */
-	/* that info in the cache */
-	if (strcmp(str_in, str_out) == 0)
+	/* Determine source CRS family */
 	{
 		PJ *pj_source_crs = proj_get_source_crs(PJ_DEFAULT_CTX, pj);
-		PJ *pj_ellps;
-		PJ_TYPE pj_type = proj_get_type(pj_source_crs);
-		if (pj_type == PJ_TYPE_UNKNOWN)
+		if (pj_source_crs)
 		{
-			proj_destroy(pj);
-			lwerror("%s: unable to access source crs type", __func__);
-			return NULL;
-		}
-		source_is_latlong = (pj_type == PJ_TYPE_GEOGRAPHIC_2D_CRS) || (pj_type == PJ_TYPE_GEOGRAPHIC_3D_CRS);
+			source_crs_family = lwcrs_family_from_pj(pj_source_crs);
 
-		pj_ellps = proj_get_ellipsoid(PJ_DEFAULT_CTX, pj_source_crs);
-		proj_destroy(pj_source_crs);
-		if (!pj_ellps)
-		{
-			proj_destroy(pj);
-			lwerror("%s: unable to access source crs ellipsoid", __func__);
-			return NULL;
+			/* Fill in geodetic parameter information when a null-transform */
+			/* is passed, because that's how we signal we want to store */
+			/* that info in the cache */
+			if (strcmp(str_in, str_out) == 0)
+			{
+				PJ_TYPE pj_type = proj_get_type(pj_source_crs);
+				if (pj_type == PJ_TYPE_UNKNOWN)
+				{
+					proj_destroy(pj_source_crs);
+					proj_destroy(pj);
+					lwerror("%s: unable to access source crs type", __func__);
+					return NULL;
+				}
+				source_is_latlong = (pj_type == PJ_TYPE_GEOGRAPHIC_2D_CRS) ||
+				                    (pj_type == PJ_TYPE_GEOGRAPHIC_3D_CRS);
+
+				PJ *pj_ellps = proj_get_ellipsoid(PJ_DEFAULT_CTX, pj_source_crs);
+				if (!pj_ellps)
+				{
+					proj_destroy(pj_source_crs);
+					proj_destroy(pj);
+					lwerror("%s: unable to access source crs ellipsoid", __func__);
+					return NULL;
+				}
+				if (!proj_ellipsoid_get_parameters(PJ_DEFAULT_CTX,
+								   pj_ellps,
+								   &semi_major_metre,
+								   &semi_minor_metre,
+								   NULL,
+								   NULL))
+				{
+					proj_destroy(pj_ellps);
+					proj_destroy(pj_source_crs);
+					proj_destroy(pj);
+					lwerror("%s: unable to access source crs ellipsoid parameters", __func__);
+					return NULL;
+				}
+				proj_destroy(pj_ellps);
+			}
+			proj_destroy(pj_source_crs);
 		}
-		if (!proj_ellipsoid_get_parameters(PJ_DEFAULT_CTX,
-						   pj_ellps,
-						   &semi_major_metre,
-						   &semi_minor_metre,
-						   NULL,
-						   NULL))
+	}
+
+	/* Determine target CRS family */
+	{
+		PJ *pj_target_crs = proj_get_target_crs(PJ_DEFAULT_CTX, pj);
+		if (pj_target_crs)
 		{
-			proj_destroy(pj_ellps);
-			proj_destroy(pj);
-			lwerror("%s: unable to access source crs ellipsoid parameters", __func__);
-			return NULL;
+			target_crs_family = lwcrs_family_from_pj(pj_target_crs);
+			proj_destroy(pj_target_crs);
 		}
-		proj_destroy(pj_ellps);
 	}
 
 	/* Add in an axis swap if necessary */
@@ -115,6 +224,9 @@ lwproj_from_str(const char* str_in, const char* str_out)
 	lp->source_is_latlong = source_is_latlong;
 	lp->source_semi_major_metre = semi_major_metre;
 	lp->source_semi_minor_metre = semi_minor_metre;
+	lp->source_crs_family = source_crs_family;
+	lp->target_crs_family = target_crs_family;
+	lp->epoch = LWPROJ_NO_EPOCH;
 	return lp;
 }
 
@@ -150,6 +262,11 @@ lwproj_from_str_pipeline(const char* str_pipeline, bool is_forward)
 	lp->source_is_latlong = LW_FALSE;
 	lp->source_semi_major_metre = DBL_MAX;
 	lp->source_semi_minor_metre = DBL_MAX;
+
+	/* Pipeline transforms have unknown CRS families by default */
+	lp->source_crs_family = LW_CRS_UNKNOWN;
+	lp->target_crs_family = LW_CRS_UNKNOWN;
+	lp->epoch = LWPROJ_NO_EPOCH;
 	return lp;
 }
 
@@ -229,8 +346,6 @@ box3d_transform(GBOX *gbox, LWPROJ *pj)
 int
 ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 {
-	uint32_t i;
-	POINT4D p;
 	size_t n_converted;
 	size_t n_points = pa->npoints;
 	size_t point_size = ptarray_point_size(pa);
@@ -239,21 +354,17 @@ ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 
 	PJ_DIRECTION direction = pj->pipeline_is_forward ? PJ_FWD : PJ_INV;
 
-	/* Convert to radians if necessary */
+	/* Convert to radians if necessary (SIMD-accelerated when available) */
 	if (proj_angular_input(pj->pj, direction))
 	{
-		for (i = 0; i < pa->npoints; i++)
-		{
-			getPoint4d_p(pa, i, &p);
-			to_rad(&p);
-			ptarray_set_point4d(pa, i, &p);
-		}
+		const LW_ACCEL_DISPATCH *accel = lwaccel_get();
+		accel->rad_convert(pa, M_PI / 180.0);
 	}
 
 	if (n_points == 1)
 	{
 		/* For single points it's faster to call proj_trans */
-		PJ_XYZT v = {pa_double[0], pa_double[1], has_z ? pa_double[2] : 0.0, 0.0};
+		PJ_XYZT v = {pa_double[0], pa_double[1], has_z ? pa_double[2] : 0.0, pj->epoch};
 		PJ_COORD c;
 		c.xyzt = v;
 		PJ_COORD t = proj_trans(pj->pj, direction, c);
@@ -309,15 +420,11 @@ ptarray_transform(POINTARRAY *pa, LWPROJ *pj)
 		}
 	}
 
-	/* Convert radians to degrees if necessary */
+	/* Convert radians to degrees if necessary (SIMD-accelerated when available) */
 	if (proj_angular_output(pj->pj, direction))
 	{
-		for (i = 0; i < pa->npoints; i++)
-		{
-			getPoint4d_p(pa, i, &p);
-			to_dec(&p);
-			ptarray_set_point4d(pa, i, &p);
-		}
+		const LW_ACCEL_DISPATCH *accel = lwaccel_get();
+		accel->rad_convert(pa, 180.0 / M_PI);
 	}
 
 	return LW_SUCCESS;

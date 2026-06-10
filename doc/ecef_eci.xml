@@ -1,0 +1,1107 @@
+<!-- Converted by db4-upgrade version 1.1 -->
+<section xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="ECEF_ECI_Functions">
+    <title>ECEF/ECI Coordinate Frame Functions</title><info>
+    <abstract>
+    <para>These functions support Earth-Centered Earth-Fixed (ECEF) and
+    Earth-Centered Inertial (ECI) coordinate frames for aerospace and
+    satellite tracking applications.  They provide frame conversion between
+    ECEF (SRID 4978) and three ECI frames (ICRF, J2000, TEME), ECEF
+    coordinate accessors suitable for index expressions, and Earth
+    Orientation Parameter (EOP) infrastructure for high-accuracy
+    transforms.</para>
+    <para>Provided by the <varname>postgis_ecef_eci</varname> extension,
+    which requires the core <varname>postgis</varname> extension.</para>
+    </abstract>
+    </info>
+
+<!-- ============================================================
+     Section 7.5  Extension Installation
+     ============================================================ -->
+
+<section xml:id="ECEF_ECI_Installation">
+    <title>Installation and Upgrade</title>
+    <para>The ECEF/ECI functions are delivered as a separate PostgreSQL
+    extension that depends on <varname>postgis</varname>.  Install it
+    after PostGIS:</para>
+
+<programlisting>-- Install (requires postgis to be installed first)
+CREATE EXTENSION postgis_ecef_eci;
+
+-- Upgrade to latest version
+ALTER EXTENSION postgis_ecef_eci UPDATE;
+
+-- Remove (CASCADE drops dependent objects)
+DROP EXTENSION postgis_ecef_eci CASCADE;</programlisting>
+
+    <para>Installation registers three ECI spatial reference systems in
+    <varname>spatial_ref_sys</varname> (see <xref linkend="ECEF_ECI_SRID"/>)
+    and creates the <varname>postgis_eop</varname> table for Earth
+    Orientation Parameters (see <xref linkend="ECEF_ECI_EOP"/>).</para>
+</section>
+
+<!-- ============================================================
+     Section 7.3  ECI SRID Assignments
+     ============================================================ -->
+
+<section xml:id="ECEF_ECI_SRID">
+    <title>ECI Spatial Reference Identifiers</title>
+    <para>The extension registers three Earth-Centered Inertial (ECI)
+    coordinate reference systems in the user-defined SRID range.  The SRIDs
+    are inserted with <varname>ON CONFLICT DO NOTHING</varname> so they
+    will not overwrite any pre-existing user entries.</para>
+
+    <table xml:id="ECEF_ECI_SRID_Table">
+        <title>ECI SRID Assignments</title>
+        <tgroup cols="4">
+            <colspec colname="srid"/>
+            <colspec colname="name"/>
+            <colspec colname="description"/>
+            <colspec colname="usage"/>
+            <thead>
+                <row>
+                    <entry>SRID</entry>
+                    <entry>Frame Name</entry>
+                    <entry>Description</entry>
+                    <entry>Typical Usage</entry>
+                </row>
+            </thead>
+            <tbody>
+                <row>
+                    <entry>900001</entry>
+                    <entry>ICRF</entry>
+                    <entry>International Celestial Reference Frame.  IAU-recommended
+                    quasi-inertial frame tied to extragalactic radio sources.</entry>
+                    <entry>High-accuracy astrometry, deep-space navigation</entry>
+                </row>
+                <row>
+                    <entry>900002</entry>
+                    <entry>J2000</entry>
+                    <entry>J2000.0 epoch frame.  Mean equator and equinox of
+                    2000-01-01T12:00:00 TT.</entry>
+                    <entry>General astrodynamics, orbit determination</entry>
+                </row>
+                <row>
+                    <entry>900003</entry>
+                    <entry>TEME</entry>
+                    <entry>True Equator, Mean Equinox.  The native output frame
+                    of the SGP4/SDP4 orbital propagator.</entry>
+                    <entry>Two-Line Element (TLE) / SGP4 propagation</entry>
+                </row>
+            </tbody>
+        </tgroup>
+    </table>
+
+    <para>The ECEF frame used by these functions is SRID 4978
+    (WGS 84 geocentric, also known as EPSG:4978).  All coordinates are in
+    metres along the X, Y, Z geocentric axes.</para>
+
+<programlisting>-- Verify the registered SRIDs
+SELECT srid, auth_name, srtext
+FROM spatial_ref_sys
+WHERE srid IN (900001, 900002, 900003);
+</programlisting>
+</section>
+
+<!-- ============================================================
+     Section 7.1  Frame Conversion Functions
+     ============================================================ -->
+
+    <refentry xml:id="ST_ECEF_To_ECI">
+        <refnamediv>
+          <refname>ST_ECEF_To_ECI</refname>
+          <refpurpose>Converts a geometry from ECEF (SRID 4978) to an Earth-Centered Inertial frame.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>geometry <function>ST_ECEF_To_ECI</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+              <paramdef choice="opt"><type>text </type><parameter>frame = 'ICRF'</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Transforms a geometry from the ECEF (Earth-Centered Earth-Fixed)
+            frame to an ECI (Earth-Centered Inertial) frame by applying the
+            Earth rotation angle for the given <varname>epoch</varname>.</para>
+
+            <para>The input geometry must have SRID 4978 (WGS 84 geocentric).
+            The returned geometry carries the ECI SRID corresponding to the
+            requested frame (900001 for ICRF, 900002 for J2000, 900003 for
+            TEME).</para>
+
+            <para>The <varname>frame</varname> parameter is case-insensitive and
+            accepts <literal>'ICRF'</literal>, <literal>'J2000'</literal>, or
+            <literal>'TEME'</literal>.  If omitted it defaults to
+            <literal>'ICRF'</literal>.</para>
+
+            <para>Because the result depends on the epoch (Earth rotation
+            angle), the function is declared <literal>STABLE</literal> rather
+            than <literal>IMMUTABLE</literal>.  It is
+            <literal>PARALLEL SAFE</literal>.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Convert an ECEF point to ICRF at a specific epoch:</para>
+<programlisting>-- A satellite position in ECEF (SRID 4978), metres
+SELECT ST_AsText(
+    ST_ECEF_To_ECI(
+        ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+        '2024-06-15 12:00:00+00'::timestamptz
+    )
+);
+</programlisting>
+
+            <para>Convert to the TEME frame (for TLE/SGP4 workflows):</para>
+<programlisting>SELECT ST_SRID(eci_geom), ST_AsText(eci_geom)
+FROM (
+    SELECT ST_ECEF_To_ECI(
+        ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+        '2024-06-15 12:00:00+00'::timestamptz,
+        'TEME'
+    ) AS eci_geom
+) sub;
+-- SRID of result is 900003 (TEME)
+</programlisting>
+
+            <para>Round-trip conversion (ECEF to ECI and back):</para>
+<programlisting>-- Round-trip: ECEF -> ICRF -> ECEF should return the original point
+WITH original AS (
+    SELECT ST_SetSRID(ST_MakePoint(4510731, 4510731, 0), 4978) AS geom
+),
+eci AS (
+    SELECT ST_ECEF_To_ECI(geom, '2024-01-01 00:00:00+00') AS geom
+    FROM original
+),
+roundtrip AS (
+    SELECT ST_ECI_To_ECEF(geom, '2024-01-01 00:00:00+00') AS geom
+    FROM eci
+)
+SELECT
+    ST_AsText(o.geom) AS original,
+    ST_AsText(r.geom) AS roundtrip,
+    ST_Distance(o.geom, r.geom) AS error_metres
+FROM original o, roundtrip r;
+-- error_metres should be effectively zero (sub-millimetre)
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECI_To_ECEF"/>, <xref linkend="ST_ECEF_X"/>, <xref linkend="ECEF_ECI_SRID"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="ST_ECI_To_ECEF">
+        <refnamediv>
+          <refname>ST_ECI_To_ECEF</refname>
+          <refpurpose>Converts a geometry from an Earth-Centered Inertial frame back to ECEF (SRID 4978).</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>geometry <function>ST_ECI_To_ECEF</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+              <paramdef choice="opt"><type>text </type><parameter>frame = 'ICRF'</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Transforms a geometry from an ECI (Earth-Centered Inertial)
+            frame back to ECEF (Earth-Centered Earth-Fixed) by applying the
+            inverse Earth rotation angle for the given
+            <varname>epoch</varname>.</para>
+
+            <para>The input geometry must carry an ECI SRID (900001, 900002, or
+            900003).  The <varname>frame</varname> parameter is
+            cross-validated against the input SRID: if the geometry has SRID
+            900003 but you pass <literal>'ICRF'</literal>, an error is
+            raised.  This prevents accidental misuse of ECI data from a
+            different frame.</para>
+
+            <para>The returned geometry always has SRID 4978 (ECEF).</para>
+
+            <para>The <varname>frame</varname> parameter is case-insensitive and
+            accepts <literal>'ICRF'</literal>, <literal>'J2000'</literal>, or
+            <literal>'TEME'</literal>.  If omitted it defaults to
+            <literal>'ICRF'</literal>.</para>
+
+            <para>Declared <literal>STABLE</literal> and
+            <literal>PARALLEL SAFE</literal>.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Convert an ECI (ICRF) point back to ECEF:</para>
+<programlisting>SELECT ST_AsText(
+    ST_ECI_To_ECEF(
+        ST_SetSRID(ST_MakePoint(6000000, 2000000, 1000000), 900001),
+        '2024-06-15 12:00:00+00'::timestamptz,
+        'ICRF'
+    )
+);
+-- Result SRID is 4978 (ECEF)
+</programlisting>
+
+            <para>SRID mismatch error -- the geometry is TEME (900003)
+            but the frame parameter says ICRF:</para>
+<programlisting>-- This raises an error because SRID 900003 does not match 'ICRF'
+SELECT ST_ECI_To_ECEF(
+    ST_SetSRID(ST_MakePoint(6000000, 0, 0), 900003),
+    '2024-06-15 12:00:00+00'::timestamptz,
+    'ICRF'
+);
+-- ERROR: ST_ECIToECEF: geometry SRID 900003 does not match frame 'ICRF' (SRID 900001)
+</programlisting>
+
+            <para>Convert a batch of satellite positions from J2000 to ECEF:</para>
+<programlisting>SELECT id,
+       ST_ECI_To_ECEF(eci_position, obs_epoch, 'J2000') AS ecef_position
+FROM satellite_observations
+WHERE frame = 'J2000';
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECEF_To_ECI"/>, <xref linkend="ST_ECEF_X"/>, <xref linkend="ECEF_ECI_SRID"/></para>
+        </refsection>
+    </refentry>
+
+<!-- ============================================================
+     Section 7.1b  EOP-Enhanced Frame Conversion Functions
+     ============================================================ -->
+
+    <refentry xml:id="ST_ECEF_To_ECI_EOP">
+        <refnamediv>
+          <refname>ST_ECEF_To_ECI_EOP</refname>
+          <refpurpose>Converts a geometry from ECEF to ECI with automatic Earth Orientation Parameter (EOP) correction.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>geometry <function>ST_ECEF_To_ECI_EOP</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+              <paramdef choice="opt"><type>text </type><parameter>frame = 'ICRF'</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Transforms a geometry from ECEF to an ECI frame with enhanced
+            precision using Earth Orientation Parameters (EOP).  The function
+            automatically looks up EOP data from the
+            <varname>postgis_eop</varname> table via
+            <xref linkend="postgis_eop_interpolate"/> and applies:</para>
+
+            <itemizedlist>
+                <listitem><para><varname>dut1</varname> correction: the Earth
+                Rotation Angle is computed using UT1 time instead of UTC,
+                eliminating up to ~0.9 seconds of rotation error
+                (~460 m at the equator).</para></listitem>
+                <listitem><para>Polar motion (<varname>xp</varname>,
+                <varname>yp</varname>): additional X-axis and Y-axis
+                rotations of up to ~0.3 arcseconds (~10 m).</para></listitem>
+            </itemizedlist>
+
+            <para>If the epoch falls outside the loaded EOP data range,
+            the function falls back to the simplified ERA-only rotation
+            used by <xref linkend="ST_ECEF_To_ECI"/>.</para>
+
+            <para>The rotation convention follows IERS 2003 (simplified,
+            without precession-nutation):
+            <literal>ECI = Rz(+ERA_UT1) * Rx(-yp) * Ry(-xp) * ECEF</literal></para>
+
+            <para>The input must have SRID 4978.  The returned geometry
+            carries the ECI SRID for the requested frame.</para>
+
+            <para>Declared <literal>STABLE</literal> and
+            <literal>PARALLEL SAFE</literal>.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Convert with automatic EOP lookup (requires loaded EOP
+            data):</para>
+<programlisting>SELECT ST_AsText(
+    ST_ECEF_To_ECI_EOP(
+        ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978),
+        '2024-06-15 12:00:00+00'::timestamptz
+    )
+);
+</programlisting>
+
+            <para>Compare EOP-enhanced vs standard result:</para>
+<programlisting>WITH pt AS (
+    SELECT ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978) AS geom,
+           '2024-06-15 12:00:00+00'::timestamptz AS epoch
+)
+SELECT ST_Distance(
+    ST_ECEF_To_ECI(geom, epoch),
+    ST_ECEF_To_ECI_EOP(geom, epoch)
+) AS eop_correction_metres
+FROM pt;
+-- Typically 2-10 metres depending on EOP values
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECI_To_ECEF_EOP"/>, <xref linkend="ST_ECEF_To_ECI"/>, <xref linkend="postgis_eop_interpolate"/>, <xref linkend="postgis_eop_load"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="ST_ECI_To_ECEF_EOP">
+        <refnamediv>
+          <refname>ST_ECI_To_ECEF_EOP</refname>
+          <refpurpose>Converts a geometry from ECI to ECEF with automatic Earth Orientation Parameter (EOP) correction.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>geometry <function>ST_ECI_To_ECEF_EOP</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+              <paramdef choice="opt"><type>text </type><parameter>frame = 'ICRF'</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Transforms a geometry from an ECI frame back to ECEF with
+            enhanced precision using Earth Orientation Parameters.  This is
+            the inverse of <xref linkend="ST_ECEF_To_ECI_EOP"/>.</para>
+
+            <para>Applies the IERS 2003 convention:
+            <literal>ECEF = Ry(xp) * Rx(yp) * Rz(-ERA_UT1) * ECI</literal></para>
+
+            <para>EOP values are automatically interpolated from the
+            <varname>postgis_eop</varname> table.  Falls back to ERA-only
+            rotation when EOP data is unavailable for the requested
+            epoch.</para>
+
+            <para>The input must carry an ECI SRID (900001-900003).  The
+            returned geometry has SRID 4978 (ECEF).</para>
+
+            <para>Declared <literal>STABLE</literal> and
+            <literal>PARALLEL SAFE</literal>.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Round-trip with EOP correction:</para>
+<programlisting>WITH original AS (
+    SELECT ST_SetSRID(ST_MakePoint(5000000, 3000000, 4000000), 4978) AS geom,
+           '2024-06-15 12:00:00+00'::timestamptz AS epoch
+),
+eci AS (
+    SELECT ST_ECEF_To_ECI_EOP(geom, epoch) AS geom, epoch
+    FROM original
+),
+roundtrip AS (
+    SELECT ST_ECI_To_ECEF_EOP(geom, epoch) AS geom
+    FROM eci
+)
+SELECT ST_Distance(o.geom, r.geom) AS error_metres
+FROM original o, roundtrip r;
+-- error_metres should be effectively zero
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECEF_To_ECI_EOP"/>, <xref linkend="ST_ECI_To_ECEF"/>, <xref linkend="postgis_eop_interpolate"/>, <xref linkend="postgis_eop_load"/></para>
+        </refsection>
+    </refentry>
+
+<!-- ============================================================
+     Section 7.2  ECEF Coordinate Accessors
+     ============================================================ -->
+
+    <refentry xml:id="ST_ECEF_X">
+        <refnamediv>
+          <refname>ST_ECEF_X</refname>
+          <refpurpose>Returns the X coordinate (metres) of an ECEF point geometry.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>float8 <function>ST_ECEF_X</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Returns the X coordinate of an ECEF point in metres.
+            The input geometry must be a <literal>POINT</literal> with
+            SRID 4978 (WGS 84 geocentric / ECEF).  Returns
+            <literal>NULL</literal> for empty geometries.</para>
+
+            <para>Unlike <varname>ST_X()</varname>, which is declared
+            <literal>STABLE</literal>, <varname>ST_ECEF_X()</varname> is
+            declared <literal>IMMUTABLE</literal>.  This means it can be
+            used in expression indexes, materialized view definitions,
+            generated columns, and other contexts that require immutable
+            functions.</para>
+
+            <para>The function is <literal>PARALLEL SAFE</literal> and
+            <literal>STRICT</literal> (returns NULL on NULL input).</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Extract ECEF X coordinate:</para>
+<programlisting>SELECT ST_ECEF_X(
+    ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978)
+);
+-- Returns: 6378137
+</programlisting>
+
+            <para>Create an expression index on the X coordinate for fast
+            range queries:</para>
+<programlisting>-- Table of satellite positions in ECEF
+CREATE TABLE sat_positions (
+    id serial PRIMARY KEY,
+    geom geometry(PointZ, 4978)
+);
+
+-- Expression index: find satellites by ECEF X range
+CREATE INDEX idx_sat_ecef_x ON sat_positions (ST_ECEF_X(geom));
+
+-- Query using the index
+SELECT id FROM sat_positions
+WHERE ST_ECEF_X(geom) BETWEEN 6000000 AND 7000000;
+</programlisting>
+
+            <para>Use in a materialized view with precomputed coordinates:</para>
+<programlisting>CREATE MATERIALIZED VIEW sat_ecef_coords AS
+SELECT id,
+       ST_ECEF_X(geom) AS ecef_x,
+       ST_ECEF_Y(geom) AS ecef_y,
+       ST_ECEF_Z(geom) AS ecef_z
+FROM sat_positions;
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECEF_Y"/>, <xref linkend="ST_ECEF_Z"/>, <xref linkend="ST_ECEF_To_ECI"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="ST_ECEF_Y">
+        <refnamediv>
+          <refname>ST_ECEF_Y</refname>
+          <refpurpose>Returns the Y coordinate (metres) of an ECEF point geometry.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>float8 <function>ST_ECEF_Y</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Returns the Y coordinate of an ECEF point in metres.
+            The input geometry must be a <literal>POINT</literal> with
+            SRID 4978 (WGS 84 geocentric / ECEF).  Returns
+            <literal>NULL</literal> for empty geometries.</para>
+
+            <para>Declared <literal>IMMUTABLE</literal>,
+            <literal>PARALLEL SAFE</literal>, <literal>STRICT</literal>.
+            Safe for use in expression indexes, materialized views, and
+            generated columns.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Extract ECEF Y coordinate:</para>
+<programlisting>SELECT ST_ECEF_Y(
+    ST_SetSRID(ST_MakePoint(0, 6378137, 0), 4978)
+);
+-- Returns: 6378137
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECEF_X"/>, <xref linkend="ST_ECEF_Z"/>, <xref linkend="ST_ECEF_To_ECI"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="ST_ECEF_Z">
+        <refnamediv>
+          <refname>ST_ECEF_Z</refname>
+          <refpurpose>Returns the Z coordinate (metres) of an ECEF point geometry.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>float8 <function>ST_ECEF_Z</function></funcdef>
+              <paramdef><type>geometry </type><parameter>geom</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Returns the Z coordinate of an ECEF point in metres.
+            The input geometry must be a <literal>POINT</literal> with
+            SRID 4978 (WGS 84 geocentric / ECEF) and must have a Z
+            dimension.  Returns <literal>NULL</literal> for empty
+            geometries or geometries without a Z dimension.</para>
+
+            <para>Declared <literal>IMMUTABLE</literal>,
+            <literal>PARALLEL SAFE</literal>, <literal>STRICT</literal>.
+            Safe for use in expression indexes, materialized views, and
+            generated columns.</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Extract ECEF Z coordinate:</para>
+<programlisting>SELECT ST_ECEF_Z(
+    ST_SetSRID(ST_MakePoint(0, 0, 6356752.3), 4978)
+);
+-- Returns: 6356752.3
+</programlisting>
+
+            <para>Use all three accessors together for generated columns:</para>
+<programlisting>CREATE TABLE ecef_objects (
+    id serial PRIMARY KEY,
+    geom geometry(PointZ, 4978),
+    x_m float8 GENERATED ALWAYS AS (ST_ECEF_X(geom)) STORED,
+    y_m float8 GENERATED ALWAYS AS (ST_ECEF_Y(geom)) STORED,
+    z_m float8 GENERATED ALWAYS AS (ST_ECEF_Z(geom)) STORED
+);
+
+INSERT INTO ecef_objects (geom)
+VALUES (ST_SetSRID(ST_MakePoint(6378137, 0, 0), 4978));
+
+SELECT id, x_m, y_m, z_m FROM ecef_objects;
+-- id | x_m     | y_m | z_m
+-- 1  | 6378137 | 0   | 0
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="ST_ECEF_X"/>, <xref linkend="ST_ECEF_Y"/>, <xref linkend="ST_ECEF_To_ECI"/></para>
+        </refsection>
+    </refentry>
+
+<!-- ============================================================
+     Section 7.4  EOP Infrastructure
+     ============================================================ -->
+
+<section xml:id="ECEF_ECI_EOP">
+    <title>Earth Orientation Parameters (EOP)</title>
+    <para>High-accuracy ECEF-to-ECI transforms require Earth Orientation
+    Parameters published by the International Earth Rotation and Reference
+    Systems Service (IERS) in their Bulletin A.  The extension provides a
+    storage table, a loader function, and an interpolation function for
+    working with this data.</para>
+
+    <section xml:id="postgis_eop_table">
+        <title>postgis_eop Table</title>
+        <para>Created automatically when the extension is installed.</para>
+
+<programlisting>CREATE TABLE postgis_eop (
+    mjd    FLOAT8 PRIMARY KEY,       -- Modified Julian Date
+    xp     FLOAT8 CHECK (xp BETWEEN -0.000278 AND 0.000278),  -- pole x (arcsec)
+    yp     FLOAT8 CHECK (yp BETWEEN -0.000278 AND 0.000278),  -- pole y (arcsec)
+    dut1   FLOAT8 CHECK (dut1 BETWEEN -1.0 AND 1.0),          -- UT1-UTC (seconds)
+    dx     FLOAT8,                   -- celestial pole offset dX (arcsec)
+    dy     FLOAT8                    -- celestial pole offset dY (arcsec)
+);
+</programlisting>
+
+        <para>Column descriptions:</para>
+        <itemizedlist>
+            <listitem><para><varname>mjd</varname> -- Modified Julian Date,
+            the primary key.  One row per day.</para></listitem>
+            <listitem><para><varname>xp</varname>, <varname>yp</varname> --
+            Polar motion coordinates in arcseconds.  CHECK constraints
+            enforce the physically plausible range of +/- 1 arcsecond
+            (0.000278 degrees).</para></listitem>
+            <listitem><para><varname>dut1</varname> -- Difference UT1-UTC in
+            seconds.  Constrained to +/- 1 second (leap-second
+            window).</para></listitem>
+            <listitem><para><varname>dx</varname>, <varname>dy</varname> --
+            Celestial pole offsets in arcseconds.  May be NULL when not
+            available in the source data.</para></listitem>
+        </itemizedlist>
+    </section>
+
+    <refentry xml:id="postgis_eop_load">
+        <refnamediv>
+          <refname>postgis_eop_load</refname>
+          <refpurpose>Loads Earth Orientation Parameters from IERS Bulletin A fixed-width format text.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>integer <function>postgis_eop_load</function></funcdef>
+              <paramdef><type>text </type><parameter>data</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Parses the <varname>data</varname> argument as IERS
+            Bulletin A fixed-width format text.  Each valid line is parsed
+            for Modified Julian Date (columns 19-27), polar motion x
+            (columns 35-43), polar motion y (columns 44-52), and UT1-UTC
+            (columns 59-68).  Lines that are too short or fail to parse are
+            silently skipped.</para>
+
+            <para>Parsed rows are upserted into the
+            <varname>postgis_eop</varname> table using
+            <literal>INSERT ... ON CONFLICT (mjd) DO UPDATE</literal>,
+            so calling the function with overlapping data is safe and will
+            update existing rows with newer values.</para>
+
+            <para>Returns the number of rows successfully loaded.</para>
+
+            <para>Declared <literal>VOLATILE</literal> (modifies table
+            data).</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Load EOP data from a file using <varname>pg_read_file()</varname>
+            (requires superuser or <varname>pg_read_server_files</varname>
+            role):</para>
+<programlisting>SELECT postgis_eop_load(pg_read_file('/tmp/finals2000A.data'));
+-- Returns: 365  (number of rows loaded)
+</programlisting>
+
+            <para>Load EOP data supplied as a literal string (useful for
+            testing):</para>
+<programlisting>SELECT postgis_eop_load(
+'                 60450.00    0.1234  0.5678          0.0123456  '
+);
+-- Returns: 1
+</programlisting>
+
+            <para>Verify loaded data:</para>
+<programlisting>SELECT mjd, xp, yp, dut1
+FROM postgis_eop
+ORDER BY mjd
+LIMIT 5;
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="postgis_eop_interpolate"/>, <xref linkend="postgis_refresh_eop"/>, <xref linkend="postgis_eop_table"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="postgis_eop_interpolate">
+        <refnamediv>
+          <refname>postgis_eop_interpolate</refname>
+          <refpurpose>Interpolates Earth Orientation Parameters for a given epoch.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>SETOF record <function>postgis_eop_interpolate</function></funcdef>
+              <paramdef><type>timestamptz </type><parameter>epoch</parameter></paramdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>Converts the <varname>epoch</varname> timestamp to a
+            Modified Julian Date, finds the two bracketing rows in
+            <varname>postgis_eop</varname>, and performs linear
+            interpolation to return the EOP values at the requested
+            instant.</para>
+
+            <para>Returns a single row with columns:
+            <varname>xp</varname> (float8),
+            <varname>yp</varname> (float8),
+            <varname>dut1</varname> (float8),
+            <varname>dx</varname> (float8),
+            <varname>dy</varname> (float8).</para>
+
+            <para>Returns no rows (empty set) if the epoch is outside
+            the date range of the loaded EOP data.  If the epoch falls
+            exactly on a stored MJD, the values from that row are returned
+            directly without interpolation.</para>
+
+            <para>The <varname>dx</varname> and <varname>dy</varname>
+            columns use <literal>COALESCE(..., 0)</literal> during
+            interpolation, so NULL values in the source data are treated
+            as zero.</para>
+
+            <para>Declared <literal>STABLE</literal> (reads but does not
+            modify the EOP table).</para>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Interpolate EOP for a specific epoch:</para>
+<programlisting>SELECT * FROM postgis_eop_interpolate('2024-06-15 12:00:00+00'::timestamptz);
+--  xp   |  yp   |  dut1  |  dx  |  dy
+-- ------+-------+--------+------+------
+-- 0.123 | 0.456 | 0.034  | 0.00 | 0.00
+</programlisting>
+
+            <para>Check whether EOP data covers a particular date
+            (returns no rows if not):</para>
+<programlisting>SELECT CASE
+    WHEN EXISTS (
+        SELECT 1 FROM postgis_eop_interpolate('2024-06-15 00:00:00+00')
+    ) THEN 'EOP data available'
+    ELSE 'EOP data not loaded for this date'
+END AS status;
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="postgis_eop_load"/>, <xref linkend="postgis_refresh_eop"/>, <xref linkend="postgis_eop_table"/></para>
+        </refsection>
+    </refentry>
+
+    <refentry xml:id="postgis_refresh_eop">
+        <refnamediv>
+          <refname>postgis_refresh_eop</refname>
+          <refpurpose>Placeholder procedure for scheduling periodic EOP data refresh.</refpurpose>
+        </refnamediv>
+        <refsynopsisdiv>
+          <funcsynopsis>
+            <funcprototype>
+              <funcdef>void <function>postgis_refresh_eop</function></funcdef>
+            </funcprototype>
+          </funcsynopsis>
+        </refsynopsisdiv>
+        <refsection>
+            <title>Description</title>
+            <para>A placeholder procedure intended to be connected to an
+            external scheduler such as
+            <varname>pg_cron</varname> for automated fetching of updated
+            IERS Bulletin A data.  In its current form it simply raises a
+            <literal>NOTICE</literal> reminding the user to configure an
+            external data-fetching mechanism.</para>
+
+            <para>A typical production setup would use
+            <varname>pg_cron</varname> to periodically download
+            Bulletin A data and call
+            <varname>postgis_eop_load()</varname>:</para>
+
+<programlisting>-- Example pg_cron job (requires pg_cron extension)
+-- Downloads IERS Bulletin A weekly and loads it
+SELECT cron.schedule(
+    'refresh-eop',
+    '0 3 * * 1',  -- every Monday at 03:00 UTC
+    $$
+    COPY (SELECT '') TO PROGRAM
+        'curl -sS https://datacenter.iers.org/data/latestVersion/finals2000A.data -o /tmp/finals2000A.data';
+    SELECT postgis_eop_load(pg_read_file('/tmp/finals2000A.data'));
+    $$
+);
+</programlisting>
+
+            <para role="availability" conformance="3.5.0">Availability: 3.5.0</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+
+            <para>Call the placeholder directly:</para>
+<programlisting>CALL postgis_refresh_eop();
+-- NOTICE: postgis_refresh_eop: placeholder -- configure an external scheduler
+--         to fetch IERS Bulletin A data and call postgis_eop_load()
+</programlisting>
+        </refsection>
+
+        <refsection>
+            <title>See Also</title>
+            <para><xref linkend="postgis_eop_load"/>, <xref linkend="postgis_eop_interpolate"/></para>
+        </refsection>
+    </refentry>
+
+</section>
+
+<section id="ecef_eci_acceleration">
+    <title>Hardware Acceleration</title>
+
+    <para>PostGIS can accelerate coordinate transforms using CPU SIMD instructions
+    and GPU compute when available. Acceleration is automatic: the system detects
+    hardware capabilities at startup and selects the optimal code path.</para>
+
+    <section id="ecef_eci_accel_simd">
+        <title>SIMD Acceleration</title>
+        <para>SIMD (Single Instruction, Multiple Data) acceleration processes
+        multiple coordinate points in parallel using CPU vector instructions:</para>
+        <itemizedlist>
+            <listitem><para><emphasis>AVX2+FMA</emphasis>: 4-wide double precision (Intel Haswell+, AMD Zen+)</para></listitem>
+            <listitem><para><emphasis>AVX-512</emphasis>: 8-wide double precision (Intel Skylake-X+, AMD Zen 4+)</para></listitem>
+            <listitem><para><emphasis>ARM NEON</emphasis>: 2-wide double precision (all ARMv8/aarch64)</para></listitem>
+        </itemizedlist>
+        <para>SIMD acceleration has zero dispatch overhead and is always used
+        when available. Build with <literal>--disable-simd</literal> to force
+        scalar-only code paths.</para>
+
+        <para>Configure flags:</para>
+        <programlisting>
+./configure --enable-avx2     # Enable AVX2 (auto-detected by default)
+./configure --enable-avx512   # Enable AVX-512 (auto-detected by default)
+./configure --disable-simd    # Disable all SIMD, portable scalar only
+        </programlisting>
+    </section>
+
+    <section id="ecef_eci_accel_gpu">
+        <title>GPU Acceleration</title>
+        <para>For large coordinate arrays, PostGIS can dispatch transforms to
+        GPU hardware. Three GPU backends are supported:</para>
+        <itemizedlist>
+            <listitem><para><emphasis>CUDA</emphasis>: NVIDIA GPUs (requires CUDA toolkit)</para></listitem>
+            <listitem><para><emphasis>ROCm/HIP</emphasis>: AMD GPUs (requires ROCm toolkit)</para></listitem>
+            <listitem><para><emphasis>oneAPI/SYCL</emphasis>: Intel GPUs (requires oneAPI toolkit)</para></listitem>
+        </itemizedlist>
+
+        <para>Configure flags:</para>
+        <programlisting>
+./configure --with-cuda=/usr/local/cuda
+./configure --with-rocm=/opt/rocm
+./configure --with-oneapi=/opt/intel/oneapi
+        </programlisting>
+
+        <para>GPU dispatch is controlled by a point-count threshold.  Arrays
+        smaller than the threshold use CPU SIMD; larger arrays are sent to
+        the GPU.  By default (threshold = 0), PostGIS auto-calibrates
+        on the first GPU dispatch by benchmarking GPU vs CPU SIMD at several
+        point counts (1K, 10K, 100K, 1M) and selecting the crossover.
+        This runs once per backend session and adds a one-time latency of
+        approximately 1-2 seconds.</para>
+
+        <para>GUC parameters:</para>
+        <programlisting>
+-- Auto-calibrate on first GPU use (default)
+SET postgis.gpu_dispatch_threshold = 0;
+
+-- Override with a fixed threshold (points)
+SET postgis.gpu_dispatch_threshold = 100000;
+        </programlisting>
+
+        <para>Typical crossover points by GPU class:</para>
+        <itemizedlist>
+            <listitem><para><emphasis>Data-centre GPUs</emphasis> (V100, A100, H100):
+            10K-100K points — high memory bandwidth makes GPU worthwhile at
+            moderate sizes.</para></listitem>
+            <listitem><para><emphasis>Workstation GPUs</emphasis> (RTX A2000/A4000):
+            100K-1M points — dispatch overhead is significant relative to
+            compute throughput.</para></listitem>
+            <listitem><para><emphasis>Laptop GPUs</emphasis> (RTX A2000 Laptop):
+            GPU may never beat AVX2 SIMD — auto-calibration will set a very
+            high threshold effectively disabling GPU dispatch.</para></listitem>
+        </itemizedlist>
+    </section>
+
+    <section id="ecef_eci_accel_valkey">
+        <title>Valkey GPU Batching</title>
+        <para>For streaming workloads (many small queries), Valkey-based batching
+        accumulates transform requests and dispatches them as GPU-sized batches.
+        This amortizes GPU dispatch overhead across multiple concurrent clients.</para>
+
+        <para>GUC parameters:</para>
+        <programlisting>
+-- Valkey connection (empty = disabled)
+SET postgis.gpu_valkey_url = '127.0.0.1:6379';
+
+-- Batch size threshold (points)
+SET postgis.gpu_batch_size = 10000;
+
+-- Batch timeout (ms) - flush partial batch after this time
+SET postgis.gpu_batch_timeout_ms = 100;
+        </programlisting>
+
+        <para>Requires: <literal>./configure --with-valkey</literal> and a running
+        Valkey/Redis instance.</para>
+    </section>
+
+    <section id="ecef_eci_accel_features">
+        <title>Feature Detection</title>
+        <para>Use <function>postgis_accel_features()</function> to see detected
+        acceleration capabilities and the current GPU dispatch threshold:</para>
+        <programlisting>
+SELECT postgis_accel_features();
+-- Before first GPU use (auto-calibrate pending):
+--   "SIMD: AVX2+FMA; GPU: NVIDIA RTX A2000 8GB (compute 8.6, threshold: auto); Valkey: disabled"
+--
+-- After auto-calibration:
+--   "SIMD: AVX2+FMA; GPU: NVIDIA RTX A2000 8GB (compute 8.6, threshold: 100000 pts); Valkey: disabled"
+--
+-- No GPU available:
+--   "SIMD: AVX2+FMA; GPU: none; Valkey: disabled"
+--
+-- ARM system:
+--   "SIMD: ARM NEON; GPU: none; Valkey: disabled"
+        </programlisting>
+    </section>
+
+    <section id="ecef_eci_accel_benchmarks">
+        <title>Benchmark Results</title>
+        <para>Measured on x86_64 (gcc 12.2, -O2) with AVX2+FMA enabled.
+        Throughput in millions of points per second:</para>
+
+        <table>
+            <title>ECI Z-Rotation Throughput (millions pts/sec)</title>
+            <tgroup cols="4">
+                <colspec colname="points" />
+                <colspec colname="scalar" />
+                <colspec colname="avx2" />
+                <colspec colname="speedup" />
+                <thead>
+                    <row><entry>Points</entry><entry>Scalar</entry><entry>AVX2+FMA</entry><entry>Speedup</entry></row>
+                </thead>
+                <tbody>
+                    <row><entry>100</entry><entry>242</entry><entry>820</entry><entry>3.4x</entry></row>
+                    <row><entry>1,000</entry><entry>254</entry><entry>1,172</entry><entry>4.6x</entry></row>
+                    <row><entry>10,000</entry><entry>308</entry><entry>1,441</entry><entry>4.7x</entry></row>
+                    <row><entry>100,000</entry><entry>220</entry><entry>1,134</entry><entry>5.2x</entry></row>
+                    <row><entry>1,000,000</entry><entry>249</entry><entry>440</entry><entry>1.8x</entry></row>
+                    <row><entry>10,000,000</entry><entry>230</entry><entry>440</entry><entry>1.9x</entry></row>
+                </tbody>
+            </tgroup>
+        </table>
+
+        <table>
+            <title>Radian/Degree Conversion Throughput (millions pts/sec)</title>
+            <tgroup cols="4">
+                <colspec colname="points" />
+                <colspec colname="scalar" />
+                <colspec colname="avx2" />
+                <colspec colname="speedup" />
+                <thead>
+                    <row><entry>Points</entry><entry>Scalar</entry><entry>AVX2+FMA</entry><entry>Speedup</entry></row>
+                </thead>
+                <tbody>
+                    <row><entry>100</entry><entry>244</entry><entry>836</entry><entry>3.4x</entry></row>
+                    <row><entry>1,000</entry><entry>254</entry><entry>1,104</entry><entry>4.3x</entry></row>
+                    <row><entry>10,000</entry><entry>296</entry><entry>1,329</entry><entry>4.5x</entry></row>
+                    <row><entry>100,000</entry><entry>247</entry><entry>953</entry><entry>3.9x</entry></row>
+                    <row><entry>1,000,000</entry><entry>223</entry><entry>395</entry><entry>1.8x</entry></row>
+                    <row><entry>10,000,000</entry><entry>250</entry><entry>443</entry><entry>1.8x</entry></row>
+                </tbody>
+            </tgroup>
+        </table>
+
+        <para>Peak throughput is ~1.4 billion pts/sec (AVX2) at 10K points,
+        limited by L2 cache at larger sizes. Numerical accuracy: max difference
+        between scalar and AVX2+FMA is 9.31e-10 (sub-nanometer at Earth radius),
+        caused by FMA rounding.</para>
+    </section>
+
+    <refentry id="postgis_accel_features">
+        <refnamediv>
+            <refname>postgis_accel_features</refname>
+            <refpurpose>Returns detected hardware acceleration features.</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+            <funcsynopsis>
+                <funcprototype>
+                    <funcdef>text <function>postgis_accel_features</function></funcdef>
+                </funcprototype>
+            </funcsynopsis>
+        </refsynopsisdiv>
+
+        <refsection>
+            <title>Description</title>
+            <para>Returns a text string describing detected SIMD instruction set
+            (AVX2/AVX-512/ARM NEON/none), GPU backend (CUDA/ROCm/oneAPI/none with
+            device name and dispatch threshold), and Valkey batching status
+            (enabled/disabled).</para>
+
+            <para>When a GPU is detected, the threshold field shows either
+            <literal>auto</literal> (calibration pending) or the calibrated/configured
+            point count.  Use <literal>SET postgis.gpu_dispatch_threshold = 0</literal>
+            to reset to auto-calibration mode.</para>
+        </refsection>
+
+        <refsection>
+            <title>Examples</title>
+            <programlisting>
+SELECT postgis_accel_features();
+-- "SIMD: AVX2+FMA; GPU: NVIDIA GeForce RTX 4090 (compute 8.9, threshold: 10000 pts); Valkey: disabled"
+-- "SIMD: ARM NEON; GPU: none; Valkey: disabled"
+-- "SIMD: none; GPU: none; Valkey: disabled"
+            </programlisting>
+        </refsection>
+    </refentry>
+
+    <section id="ecef_eci_accel_pgstrom">
+        <title>PG-Strom Query-Level GPU Acceleration</title>
+        <para>For workloads with many rows of small geometries (e.g., high-rate
+        sensor ingestion at 20-50Hz into TimescaleDB), the built-in SIMD/GPU
+        dispatch operates within a single geometry and provides no benefit for
+        1-point rows.  <ulink url="https://github.com/heterodb/pg-strom">PG-Strom</ulink>
+        complements the built-in acceleration by operating at the SQL query
+        level, evaluating WHERE clauses and SELECT expressions on GPU across
+        entire table scans (millions of rows per TimescaleDB chunk).</para>
+
+        <para>PG-Strom integration for ECEF/ECI functions is planned in three
+        phases:</para>
+        <orderedlist>
+            <listitem><para><emphasis>ECI frame conversion</emphasis>:
+            <function>ST_ECEF_To_ECI</function> and
+            <function>ST_ECI_To_ECEF</function> as GPU device functions,
+            computing the Earth Rotation Angle and Z-axis rotation per row
+            on GPU.</para></listitem>
+            <listitem><para><emphasis>ECEF coordinate accessors</emphasis>:
+            <function>ST_ECEF_X</function>, <function>ST_ECEF_Y</function>,
+            <function>ST_ECEF_Z</function> for GPU-accelerated range
+            filtering across chunk scans.</para></listitem>
+            <listitem><para><emphasis>3D spatial operations</emphasis>:
+            <function>ST_3DDistance</function> and
+            <function>ST_3DDWithin</function> for point-to-point 3D
+            Euclidean proximity queries on GPU.</para></listitem>
+        </orderedlist>
+
+        <para>PG-Strom requires NVIDIA GPU hardware and Linux.  For details,
+        see <filename>doc/pgstrom_eci_evaluation.md</filename> in the PostGIS
+        source tree.</para>
+    </section>
+</section>
+
+</section>

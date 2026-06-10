@@ -104,6 +104,11 @@ java/jdbc/Makefile
 java/jdbc/lib/
 java/jdbc/pom.xml
 java/jdbc/target/
+liblwgeom/bench/bench_accel
+liblwgeom/bench/bench_metal
+liblwgeom/accel/*.air
+liblwgeom/accel/*.metallib
+liblwgeom/accel/gpu_metal_kernels_metallib.h
 liblwgeom/cunit/cu_tester
 liblwgeom/cunit/Makefile
 liblwgeom/geobuf.pb-c.c
@@ -216,6 +221,13 @@ postgis/sfcgal.sql
 postgis/uninstall_sfcgal.sql
 *.pdf
 *.epub
+
+# Local connector logs
+proxmox_mcp.log
+
+# Local Codex migration byproducts; committed skills live under .agents/skills
+.codex/skills/
+.codex/migrate-to-codex-report.txt
 .idea/*
 .syntastic_c_config
 .vs/*
@@ -233,6 +245,16 @@ deps/flatgeobuf/Makefile
 # Dump
 **/*Dump.xml
 **/*.core
+
+# Local/AI-generated artifacts (not for version control)
+.local/
+
+# ECEF/ECI extension generated files
+extensions/postgis_ecef_eci/Makefile
+extensions/postgis_ecef_eci/postgis_ecef_eci.control
+extensions/postgis_ecef_eci/sql/
+postgis/ecef_eci.sql
+postgis/ecef_eci_upgrade.sql*
 
 # MacOS
 .DS_Store

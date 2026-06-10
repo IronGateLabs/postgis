@@ -41,7 +41,7 @@
         do { \
             if (POSTGIS_DEBUG_LEVEL >= level) \
               lwdebug(level, "[%s:%s:%d] " msg, __FILE__, __func__, __LINE__); \
-        } while (0);
+        } while (0)
 
 /* Display a formatted notice at the given debug level
  * (like printf, with variadic arguments) */
@@ -50,7 +50,7 @@
             if (POSTGIS_DEBUG_LEVEL >= level) \
               lwdebug(level, "[%s:%s:%d] " msg, \
                 __FILE__, __func__, __LINE__, __VA_ARGS__); \
-        } while (0);
+        } while (0)
 
 #ifdef POSTGIS_DEBUG_GEOMETRY_WKB
 /* Display a notice and a HEXWKB representation of a geometry

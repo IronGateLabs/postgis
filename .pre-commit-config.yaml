@@ -1,0 +1,53 @@
+# Pre-commit hooks for PostGIS code quality
+# Install: pip install pre-commit && pre-commit install
+# Bypass:  git commit --no-verify (emergencies only)
+# See: https://pre-commit.com
+#
+# Strategy: The upstream PostGIS codebase has many pre-existing style
+# and lint violations. These hooks enforce quality only on CHANGED files
+# (the default pre-commit behavior on `git commit`). Running with
+# --all-files will show upstream issues we don't own.
+
+repos:
+  # codespell: catch typos before they reach CI
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: ['--ignore-words=.codespell.ignore']
+        exclude: '^(deps/|extensions/.*/sql/|doc/html/|doc/po/|autom4te\.cache/|build-aux/|configure$|aclocal\.m4$|macros/libtool\.m4$|liblwgeom/erfa/)'
+
+  # clang-format: enforce .clang-format on changed C/H files only
+  # Excludes dirs with pre-existing style that differs from .clang-format
+  # and liblwgeom/erfa/ which is a vendored BSD-licensed upstream subset
+  # kept byte-identical to upstream for determinism and easy re-vendoring.
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+        args: ['--dry-run', '--Werror']
+        exclude: '^(deps/|regress/|doc/|topology/|fuzzers/|liblwgeom/erfa/)'
+
+  # shellcheck: catch script errors on changed shell files only
+  # --severity=error: only block on actual errors, not style warnings
+  # Excludes upstream CI scripts we don't maintain
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: ['--severity=error']
+        exclude: '^(deps/|configure$|libtool$|build-aux/|ci/berrie|ci/debbie|ci/winnie|utils/)'
+
+  # basic hygiene
+  # liblwgeom/erfa/ is excluded from trailing-whitespace and end-of-file-fixer
+  # because we keep the vendored ERFA subset byte-identical to upstream.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: trailing-whitespace
+        exclude: '(_expected|\.patch|\.sql\.in|^liblwgeom/erfa/)'
+        args: ['--markdown-linebreak-ext=md']
+      - id: end-of-file-fixer
+        exclude: '(_expected|\.patch|^liblwgeom/erfa/)'

@@ -1009,13 +1009,19 @@ estimate_join_selectivity(const ND_STATS *s1, const ND_STATS *s2)
 		POSTGIS_DEBUGF(3, "at1 %d,%d  %s", at1[0], at1[1], nd_box_to_json(&nd_cell1, ndims1));
 
 		/* Get the value at this cell */
-		val1 = s1->value[nd_stats_value_index(s1, at1)];
+		{
+			int vdx1 = nd_stats_value_index(s1, at1);
+			if (vdx1 < 0)
+				continue;
+			val1 = s1->value[vdx1];
+		}
 
 		/* For each overlapped cell of s2... */
 		do
 		{
 			double ratio2;
 			double val2;
+			int vdx2;
 
 			/* Construct the bounds of this cell */
 			ND_BOX nd_cell2;
@@ -1032,7 +1038,10 @@ estimate_join_selectivity(const ND_STATS *s1, const ND_STATS *s2)
 			ratio2 = nd_box_ratio(&nd_cell1, &nd_cell2, Max(ndims1, ndims2));
 
 			/* Multiply the cell counts, scaled by overlap ratio */
-			val2 = s2->value[nd_stats_value_index(s2, at2)];
+			vdx2 = nd_stats_value_index(s2, at2);
+			if (vdx2 < 0)
+				continue;
+			val2 = s2->value[vdx2];
 			POSTGIS_DEBUGF(3, "  val1 %.6g  val2 %.6g  ratio %.6g", val1, val2, ratio2);
 			val += val1 * (val2 * ratio2);
 		}
@@ -1617,7 +1626,11 @@ compute_gserialized_stats_mode(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfu
 			 * 0.5 added on.
 			 */
 			ratio = nd_box_ratio(&nd_cell, nd_box, nd_stats->ndims);
-			nd_stats->value[nd_stats_value_index(nd_stats, at)] += ratio;
+			{
+				int vdx = nd_stats_value_index(nd_stats, at);
+				if (vdx < 0) continue;
+				nd_stats->value[vdx] += ratio;
+			}
 			num_cells += ratio;
 			POSTGIS_DEBUGF(3, "               ratio (%.8g)  num_cells (%.8g)", ratio, num_cells);
 			POSTGIS_DEBUGF(3, "               at (%d, %d, %d, %d)", at[0], at[1], at[2], at[3]);
@@ -1876,7 +1889,11 @@ estimate_selectivity(const GBOX *box, const ND_STATS *nd_stats, int mode)
 		}
 
 		ratio = nd_box_ratio(&nd_box, &nd_cell, nd_stats->ndims);
-		cell_count = nd_stats->value[nd_stats_value_index(nd_stats, at)];
+		{
+			int vdx = nd_stats_value_index(nd_stats, at);
+			if (vdx < 0) continue;
+			cell_count = nd_stats->value[vdx];
+		}
 
 		/* Add the pro-rated count for this cell to the overall total */
 		total_count += (double)cell_count * ratio;

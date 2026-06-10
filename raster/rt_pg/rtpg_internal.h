@@ -61,7 +61,7 @@ char *
 rtpg_trim(const char* input);
 
 char *
-rtpg_strrstr(const char *s1, const char *s2);
+rtpg_strrstr(char *s1, const char *s2);
 
 char *rtpg_getSR(int32_t srid);
 
