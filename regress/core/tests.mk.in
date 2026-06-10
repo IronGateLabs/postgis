@@ -44,6 +44,7 @@ TESTS += \
 	$(top_srcdir)/regress/core/dumppoints \
 	$(top_srcdir)/regress/core/dumpsegments \
 	$(top_srcdir)/regress/core/ecef_eci \
+	$(top_srcdir)/regress/core/ecef_eci_iau2006 \
 	$(top_srcdir)/regress/core/empty \
 	$(top_srcdir)/regress/core/estimatedextent \
 	$(top_srcdir)/regress/core/filterm \
